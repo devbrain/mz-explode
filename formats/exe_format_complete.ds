@@ -1,0 +1,1336 @@
+/**
+ * Comprehensive DataScript for Parsing Windows Executable Files
+ *
+ * This specification covers:
+ * - DOS MZ format (MS-DOS executables)
+ * - NE format (16-bit Windows/OS2)
+ * - PE/PE+ format (32/64-bit Windows)
+ *
+ * Based on Microsoft PE/COFF specification and actual Windows loader implementation.
+ */
+
+package com.example.exe_parser;
+
+// All Windows executable formats use little-endian byte order (x86 architecture).
+little;
+
+// =============================================================================
+// Magic Number Constants
+// =============================================================================
+
+const uint16 DOS_SIGNATURE    = 0x5A4D;     // "MZ" - Mark Zbikowski
+const uint16 NE_SIGNATURE     = 0x454E;     // "NE" - New Executable
+const uint32 PE_SIGNATURE     = 0x00004550; // "PE\0\0" - Portable Executable
+const uint16 PE32_MAGIC       = 0x010b;     // PE32 (32-bit)
+const uint16 PE32PLUS_MAGIC   = 0x020b;     // PE32+ (64-bit)
+
+// =============================================================================
+// PE COFF Header Enums
+// =============================================================================
+
+/**
+ * Target machine types (CPU architectures)
+ */
+enum uint16 ImageFileMachine {
+    UNKNOWN   = 0x0000,     // Unknown or any machine type
+    AM33      = 0x01d3,     // Matsushita AM33
+    AMD64     = 0x8664,     // x64 (x86-64, AMD64, Intel 64)
+    ARM       = 0x01c0,     // ARM little endian
+    ARMNT     = 0x01c4,     // ARM Thumb-2 little endian
+    ARM64     = 0xaa64,     // ARM64 little endian
+    EBC       = 0x0ebc,     // EFI byte code
+    I386      = 0x014c,     // Intel 386 and compatible
+    IA64      = 0x0200,     // Intel Itanium
+    M32R      = 0x9041,     // Mitsubishi M32R little endian
+    MIPS16    = 0x0266,     // MIPS16
+    MIPSFPU   = 0x0366,     // MIPS with FPU
+    MIPSFPU16 = 0x0466,     // MIPS16 with FPU
+    POWERPC   = 0x01f0,     // Power PC little endian
+    POWERPCFP = 0x01f1,     // Power PC with floating point
+    R4000     = 0x0166,     // MIPS little endian
+    RISCV32   = 0x5032,     // RISC-V 32-bit
+    RISCV64   = 0x5064,     // RISC-V 64-bit
+    RISCV128  = 0x5128,     // RISC-V 128-bit
+    SH3       = 0x01a2,     // Hitachi SH3
+    SH3DSP    = 0x01a3,     // Hitachi SH3 DSP
+    SH4       = 0x01a6,     // Hitachi SH4
+    SH5       = 0x01a8,     // Hitachi SH5
+    THUMB     = 0x01c2,     // Thumb
+    WCEMIPSV2 = 0x0169      // MIPS little-endian WCE v2
+};
+
+/**
+ * PE file characteristics (bit flags)
+ */
+enum uint16 ImageFileCharacteristics {
+    RELOCS_STRIPPED         = 0x0001,  // No base relocations
+    EXECUTABLE_IMAGE        = 0x0002,  // Valid executable (can be run)
+    LINE_NUMS_STRIPPED      = 0x0004,  // COFF line numbers removed (deprecated)
+    LOCAL_SYMS_STRIPPED     = 0x0008,  // COFF symbol table removed (deprecated)
+    AGGRESSIVE_WS_TRIM      = 0x0010,  // Aggressively trim working set (obsolete)
+    LARGE_ADDRESS_AWARE     = 0x0020,  // Can handle >2GB addresses
+    RESERVED                = 0x0040,  // Reserved for future use
+    BYTES_REVERSED_LO       = 0x0080,  // Little endian (deprecated)
+    MACHINE_32BIT           = 0x0100,  // 32-bit word architecture
+    DEBUG_STRIPPED          = 0x0200,  // Debugging info removed
+    REMOVABLE_RUN_FROM_SWAP = 0x0400,  // Copy to swap if on removable media
+    NET_RUN_FROM_SWAP       = 0x0800,  // Copy to swap if on network
+    SYSTEM                  = 0x1000,  // System file (not user program)
+    DLL                     = 0x2000,  // Dynamic-link library
+    UP_SYSTEM_ONLY          = 0x4000,  // Run only on uniprocessor
+    BYTES_REVERSED_HI       = 0x8000   // Big endian (deprecated)
+};
+
+/**
+ * Windows subsystem types
+ */
+enum uint16 ImageSubsystem {
+    UNKNOWN                  = 0,   // Unknown subsystem
+    NATIVE                   = 1,   // Device drivers and native Windows processes
+    WINDOWS_GUI              = 2,   // Windows GUI subsystem
+    WINDOWS_CUI              = 3,   // Windows character/console subsystem
+    OS2_CUI                  = 5,   // OS/2 character subsystem
+    POSIX_CUI                = 7,   // POSIX character subsystem
+    NATIVE_WINDOWS           = 8,   // Native Win9x driver
+    WINDOWS_CE_GUI           = 9,   // Windows CE
+    EFI_APPLICATION          = 10,  // Extensible Firmware Interface (EFI) application
+    EFI_BOOT_SERVICE_DRIVER  = 11,  // EFI driver with boot services
+    EFI_RUNTIME_DRIVER       = 12,  // EFI driver with run-time services
+    EFI_ROM                  = 13,  // EFI ROM image
+    XBOX                     = 14,  // Xbox
+    WINDOWS_BOOT_APPLICATION = 16   // Windows boot application
+};
+
+/**
+ * DLL characteristics (bit flags)
+ */
+enum uint16 ImageDllCharacteristics {
+    HIGH_ENTROPY_VA       = 0x0020,  // Can handle high entropy 64-bit VA space
+    DYNAMIC_BASE          = 0x0040,  // DLL can be relocated at load time (ASLR)
+    FORCE_INTEGRITY       = 0x0080,  // Code Integrity checks enforced
+    NX_COMPAT             = 0x0100,  // Image is NX compatible (DEP)
+    NO_ISOLATION          = 0x0200,  // Isolation aware but do not isolate
+    NO_SEH                = 0x0400,  // Does not use SEH (no SE handler)
+    NO_BIND               = 0x0800,  // Do not bind the image
+    APPCONTAINER          = 0x1000,  // Must execute in AppContainer
+    WDM_DRIVER            = 0x2000,  // WDM driver
+    GUARD_CF              = 0x4000,  // Supports Control Flow Guard
+    TERMINAL_SERVER_AWARE = 0x8000   // Terminal Server aware
+};
+
+/**
+ * Section characteristics (bit flags)
+ */
+enum uint32 ImageSectionCharacteristics {
+    // Content types
+    TYPE_NO_PAD              = 0x00000008,  // No padding (obsolete)
+    CNT_CODE                 = 0x00000020,  // Contains executable code
+    CNT_INITIALIZED_DATA     = 0x00000040,  // Contains initialized data
+    CNT_UNINITIALIZED_DATA   = 0x00000080,  // Contains uninitialized data (BSS)
+
+    // Linker flags
+    LNK_OTHER                = 0x00000100,  // Reserved
+    LNK_INFO                 = 0x00000200,  // Contains comments/info (.drectve)
+    LNK_REMOVE               = 0x00000800,  // Will not be part of image
+    LNK_COMDAT               = 0x00001000,  // Contains COMDAT data
+    GPREL                    = 0x00008000,  // Referenced through global pointer
+
+    // Alignment (mutually exclusive, 4 bits encode power of 2)
+    ALIGN_1BYTES             = 0x00100000,  // Align on 1-byte boundary
+    ALIGN_2BYTES             = 0x00200000,  // Align on 2-byte boundary
+    ALIGN_4BYTES             = 0x00300000,  // Align on 4-byte boundary
+    ALIGN_8BYTES             = 0x00400000,  // Align on 8-byte boundary
+    ALIGN_16BYTES            = 0x00500000,  // Align on 16-byte boundary
+    ALIGN_32BYTES            = 0x00600000,  // Align on 32-byte boundary
+    ALIGN_64BYTES            = 0x00700000,  // Align on 64-byte boundary
+    ALIGN_128BYTES           = 0x00800000,  // Align on 128-byte boundary
+    ALIGN_256BYTES           = 0x00900000,  // Align on 256-byte boundary
+    ALIGN_512BYTES           = 0x00A00000,  // Align on 512-byte boundary
+    ALIGN_1024BYTES          = 0x00B00000,  // Align on 1024-byte boundary
+    ALIGN_2048BYTES          = 0x00C00000,  // Align on 2048-byte boundary
+    ALIGN_4096BYTES          = 0x00D00000,  // Align on 4096-byte boundary
+    ALIGN_8192BYTES          = 0x00E00000,  // Align on 8192-byte boundary
+
+    // Extended flags
+    LNK_NRELOC_OVFL          = 0x01000000,  // Extended relocations
+    MEM_DISCARDABLE          = 0x02000000,  // Can be discarded
+    MEM_NOT_CACHED           = 0x04000000,  // Cannot be cached
+    MEM_NOT_PAGED            = 0x08000000,  // Not pageable
+    MEM_SHARED               = 0x10000000,  // Shareable in memory
+    MEM_EXECUTE              = 0x20000000,  // Executable
+    MEM_READ                 = 0x40000000,  // Readable
+    MEM_WRITE                = 0x80000000   // Writable
+};
+
+/**
+ * Data directory indices (array positions in optional header)
+ */
+enum uint32 DataDirectoryIndex {
+    EXPORT        = 0,   // Export directory
+    IMPORT        = 1,   // Import directory
+    RESOURCE      = 2,   // Resource directory
+    EXCEPTION     = 3,   // Exception directory
+    SECURITY      = 4,   // Security/Certificate directory
+    BASERELOC     = 5,   // Base relocation table
+    DEBUG         = 6,   // Debug directory
+    ARCHITECTURE  = 7,   // Architecture-specific data
+    GLOBALPTR     = 8,   // Global pointer register
+    TLS           = 9,   // Thread Local Storage directory
+    LOAD_CONFIG   = 10,  // Load configuration directory
+    BOUND_IMPORT  = 11,  // Bound import directory
+    IAT           = 12,  // Import Address Table
+    DELAY_IMPORT  = 13,  // Delay import descriptor
+    COM_DESCRIPTOR = 14, // CLR runtime header (.NET)
+    RESERVED      = 15   // Reserved (must be zero)
+};
+
+// =============================================================================
+// DOS Header (MZ Format)
+// =============================================================================
+
+/**
+ * MS-DOS header - present in all Windows executables for backward compatibility.
+ * If run in DOS, displays "This program cannot be run in DOS mode" message.
+ */
+struct ImageDosHeader {
+    uint16 e_magic: e_magic == DOS_SIGNATURE;  // Magic number "MZ"
+    uint16 e_cblp;                             // Bytes on last page
+    uint16 e_cp;                               // Pages in file
+    uint16 e_crlc;                             // Relocations
+    uint16 e_cparhdr;                          // Size of header in paragraphs
+    uint16 e_minalloc;                         // Minimum extra paragraphs
+    uint16 e_maxalloc;                         // Maximum extra paragraphs
+    uint16 e_ss;                               // Initial SS value
+    uint16 e_sp;                               // Initial SP value
+    uint16 e_csum;                             // Checksum
+    uint16 e_ip;                               // Initial IP value
+    uint16 e_cs;                               // Initial CS value
+    uint16 e_lfarlc;                           // Relocation table offset
+    uint16 e_ovno;                             // Overlay number
+    uint16 e_res[4];                           // Reserved words
+    uint16 e_oemid;                            // OEM identifier
+    uint16 e_oeminfo;                          // OEM information
+    uint16 e_res2[10];                         // Reserved words
+    uint32 e_lfanew;                           // Offset to PE/NE header
+};
+
+// =============================================================================
+// NE Header (16-bit Windows)
+// =============================================================================
+
+/**
+ * New Executable (NE) Header - 16-bit Windows/OS2 format
+ *
+ * Per ne.fmt specification (lines 165-274)
+ */
+struct ImageNeHeader {
+    uint16 ne_magic: ne_magic == NE_SIGNATURE; // "NE" signature (offset 00h)
+    uint8  ne_ver;                             // Linker version (offset 02h)
+    uint8  ne_rev;                             // Linker revision (offset 03h)
+    uint16 ne_enttab;                          // Entry table offset (offset 04h)
+    uint16 ne_cbenttab;                        // Entry table size in bytes (offset 06h)
+    uint32 ne_crc;                             // File CRC (offset 08h)
+    uint16 ne_flags;                           // Flag word (offset 0Ch)
+    uint16 ne_autodata;                        // Automatic data segment number (offset 0Eh)
+    uint16 ne_heap;                            // Initial heap size in bytes (offset 10h)
+    uint16 ne_stack;                           // Initial stack size in bytes (offset 12h)
+    uint32 ne_csip;                            // Initial CS:IP (offset 14h)
+    uint32 ne_sssp;                            // Initial SS:SP (offset 18h)
+    uint16 ne_cseg;                            // Number of segment table entries (offset 1Ch)
+    uint16 ne_cmod;                            // Module reference table entries (offset 1Eh)
+    uint16 ne_cnonres;                         // Non-resident name table size (offset 20h)
+    uint16 ne_segtab;                          // Segment table offset (offset 22h)
+    uint16 ne_rsrctab;                         // Resource table offset (offset 24h)
+    uint16 ne_restab;                          // Resident name table offset (offset 26h)
+    uint16 ne_modtab;                          // Module reference table offset (offset 28h)
+    uint16 ne_imptab;                          // Imported names table offset (offset 2Ah)
+    uint32 ne_nrestab;                         // Non-resident names table offset (offset 2Ch)
+    uint16 ne_cmovent;                         // Movable entries count (offset 30h)
+    uint16 ne_align;                           // Segment alignment shift count (offset 32h)
+    uint16 ne_cres;                            // Resource segments count (offset 34h)
+    uint8  ne_exetyp;                          // Target OS (02h = Windows) (offset 36h)
+    uint8  ne_reserved[9];                     // Reserved, must be zero (offset 37h-3Fh per ne.fmt)
+                                               // Note: Some sources document these as specific fields
+                                               // but official ne.fmt spec says "Reserved, currently 0's"
+};
+
+// =============================================================================
+// NE Segment Table
+// =============================================================================
+
+/**
+ * NE Segment Table Flags
+ *
+ * Per ne.fmt (lines 294-302)
+ */
+enum uint16 NeSegmentFlags {
+    NE_SEGTYPE_MASK  = 0x0007,  // Segment type field
+    NE_SEGTYPE_CODE  = 0x0000,  // Code segment
+    NE_SEGTYPE_DATA  = 0x0001,  // Data segment
+    NE_MOVEABLE      = 0x0010,  // Segment is not fixed
+    NE_PRELOAD       = 0x0040,  // Segment will be preloaded
+    NE_RELOCINFO     = 0x0100,  // Set if segment has relocation records
+    NE_DISCARD_MASK  = 0xF000   // Discard priority mask
+};
+
+/**
+ * NE Segment Table Entry
+ *
+ * Per ne.fmt (lines 285-306)
+ */
+struct NeSegmentTableEntry {
+    uint16 sector_offset;   // Logical-sector offset to segment data (0 = no file data)
+    uint16 length;          // Length of segment in file (0 = 64K)
+    uint16 flags;           // Segment flags
+    uint16 min_alloc;       // Minimum allocation size (0 = 64K)
+};
+
+// =============================================================================
+// NE Resource Table
+// =============================================================================
+
+/**
+ * NE Resource Flags
+ *
+ * Per ne.fmt (lines 349-352)
+ */
+enum uint16 NeResourceFlags {
+    NE_RES_MOVEABLE = 0x0010,  // Resource is not fixed
+    NE_RES_PURE     = 0x0020,  // Resource can be shared
+    NE_RES_PRELOAD  = 0x0040   // Resource is preloaded
+};
+
+/**
+ * NE Resource Name Info (per-resource entry)
+ *
+ * Per ne.fmt (lines 340-359)
+ */
+struct NeResourceNameInfo {
+    uint16 offset;     // File offset in alignment units (shift by align_shift)
+    uint16 length;     // Length in bytes
+    uint16 flags;      // Resource flags
+    uint16 id;         // Resource ID (high bit set = integer ID, else offset to string)
+    uint32 reserved;   // Reserved
+};
+
+/**
+ * NE Resource Type Info Block
+ *
+ * Per ne.fmt (lines 327-338)
+ * Note: This is followed by NeResourceNameInfo entries
+ */
+struct NeResourceTypeInfo {
+    uint16 type_id;         // Type ID (0x8000+ = integer, else string offset, 0 = end)
+    uint16 resource_count;  // Number of resources of this type
+    uint32 reserved;        // Reserved
+};
+
+// =============================================================================
+// NE Entry Table
+// =============================================================================
+
+/**
+ * NE Entry Flags
+ *
+ * Per ne.fmt (lines 467-475, 482-486)
+ */
+enum uint8 NeEntryFlags {
+    NE_ENTRY_EXPORTED = 0x01,  // Entry is exported
+    NE_ENTRY_SHARED   = 0x02   // Entry uses global (shared) data segment
+};
+
+/**
+ * NE Fixed Segment Entry (3 bytes)
+ *
+ * Per ne.fmt (lines 463-476)
+ */
+struct NeFixedSegmentEntry {
+    uint8  flags;   // Entry flags
+    uint16 offset;  // Offset within segment to entry point
+};
+
+/**
+ * NE Moveable Segment Entry (6 bytes)
+ *
+ * Per ne.fmt (lines 478-491)
+ */
+struct NeMovableSegmentEntry {
+    uint8  flags;           // Entry flags
+    uint8  int3f;           // INT 3FH instruction
+    uint8  segment_number;  // Segment number
+    uint16 offset;          // Offset within segment to entry point
+};
+
+// =============================================================================
+// NE Relocation Records
+// =============================================================================
+
+/**
+ * NE Relocation Source Types
+ *
+ * Per ne.fmt (lines 525-530)
+ */
+enum uint8 NeRelocSourceType {
+    NE_SOURCE_MASK    = 0x0F,
+    NE_LOBYTE         = 0x00,
+    NE_SEGMENT        = 0x02,
+    NE_FAR_ADDR       = 0x03,  // 32-bit pointer
+    NE_OFFSET         = 0x05   // 16-bit offset
+};
+
+/**
+ * NE Relocation Target Types
+ *
+ * Per ne.fmt (lines 532-538)
+ */
+enum uint8 NeRelocTargetType {
+    NE_TARGET_MASK     = 0x03,
+    NE_INTERNALREF     = 0x00,
+    NE_IMPORTORDINAL   = 0x01,
+    NE_IMPORTNAME      = 0x02,
+    NE_OSFIXUP         = 0x03,
+    NE_ADDITIVE        = 0x04
+};
+
+/**
+ * NE Relocation Record - Internal Reference Target
+ *
+ * Per ne.fmt (lines 551-559)
+ */
+struct NeRelocationInternalRef {
+    uint8  segment_number;  // Segment number (0xFF = movable)
+    uint8  reserved;        // Must be 0
+    uint16 offset_or_ordinal;  // Offset if fixed, ordinal if movable
+};
+
+/**
+ * NE Relocation Record - Import Name Target
+ *
+ * Per ne.fmt (lines 561-567)
+ */
+struct NeRelocationImportName {
+    uint16 module_index;    // Index into module reference table
+    uint16 name_offset;     // Offset in imported names table
+};
+
+/**
+ * NE Relocation Record - Import Ordinal Target
+ *
+ * Per ne.fmt (lines 569-573)
+ */
+struct NeRelocationImportOrdinal {
+    uint16 module_index;    // Index into module reference table
+    uint16 ordinal;         // Procedure ordinal number
+};
+
+/**
+ * NE Relocation Record - OS Fixup Target
+ *
+ * Per ne.fmt (lines 575-586)
+ */
+struct NeRelocationOsFixup {
+    uint16 fixup_type;  // OS fixup type (floating-point fixups 0x0001-0x0006)
+    uint16 reserved;    // Must be 0
+};
+
+/**
+ * NE Relocation Record Header
+ *
+ * Per ne.fmt (lines 520-587)
+ * The target structure follows based on flags
+ */
+struct NeRelocationRecord {
+    uint8  source_type;  // Source type (NE_LOBYTE, NE_SEGMENT, etc.)
+    uint8  flags;        // Target type flags
+    uint16 source_offset;  // Offset within segment of source chain
+};
+
+// =============================================================================
+// PE COFF File Header
+// =============================================================================
+
+/**
+ * COFF File Header - describes the target machine and file characteristics
+ */
+struct ImageFileHeader {
+    ImageFileMachine Machine;                  // Target machine type
+    uint16 NumberOfSections;                   // Number of sections
+    uint32 TimeDateStamp;                      // File creation timestamp (Unix time)
+    uint32 PointerToSymbolTable;               // COFF symbol table offset (deprecated, should be 0)
+    uint32 NumberOfSymbols;                    // Symbol table entries (deprecated, should be 0)
+    uint16 SizeOfOptionalHeader;               // Optional header size
+    ImageFileCharacteristics Characteristics;  // File characteristics flags
+};
+
+// =============================================================================
+// PE Optional Header Structures
+// =============================================================================
+
+/**
+ * Data directory entry - describes location and size of special data
+ */
+struct ImageDataDirectory {
+    uint32 VirtualAddress;  // RVA of the data
+    uint32 Size;            // Size in bytes
+};
+
+/**
+ * PE32 Optional Header (32-bit executables)
+ */
+struct ImageOptionalHeader32 {
+    uint16 Magic: Magic == PE32_MAGIC;                      // PE32 magic number
+    uint8  MajorLinkerVersion;                              // Linker major version
+    uint8  MinorLinkerVersion;                              // Linker minor version
+    uint32 SizeOfCode;                                      // Size of code sections
+    uint32 SizeOfInitializedData;                           // Size of initialized data
+    uint32 SizeOfUninitializedData;                         // Size of BSS
+    uint32 AddressOfEntryPoint;                             // Entry point RVA
+    uint32 BaseOfCode;                                      // Code section base RVA
+    uint32 BaseOfData;                                      // Data section base RVA (PE32 only)
+    uint32 ImageBase;                                       // Preferred load address
+    uint32 SectionAlignment;                                // Section alignment in memory
+    uint32 FileAlignment;                                   // Section alignment on disk
+    uint16 MajorOperatingSystemVersion;                     // Required OS version (major)
+    uint16 MinorOperatingSystemVersion;                     // Required OS version (minor)
+    uint16 MajorImageVersion;                               // Image version (major)
+    uint16 MinorImageVersion;                               // Image version (minor)
+    uint16 MajorSubsystemVersion;                           // Subsystem version (major)
+    uint16 MinorSubsystemVersion;                           // Subsystem version (minor)
+    uint32 Win32VersionValue;                               // Reserved (must be 0)
+    uint32 SizeOfImage;                                     // Image size in memory
+    uint32 SizeOfHeaders;                                   // Headers size (rounded up)
+    uint32 CheckSum;                                        // Image checksum
+    ImageSubsystem Subsystem;                               // Required subsystem
+    ImageDllCharacteristics DllCharacteristics;             // DLL characteristics
+    uint32 SizeOfStackReserve;                              // Stack reserve size
+    uint32 SizeOfStackCommit;                               // Stack commit size
+    uint32 SizeOfHeapReserve;                               // Heap reserve size
+    uint32 SizeOfHeapCommit;                                // Heap commit size
+    uint32 LoaderFlags;                                     // Reserved (must be 0)
+    uint32 NumberOfRvaAndSizes;                             // Data directory count
+    ImageDataDirectory DataDirectory[NumberOfRvaAndSizes];  // Data directories
+};
+
+/**
+ * PE32+ Optional Header (64-bit executables)
+ */
+struct ImageOptionalHeader64 {
+    uint16 Magic: Magic == PE32PLUS_MAGIC;                  // PE32+ magic number
+    uint8  MajorLinkerVersion;                              // Linker major version
+    uint8  MinorLinkerVersion;                              // Linker minor version
+    uint32 SizeOfCode;                                      // Size of code sections
+    uint32 SizeOfInitializedData;                           // Size of initialized data
+    uint32 SizeOfUninitializedData;                         // Size of BSS
+    uint32 AddressOfEntryPoint;                             // Entry point RVA
+    uint32 BaseOfCode;                                      // Code section base RVA
+    uint64 ImageBase;                                       // Preferred load address
+    uint32 SectionAlignment;                                // Section alignment in memory
+    uint32 FileAlignment;                                   // Section alignment on disk
+    uint16 MajorOperatingSystemVersion;                     // Required OS version (major)
+    uint16 MinorOperatingSystemVersion;                     // Required OS version (minor)
+    uint16 MajorImageVersion;                               // Image version (major)
+    uint16 MinorImageVersion;                               // Image version (minor)
+    uint16 MajorSubsystemVersion;                           // Subsystem version (major)
+    uint16 MinorSubsystemVersion;                           // Subsystem version (minor)
+    uint32 Win32VersionValue;                               // Reserved (must be 0)
+    uint32 SizeOfImage;                                     // Image size in memory
+    uint32 SizeOfHeaders;                                   // Headers size (rounded up)
+    uint32 CheckSum;                                        // Image checksum
+    ImageSubsystem Subsystem;                               // Required subsystem
+    ImageDllCharacteristics DllCharacteristics;             // DLL characteristics
+    uint64 SizeOfStackReserve;                              // Stack reserve size
+    uint64 SizeOfStackCommit;                               // Stack commit size
+    uint64 SizeOfHeapReserve;                               // Heap reserve size
+    uint64 SizeOfHeapCommit;                                // Heap commit size
+    uint32 LoaderFlags;                                     // Reserved (must be 0)
+    uint32 NumberOfRvaAndSizes;                             // Data directory count
+    ImageDataDirectory DataDirectory[NumberOfRvaAndSizes];  // Data directories
+};
+
+// =============================================================================
+// Section Header
+// =============================================================================
+
+/**
+ * Section header - describes a section's location and characteristics
+ */
+struct ImageSectionHeader {
+    uint8  Name[8];                                   // Section name (null-padded)
+    uint32 VirtualSize;                               // Size in memory
+    uint32 VirtualAddress;                            // RVA in memory
+    uint32 SizeOfRawData;                             // Size on disk
+    uint32 PointerToRawData;                          // File offset
+    uint32 PointerToRelocations;                      // Relocations offset (object files)
+    uint32 PointerToLinenumbers;                      // Line numbers offset (deprecated)
+    uint16 NumberOfRelocations;                       // Relocation count
+    uint16 NumberOfLinenumbers;                       // Line number count (deprecated)
+    ImageSectionCharacteristics Characteristics;      // Section characteristics
+};
+
+// =============================================================================
+// Resource Directory Structures
+// =============================================================================
+
+/**
+ * Standard resource type IDs (predefined resource types)
+ */
+enum uint16 ResourceType {
+    RT_CURSOR       = 1,   // Hardware-dependent cursor
+    RT_BITMAP       = 2,   // Bitmap
+    RT_ICON         = 3,   // Hardware-dependent icon
+    RT_MENU         = 4,   // Menu
+    RT_DIALOG       = 5,   // Dialog box
+    RT_STRING       = 6,   // String table entry
+    RT_FONTDIR      = 7,   // Font directory
+    RT_FONT         = 8,   // Font
+    RT_ACCELERATORS = 9,   // Accelerator table (note: plural!)
+    RT_RCDATA       = 10,  // Application-defined resource (raw data)
+    RT_MESSAGETABLE = 11,  // Message table entry
+    RT_GROUP_CURSOR = 12,  // Hardware-independent cursor
+    RT_GROUP_ICON   = 14,  // Hardware-independent icon
+    RT_VERSION      = 16,  // Version information
+    RT_DLGINCLUDE   = 17,  // Allows dialog to be included
+    RT_PLUGPLAY     = 19,  // Plug and Play resource
+    RT_VXD          = 20,  // VXD
+    RT_ANICURSOR    = 21,  // Animated cursor
+    RT_ANIICON      = 22,  // Animated icon
+    RT_HTML         = 23,  // HTML document
+    RT_MANIFEST     = 24   // Side-by-side assembly manifest
+};
+
+/**
+ * Resource directory header
+ *
+ * The resource directory is a tree structure. At each level, entries can be
+ * identified either by name (string) or ID (integer). The tree has 3 levels:
+ * 1. Type (RT_ICON, RT_STRING, etc.)
+ * 2. Name/ID (specific resource identifier)
+ * 3. Language (LANG_ENGLISH, etc.)
+ */
+struct ImageResourceDirectory {
+    uint32 Characteristics;      // Reserved, always 0
+    uint32 TimeDateStamp;        // Resource creation time
+    uint16 MajorVersion;         // Reserved, always 0
+    uint16 MinorVersion;         // Reserved, always 0
+    uint16 NumberOfNamedEntries; // Number of entries with string names
+    uint16 NumberOfIdEntries;    // Number of entries with integer IDs
+    // Followed by ImageResourceDirectoryEntry array[NumberOfNamedEntries + NumberOfIdEntries]
+};
+
+/**
+ * Resource directory entry
+ *
+ * Each entry either points to another directory (subdirectory) or to actual data.
+ * The Name field can be either an integer ID or an offset to a unicode string.
+ *
+ * Name field format:
+ *   - If high bit (bit 31) is 0: lower 16 bits are integer ID
+ *   - If high bit (bit 31) is 1: lower 31 bits are offset to unicode string
+ *
+ * Offset field format:
+ *   - If high bit (bit 31) is 0: lower 31 bits are offset to data entry
+ *   - If high bit (bit 31) is 1: lower 31 bits are offset to subdirectory
+ */
+struct ImageResourceDirectoryEntry {
+    uint32 Name;    // High bit indicates string (1) or ID (0)
+    uint32 Offset;  // High bit indicates directory (1) or data (0)
+};
+
+/**
+ * Resource data entry - describes the actual resource data
+ */
+struct ImageResourceDataEntry {
+    uint32 OffsetToData;  // RVA of the resource data
+    uint32 Size;          // Size of resource data in bytes
+    uint32 CodePage;      // Code page for string resources
+    uint32 Reserved;      // Reserved, must be 0
+};
+
+/**
+ * Resource directory string (for named resources)
+ */
+struct ImageResourceDirStringU {
+    uint16 Length;         // String length in characters (not including length field)
+    uint16 NameString[Length]; // Unicode string (not null-terminated)
+};
+
+// =============================================================================
+// Version Resource Structures (RT_VERSION)
+// =============================================================================
+
+/**
+ * VS_FIXEDFILEINFO - Fixed file information structure
+ *
+ * Contains version numbers and flags for the file. This is the binary data
+ * in a version resource.
+ */
+struct VsFixedFileInfo {
+    uint32 dwSignature: dwSignature == 0xFEEF04BD;  // Must be 0xFEEF04BD
+    uint32 dwStrucVersion;         // Structure version (usually 0x00010000)
+    uint32 dwFileVersionMS;        // File version high (major.minor)
+    uint32 dwFileVersionLS;        // File version low (patch.build)
+    uint32 dwProductVersionMS;     // Product version high
+    uint32 dwProductVersionLS;     // Product version low
+    uint32 dwFileFlagsMask;        // Valid bits in dwFileFlags
+    uint32 dwFileFlags;            // File flags (debug, patched, prerelease, etc.)
+    uint32 dwFileOS;               // Target operating system
+    uint32 dwFileType;             // File type (application, DLL, driver, etc.)
+    uint32 dwFileSubtype;          // File subtype (for drivers and fonts)
+    uint32 dwFileDateMS;           // File date high
+    uint32 dwFileDateLS;           // File date low
+};
+
+/**
+ * VS_VERSION_INFO file flags
+ */
+enum uint32 VsFileFlags {
+    VS_FF_DEBUG        = 0x00000001,  // File contains debugging information
+    VS_FF_PRERELEASE   = 0x00000002,  // Pre-release version
+    VS_FF_PATCHED      = 0x00000004,  // File has been patched
+    VS_FF_PRIVATEBUILD = 0x00000008,  // Private build
+    VS_FF_INFOINFERRED = 0x00000010,  // Version info inferred
+    VS_FF_SPECIALBUILD = 0x00000020   // Special build
+};
+
+/**
+ * VS_VERSION_INFO file OS
+ */
+enum uint32 VsFileOS {
+    VOS_UNKNOWN       = 0x00000000,  // Unknown OS
+    VOS_DOS           = 0x00010000,  // MS-DOS
+    VOS_OS216         = 0x00020000,  // 16-bit OS/2
+    VOS_OS232         = 0x00030000,  // 32-bit OS/2
+    VOS_NT            = 0x00040000,  // Windows NT
+    VOS_WINCE         = 0x00050000,  // Windows CE
+    VOS__WINDOWS16    = 0x00000001,  // 16-bit Windows
+    VOS__PM16         = 0x00000002,  // 16-bit Presentation Manager
+    VOS__PM32         = 0x00000003,  // 32-bit Presentation Manager
+    VOS__WINDOWS32    = 0x00000004,  // 32-bit Windows
+    VOS_DOS_WINDOWS16 = 0x00010001,  // MS-DOS with 16-bit Windows
+    VOS_DOS_WINDOWS32 = 0x00010004,  // MS-DOS with 32-bit Windows
+    VOS_OS216_PM16    = 0x00020002,  // 16-bit OS/2 with 16-bit PM
+    VOS_OS232_PM32    = 0x00030003,  // 32-bit OS/2 with 32-bit PM
+    VOS_NT_WINDOWS32  = 0x00040004   // Windows NT with 32-bit Windows
+};
+
+/**
+ * VS_VERSION_INFO file type
+ */
+enum uint32 VsFileType {
+    VFT_UNKNOWN    = 0x00000000,  // Unknown type
+    VFT_APP        = 0x00000001,  // Application
+    VFT_DLL        = 0x00000002,  // Dynamic-link library
+    VFT_DRV        = 0x00000003,  // Device driver
+    VFT_FONT       = 0x00000004,  // Font file
+    VFT_VXD        = 0x00000005,  // Virtual device driver
+    VFT_STATIC_LIB = 0x00000007   // Static-link library
+};
+
+/**
+ * VS_VERSION_INFO driver subtype (when VFT_DRV)
+ */
+enum uint32 VsFileSubtypeDrv {
+    VFT2_UNKNOWN               = 0x00000000,  // Unknown driver
+    VFT2_DRV_PRINTER           = 0x00000001,  // Printer driver
+    VFT2_DRV_KEYBOARD          = 0x00000002,  // Keyboard driver
+    VFT2_DRV_LANGUAGE          = 0x00000003,  // Language driver
+    VFT2_DRV_DISPLAY           = 0x00000004,  // Display driver
+    VFT2_DRV_MOUSE             = 0x00000005,  // Mouse driver
+    VFT2_DRV_NETWORK           = 0x00000006,  // Network driver
+    VFT2_DRV_SYSTEM            = 0x00000007,  // System driver
+    VFT2_DRV_INSTALLABLE       = 0x00000008,  // Installable driver
+    VFT2_DRV_SOUND             = 0x00000009,  // Sound driver
+    VFT2_DRV_COMM              = 0x0000000A,  // Communications driver
+    VFT2_DRV_VERSIONED_PRINTER = 0x0000000C   // Versioned printer driver
+};
+
+/**
+ * VS_VERSION_INFO font subtype (when VFT_FONT)
+ */
+enum uint32 VsFileSubtypeFont {
+    VFT2_FONT_RASTER   = 0x00000001,  // Raster font
+    VFT2_FONT_VECTOR   = 0x00000002,  // Vector font
+    VFT2_FONT_TRUETYPE = 0x00000003   // TrueType font
+};
+
+// =============================================================================
+// Icon/Cursor Resource Structures (RT_GROUP_ICON, RT_GROUP_CURSOR)
+// =============================================================================
+
+/**
+ * Icon/Cursor directory entry in group resource
+ *
+ * Per resfmt.txt section 4.2 (lines 604-614) and 4.5 (lines 818-826)
+ */
+struct IconDirEntry {
+    uint8  bWidth;        // Width in pixels (0 means 256)
+    uint8  bHeight;       // Height in pixels (0 means 256)
+    uint8  bColorCount;   // Number of colors (0 if >= 8bpp)
+    uint8  bReserved;     // Reserved, must be 0
+    uint16 wPlanes;       // Color planes (icon) or hotspot X (cursor)
+    uint16 wBitCount;     // Bits per pixel (icon) or hotspot Y (cursor)
+    uint32 dwBytesInRes;  // Size of image data
+    uint16 wNameOrdinal;  // Resource ID for this icon/cursor
+    uint16 padding;       // DWORD alignment padding
+};
+
+/**
+ * Icon/Cursor group resource header
+ *
+ * Per resfmt.txt section 4.2 (lines 595-600) for icons
+ * and section 4.5 (lines 808-813) for cursors
+ */
+struct IconGroup {
+    uint16 wReserved;    // Reserved, currently 0
+    uint16 wType;        // Resource type: 1 for cursors, 2 for icons
+    uint16 wCount;       // Number of images in group
+    uint16 padding;      // DWORD alignment padding
+    IconDirEntry entries[wCount];  // Array of directory entries
+};
+
+/**
+ * Cursor component hotspot (precedes cursor bitmap data)
+ *
+ * Per resfmt.txt section 4.5 (lines 835-841)
+ */
+struct CursorHotspot {
+    int16 xHotspot;  // Horizontal hotspot coordinate
+    int16 yHotspot;  // Vertical hotspot coordinate
+};
+
+// =============================================================================
+// Menu Resource Structures (RT_MENU)
+// =============================================================================
+
+/**
+ * Menu flags for menu items
+ *
+ * Per resfmt.txt section 4.3 (lines 664-672)
+ */
+enum uint16 MenuFlags {
+    MF_GRAYED       = 0x0001,  // GRAYED keyword
+    MF_INACTIVE     = 0x0002,  // INACTIVE keyword
+    MF_BITMAP       = 0x0004,  // BITMAP keyword
+    MF_CHECKED      = 0x0008,  // CHECKED keyword
+    MF_POPUP        = 0x0010,  // Used internally (signals popup)
+    MF_MENUBARBREAK = 0x0020,  // MENUBARBREAK keyword
+    MF_MENUBREAK    = 0x0040,  // MENUBREAK keyword
+    MF_END          = 0x0080,  // Used internally (last item)
+    MF_OWNERDRAW    = 0x0100   // OWNERDRAW keyword
+};
+
+/**
+ * Menu header
+ *
+ * Per resfmt.txt section 4.3 (lines 633-636)
+ */
+struct MenuHeader {
+    uint16 wVersion;      // Currently zero
+    uint16 cbHeaderSize;  // Also zero
+};
+
+// Note: Menu items follow the header but their structure depends on flags.
+// PopupMenuItem has: WORD fItemFlags + WCHAR szItemText[] (null-terminated)
+// NormalMenuItem has: WORD fItemFlags + WORD wMenuID + WCHAR szItemText[]
+
+// =============================================================================
+// Accelerator Table Resource Structures (RT_ACCELERATORS)
+// =============================================================================
+
+/**
+ * Accelerator flags
+ */
+enum uint16 AccelFlags {
+    FVIRTKEY  = 0x0001,  // Virtual key code
+    FNOINVERT = 0x0002,  // No invert on activation
+    FSHIFT    = 0x0004,  // Shift key must be held
+    FCONTROL  = 0x0008,  // Control key must be held
+    FALT      = 0x0010,  // Alt key must be held
+    FEND      = 0x0080   // Last entry in table
+};
+
+/**
+ * Accelerator table entry
+ *
+ * Per resfmt.txt section 4.9 (lines 990-995)
+ */
+struct AccelTableEntry {
+    uint16 fFlags;   // Accelerator flags (FVIRTKEY, FSHIFT, etc.)
+    uint16 wEvent;   // ASCII character or virtual key code
+    uint16 wId;      // Accelerator ID
+    uint16 padding;  // DWORD alignment padding
+};
+
+// =============================================================================
+// String Table Resource Structures (RT_STRING)
+// =============================================================================
+
+/**
+ * String table entry (Pascal-style string)
+ *
+ * Per resfmt.txt section 4.8 (lines 950-971)
+ * String tables are organized in blocks of 16 strings.
+ * Each string is stored as: WORD length + WCHAR characters[length]
+ * Empty slots have length = 0
+ */
+struct StringTableEntry {
+    uint16 wLength;              // String length in characters
+    uint16 szString[wLength];    // Unicode string (not null-terminated)
+};
+
+// =============================================================================
+// Message Table Resource Structures (RT_MESSAGETABLE)
+// =============================================================================
+
+/**
+ * Message resource flags
+ */
+enum uint16 MessageResourceFlags {
+    MESSAGE_RESOURCE_UNICODE = 0x0001  // Text is Unicode, not ASCII
+};
+
+/**
+ * Message resource entry
+ *
+ * Per resfmt.txt section 4.13 (lines 1126-1130)
+ */
+struct MessageResourceEntry {
+    uint16 Length;   // Length of this entry
+    uint16 Flags;    // MESSAGE_RESOURCE_UNICODE or 0 for ASCII
+    // Followed by UCHAR Text[] (variable length, not defined here)
+};
+
+/**
+ * Message resource block (one block per ID range)
+ *
+ * Per resfmt.txt section 4.13 (lines 1120-1124)
+ */
+struct MessageResourceBlock {
+    uint32 LowId;           // First message ID in this block
+    uint32 HighId;          // Last message ID in this block
+    uint32 OffsetToEntries; // Offset to first MessageResourceEntry
+};
+
+/**
+ * Message resource data (top-level structure)
+ *
+ * Per resfmt.txt section 4.13 (lines 1115-1118)
+ */
+struct MessageResourceData {
+    uint32 NumberOfBlocks;                    // Number of blocks
+    MessageResourceBlock Blocks[NumberOfBlocks];  // Array of blocks
+};
+
+// =============================================================================
+// Font File Structures (RT_FONT, .FNT files)
+// =============================================================================
+
+/**
+ * Font type flags
+ *
+ * Per fon.txt (lines 50-68)
+ */
+enum uint16 FontType {
+    FNT_TYPE_RASTER   = 0x0000,  // Raster (bitmap) font
+    FNT_TYPE_VECTOR   = 0x0001,  // Vector font
+    FNT_TYPE_MEMORY   = 0x0004,  // Bits in memory at fixed address
+    FNT_TYPE_DEVICE   = 0x0080   // Font realized by device
+};
+
+/**
+ * Font family values
+ *
+ * Per fon.txt (lines 140-149)
+ */
+enum uint8 FontFamily {
+    FF_DONTCARE   = 0x00,  // Don't care or don't know
+    FF_ROMAN      = 0x10,  // Proportional with serifs
+    FF_SWISS      = 0x20,  // Proportional without serifs
+    FF_MODERN     = 0x30,  // Fixed-pitch
+    FF_SCRIPT     = 0x40,  // Script fonts
+    FF_DECORATIVE = 0x50   // Decorative fonts
+};
+
+/**
+ * Font pitch flags (low bit of dfPitchAndFamily)
+ */
+enum uint8 FontPitch {
+    FIXED_PITCH    = 0x00,  // Fixed pitch
+    VARIABLE_PITCH = 0x01   // Variable pitch
+};
+
+/**
+ * Font flags - format of glyph bitmap
+ *
+ * Per fon.txt (lines 222-236)
+ */
+enum uint32 FontFlags {
+    DFF_FIXED           = 0x0001,  // Fixed pitch font
+    DFF_PROPORTIONAL    = 0x0002,  // Proportional pitch font
+    DFF_ABCFIXED        = 0x0004,  // ABC fixed font
+    DFF_ABCPROPORTIONAL = 0x0008,  // ABC proportional font
+    DFF_1COLOR          = 0x0010,  // 1 color (8 pixels per byte)
+    DFF_16COLOR         = 0x0020,  // 16 color (2 pixels per byte)
+    DFF_256COLOR        = 0x0040,  // 256 color (1 pixel per byte)
+    DFF_RGBCOLOR        = 0x0080   // RGB color (RGBquads)
+};
+
+/**
+ * Windows Font File Header (.FNT file format)
+ *
+ * This structure describes both raster and vector fonts.
+ * Per fon.txt specification (lines 37-264)
+ */
+struct FontHeader {
+    uint16 dfVersion;           // Font version: 0x0200 or 0x0300
+    uint32 dfSize;              // Total file size in bytes
+    uint8  dfCopyright[60];     // Copyright string
+    uint16 dfType;              // Font type (raster/vector)
+    uint16 dfPoints;            // Nominal point size
+    uint16 dfVertRes;           // Vertical resolution (DPI)
+    uint16 dfHorizRes;          // Horizontal resolution (DPI)
+    uint16 dfAscent;            // Distance to baseline
+    uint16 dfInternalLeading;   // Leading inside bounds
+    uint16 dfExternalLeading;   // Extra leading between rows
+    uint8  dfItalic;            // Italic flag
+    uint8  dfUnderline;         // Underline flag
+    uint8  dfStrikeOut;         // Strikeout flag
+    uint16 dfWeight;            // Weight (1-1000, 400=regular)
+    uint8  dfCharSet;           // Character set
+    uint16 dfPixWidth;          // Character width (0=variable)
+    uint16 dfPixHeight;         // Character height
+    uint8  dfPitchAndFamily;    // Pitch and family
+    uint16 dfAvgWidth;          // Average character width
+    uint16 dfMaxWidth;          // Maximum character width
+    uint8  dfFirstChar;         // First character code
+    uint8  dfLastChar;          // Last character code
+    uint8  dfDefaultChar;       // Default character (relative)
+    uint8  dfBreakChar;         // Word break character (relative)
+    uint16 dfWidthBytes;        // Bytes per row of bitmap
+    uint32 dfDevice;            // Offset to device name
+    uint32 dfFace;              // Offset to face name
+    uint32 dfBitsPointer;       // Absolute address (set by GDI)
+    uint32 dfBitsOffset;        // Offset to bitmap data
+    uint8  dfReserved;          // Reserved
+    uint32 dfFlags;             // Font flags (Windows 3.0+)
+    uint16 dfAspace;            // Global A space (Windows 3.0+)
+    uint16 dfBspace;            // Global B space (Windows 3.0+)
+    uint16 dfCspace;            // Global C space (Windows 3.0+)
+    uint32 dfColorPointer;      // Offset to color table (Windows 3.0+)
+    uint8  dfReserved1[16];     // Reserved (Windows 3.0+)
+};
+
+/**
+ * Windows 2.x Glyph Entry
+ *
+ * Per fon.txt (lines 362-365)
+ */
+struct GlyphEntry2x {
+    uint16 geWidth;   // Width in pixels
+    uint16 geOffset;  // Offset to bitmap (16-bit)
+};
+
+/**
+ * Windows 3.0 Glyph Entry (DFF_FIXED, DFF_PROPORTIONAL)
+ *
+ * Per fon.txt (lines 375-378)
+ */
+struct GlyphEntry30 {
+    uint16 geWidth;   // Width in pixels
+    uint32 geOffset;  // Offset to bitmap (32-bit)
+};
+
+/**
+ * Windows 3.0 ABC Glyph Entry (DFF_ABCFIXED, DFF_ABCPROPORTIONAL)
+ *
+ * ABC spacing defines character positioning:
+ * - A space: distance from current position to left edge
+ * - B space: width of character
+ * - C space: distance from right edge to next position
+ *
+ * Per fon.txt (lines 384-390)
+ */
+struct GlyphEntryABC {
+    uint16 geWidth;   // Width in pixels
+    uint32 geOffset;  // Offset to bitmap
+    uint32 geAspace;  // A space (16.16 fixed point)
+    uint32 geBspace;  // B space (16.16 fixed point)
+    uint32 geCspace;  // C space (16.16 fixed point)
+};
+
+/**
+ * Windows 3.0 Color Glyph Entry (DFF_1COLOR through DFF_RGBCOLOR)
+ *
+ * Per fon.txt (lines 402-409)
+ */
+struct GlyphEntryColor {
+    uint16 geWidth;   // Width in pixels
+    uint32 geOffset;  // Offset to bitmap
+    uint16 geHeight;  // Height in pixels
+    uint32 geAspace;  // A space (16.16 fixed point)
+    uint32 geBspace;  // B space (16.16 fixed point)
+    uint32 geCspace;  // C space (16.16 fixed point)
+};
+
+// =============================================================================
+// Export Directory Structures (.edata section)
+// =============================================================================
+
+/**
+ * Export Directory Table
+ *
+ * Per PECOFF spec section 6.3.1 (Export Directory Table)
+ * The export directory describes all exported functions and data from a DLL/EXE
+ */
+struct ImageExportDirectory {
+    uint32 Characteristics;        // Reserved, must be 0
+    uint32 TimeDateStamp;          // Time/date stamp of export data creation
+    uint16 MajorVersion;           // Major version number (user-defined)
+    uint16 MinorVersion;           // Minor version number (user-defined)
+    uint32 Name;                   // RVA of ASCII string containing DLL name
+    uint32 Base;                   // Starting ordinal number (usually 1)
+    uint32 NumberOfFunctions;      // Number of entries in export address table
+    uint32 NumberOfNames;          // Number of entries in name pointer table
+    uint32 AddressOfFunctions;     // RVA of export address table
+    uint32 AddressOfNames;         // RVA of export name pointer table
+    uint32 AddressOfNameOrdinals;  // RVA of export ordinal table
+};
+
+// =============================================================================
+// Import Directory Structures (.idata section)
+// =============================================================================
+
+/**
+ * Import Directory Entry
+ *
+ * Per PECOFF spec section 6.4.1 (Import Directory Table)
+ * One entry for each DLL that the image imports from
+ */
+struct ImageImportDescriptor {
+    uint32 OriginalFirstThunk;  // RVA of import lookup table (or 0)
+    uint32 TimeDateStamp;       // 0 until bound, then DLL timestamp
+    uint32 ForwarderChain;      // Index of first forwarder reference
+    uint32 Name;                // RVA of ASCII string with DLL name
+    uint32 FirstThunk;          // RVA of import address table (IAT)
+};
+
+/**
+ * Import Lookup Table Entry (PE32)
+ *
+ * Per PECOFF spec section 6.4.2 (Import Lookup Table)
+ * 32-bit entry for PE32 images
+ *
+ * Format:
+ * - If bit 31 is set: import by ordinal (bits 15-0 = ordinal number)
+ * - If bit 31 is clear: import by name (bits 30-0 = RVA to Hint/Name table)
+ */
+struct ImageThunkData32 {
+    uint32 AddressOfData;  // RVA to IMAGE_IMPORT_BY_NAME or ordinal
+};
+
+/**
+ * Import Lookup Table Entry (PE32+)
+ *
+ * Per PECOFF spec section 6.4.2 (Import Lookup Table)
+ * 64-bit entry for PE32+ images
+ */
+struct ImageThunkData64 {
+    uint64 AddressOfData;  // RVA to IMAGE_IMPORT_BY_NAME or ordinal
+};
+
+/**
+ * Hint/Name Table Entry
+ *
+ * Per PECOFF spec section 6.4.3 (Hint/Name Table)
+ * Used for import by name
+ */
+struct ImageImportByName {
+    uint16 Hint;  // Index into export name pointer table
+    // Followed by null-terminated ASCII name (variable length)
+    // Followed by optional padding byte for alignment
+};
+
+// =============================================================================
+// Base Relocation Structures (.reloc section)
+// =============================================================================
+
+/**
+ * Base Relocation Block
+ *
+ * Per PECOFF spec section 6.6.1 (Base Relocation Block)
+ * Each block applies to a 4KB page
+ */
+struct ImageBaseRelocation {
+    uint32 VirtualAddress;  // Page RVA for this relocation block
+    uint32 SizeOfBlock;     // Total size of block (including this header)
+    // Followed by (SizeOfBlock - 8) / 2 relocation entries (uint16 each)
+};
+
+/**
+ * Base Relocation Types
+ *
+ * Per PECOFF spec section 6.6.2 (Base Relocation Types)
+ * These are the upper 4 bits of each relocation entry
+ */
+enum uint16 BaseRelocationType {
+    IMAGE_REL_BASED_ABSOLUTE       = 0,   // No operation (padding)
+    IMAGE_REL_BASED_HIGH           = 1,   // Add high 16 bits of delta
+    IMAGE_REL_BASED_LOW            = 2,   // Add low 16 bits of delta
+    IMAGE_REL_BASED_HIGHLOW        = 3,   // Add all 32 bits of delta
+    IMAGE_REL_BASED_HIGHADJ        = 4,   // Add high 16 bits, adjust for sign
+    IMAGE_REL_BASED_MIPS_JMPADDR   = 5,   // MIPS jump instruction
+    IMAGE_REL_BASED_ARM_MOV32      = 5,   // ARM MOV32 instruction (same as MIPS)
+    IMAGE_REL_BASED_THUMB_MOV32    = 7,   // Thumb MOV32 instruction
+    IMAGE_REL_BASED_RISCV_HIGH20   = 5,   // RISC-V high 20 bits
+    IMAGE_REL_BASED_RISCV_LOW12I   = 7,   // RISC-V low 12 bits (I-type)
+    IMAGE_REL_BASED_RISCV_LOW12S   = 8,   // RISC-V low 12 bits (S-type)
+    IMAGE_REL_BASED_MIPS_JMPADDR16 = 9,   // MIPS16 jump instruction
+    IMAGE_REL_BASED_DIR64          = 10   // Add all 64 bits of delta
+};
+
+// =============================================================================
+// Thread Local Storage Structures (.tls section)
+// =============================================================================
+
+/**
+ * TLS Directory (PE32)
+ *
+ * Per PECOFF spec section 6.7.1 (The TLS Directory)
+ * Thread Local Storage directory for 32-bit images
+ */
+struct ImageTlsDirectory32 {
+    uint32 StartAddressOfRawData;  // VA (not RVA) of TLS initialization data
+    uint32 EndAddressOfRawData;    // VA (not RVA) of end of TLS data
+    uint32 AddressOfIndex;         // VA (not RVA) to receive TLS index
+    uint32 AddressOfCallBacks;     // VA (not RVA) of null-terminated callback array
+    uint32 SizeOfZeroFill;         // Size of zero-filled data beyond initialized data
+    uint32 Characteristics;        // Bits [23:20] = alignment (IMAGE_SCN_ALIGN_*)
+};
+
+/**
+ * TLS Directory (PE32+)
+ *
+ * Per PECOFF spec section 6.7.1 (The TLS Directory)
+ * Thread Local Storage directory for 64-bit images
+ */
+struct ImageTlsDirectory64 {
+    uint64 StartAddressOfRawData;  // VA (not RVA) of TLS initialization data
+    uint64 EndAddressOfRawData;    // VA (not RVA) of end of TLS data
+    uint64 AddressOfIndex;         // VA (not RVA) to receive TLS index
+    uint64 AddressOfCallBacks;     // VA (not RVA) of null-terminated callback array
+    uint32 SizeOfZeroFill;         // Size of zero-filled data beyond initialized data
+    uint32 Characteristics;        // Bits [23:20] = alignment (IMAGE_SCN_ALIGN_*)
+};
+
+// =============================================================================
+// Load Configuration Structures
+// =============================================================================
+
+/**
+ * Load Configuration Directory (PE32)
+ *
+ * Per PECOFF spec section 6.8 (Load Configuration Structure)
+ * Contains security and exception handling information
+ */
+struct ImageLoadConfigDirectory32 {
+    uint32 Size;                           // Size of this structure
+    uint32 TimeDateStamp;                  // Date/time stamp
+    uint16 MajorVersion;                   // Major version
+    uint16 MinorVersion;                   // Minor version
+    uint32 GlobalFlagsClear;               // Global flags to clear
+    uint32 GlobalFlagsSet;                 // Global flags to set
+    uint32 CriticalSectionDefaultTimeout;  // Critical section timeout
+    uint32 DeCommitFreeBlockThreshold;     // Memory management
+    uint32 DeCommitTotalFreeThreshold;     // Memory management
+    uint32 LockPrefixTable;                // VA of lock prefix table
+    uint32 MaximumAllocationSize;          // Maximum allocation size
+    uint32 VirtualMemoryThreshold;         // Virtual memory threshold
+    uint32 ProcessHeapFlags;               // Process heap flags
+    uint32 ProcessAffinityMask;            // Process affinity mask
+    uint16 CSDVersion;                     // Service pack version
+    uint16 DependentLoadFlags;             // Dependent load flags
+    uint32 EditList;                       // VA of edit list
+    uint32 SecurityCookie;                 // VA of security cookie
+    uint32 SEHandlerTable;                 // VA of SEH handler table
+    uint32 SEHandlerCount;                 // Count of SEH handlers
+    uint32 GuardCFCheckFunctionPointer;    // VA of Control Flow Guard check
+    uint32 GuardCFDispatchFunctionPointer; // VA of CFG dispatch
+    uint32 GuardCFFunctionTable;           // VA of CFG function table
+    uint32 GuardCFFunctionCount;           // Count of CFG functions
+    uint32 GuardFlags;                     // Control Flow Guard flags
+};
+
+/**
+ * Load Configuration Directory (PE32+)
+ *
+ * Per PECOFF spec section 6.8 (Load Configuration Structure)
+ * 64-bit version with expanded address fields
+ */
+struct ImageLoadConfigDirectory64 {
+    uint32 Size;                           // Size of this structure
+    uint32 TimeDateStamp;                  // Date/time stamp
+    uint16 MajorVersion;                   // Major version
+    uint16 MinorVersion;                   // Minor version
+    uint32 GlobalFlagsClear;               // Global flags to clear
+    uint32 GlobalFlagsSet;                 // Global flags to set
+    uint32 CriticalSectionDefaultTimeout;  // Critical section timeout
+    uint64 DeCommitFreeBlockThreshold;     // Memory management
+    uint64 DeCommitTotalFreeThreshold;     // Memory management
+    uint64 LockPrefixTable;                // VA of lock prefix table
+    uint64 MaximumAllocationSize;          // Maximum allocation size
+    uint64 VirtualMemoryThreshold;         // Virtual memory threshold
+    uint64 ProcessAffinityMask;            // Process affinity mask
+    uint32 ProcessHeapFlags;               // Process heap flags
+    uint16 CSDVersion;                     // Service pack version
+    uint16 DependentLoadFlags;             // Dependent load flags
+    uint64 EditList;                       // VA of edit list
+    uint64 SecurityCookie;                 // VA of security cookie
+    uint64 SEHandlerTable;                 // VA of SEH handler table
+    uint64 SEHandlerCount;                 // Count of SEH handlers
+    uint64 GuardCFCheckFunctionPointer;    // VA of Control Flow Guard check
+    uint64 GuardCFDispatchFunctionPointer; // VA of CFG dispatch
+    uint64 GuardCFFunctionTable;           // VA of CFG function table
+    uint64 GuardCFFunctionCount;           // Count of CFG functions
+    uint32 GuardFlags;                     // Control Flow Guard flags
+};
+
+// =============================================================================
+// Top-Level Executable Structure
+// =============================================================================
+
+/**
+ * Windows Executable File
+ *
+ * Starts with DOS header, then uses e_lfanew to locate the extended header
+ * which can be either NE (16-bit) or PE (32/64-bit).
+ */
+struct Executable {
+    ImageDosHeader dos_header;
+
+    // Jump to extended header based on DOS header offset
+    dos_header.e_lfanew:
+    union {
+        // Case 1: New Executable (16-bit Windows/OS2)
+        ImageNeHeader ne_header : ne_header.ne_magic == NE_SIGNATURE;
+
+        // Case 2: Portable Executable (32/64-bit Windows)
+        {
+            uint32 signature: signature == PE_SIGNATURE;       // "PE\0\0"
+            ImageFileHeader file_header;                       // COFF header
+
+            // Optional header varies by architecture
+            union {
+                ImageOptionalHeader32 opt_header_32 :
+                    file_header.SizeOfOptionalHeader > 0 &&
+                    opt_header_32.Magic == PE32_MAGIC;
+
+                ImageOptionalHeader64 opt_header_64 :
+                    file_header.SizeOfOptionalHeader > 0 &&
+                    opt_header_64.Magic == PE32PLUS_MAGIC;
+            } optional_header;
+
+            // Section headers array
+            ImageSectionHeader section_headers[file_header.NumberOfSections];
+        } pe_header;
+    } extended_header;
+};
