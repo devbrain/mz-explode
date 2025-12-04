@@ -76,6 +76,8 @@ add_library(libexe
     # Core files
     src/libexe/executable_file.cpp
     src/libexe/mz_file.cpp
+    # Decompressors
+    src/libexe/pklite_decompressor.cpp
 )
 
 # Make library depend on parser generation
