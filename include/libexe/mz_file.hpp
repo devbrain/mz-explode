@@ -6,23 +6,13 @@
 
 #include <libexe/export.hpp>
 #include <libexe/executable_file.hpp>
+#include <libexe/decompressor.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
 #include <cstdint>
 
 namespace libexe {
-
-/// Compression types detected in MZ executables
-enum class compression_type {
-    NONE,                    // Uncompressed
-    PKLITE_STANDARD,         // PKLITE standard compression
-    PKLITE_EXTRA,            // PKLITE extra compression
-    LZEXE_090,               // LZEXE v0.90
-    LZEXE_091,               // LZEXE v0.91
-    EXEPACK,                 // Microsoft EXEPACK
-    KNOWLEDGE_DYNAMICS       // Knowledge Dynamics
-};
 
 /// MZ (DOS) executable file
 class LIBEXE_EXPORT mz_file : public executable_file {
@@ -57,6 +47,9 @@ public:
 
 private:
     mz_file() = default;  // Use factory methods
+
+    // Detect compression by examining signatures in code section
+    compression_type detect_compression() const;
 
     std::vector<uint8_t> data_;
     compression_type compression_ = compression_type::NONE;

@@ -43,8 +43,9 @@ TEST_CASE("legacy data: PKLITE compressed executables") {
         auto code = mz.code_section();
         CHECK(code.size() > 0);
 
-        // TODO: Once compression detection is implemented:
-        // CHECK(mz.get_compression() == compression_type::PKLITE_STANDARD);
+        // Verify compression is detected
+        CHECK(mz.is_compressed() == true);
+        CHECK(mz.get_compression() == compression_type::PKLITE_STANDARD);
     }
 
     SUBCASE("PKLITE Extra compression - parse MZ header") {
@@ -54,8 +55,9 @@ TEST_CASE("legacy data: PKLITE compressed executables") {
             auto mz = mz_file::from_memory(data);
             CHECK(mz.get_format() == format_type::MZ_DOS);
 
-            // TODO: Once compression detection is implemented:
-            // CHECK(mz.get_compression() == compression_type::PKLITE_EXTRA);
+            // Verify PKLITE Extra compression is detected
+            CHECK(mz.is_compressed() == true);
+            CHECK(mz.get_compression() == compression_type::PKLITE_EXTRA);
         }());
     }
 }
@@ -67,8 +69,9 @@ TEST_CASE("legacy data: LZEXE compressed executables") {
         auto mz = mz_file::from_memory(data);
         CHECK(mz.get_format() == format_type::MZ_DOS);
 
-        // TODO: Once compression detection is implemented:
-        // CHECK(mz.get_compression() == compression_type::LZEXE_090);
+        // Verify LZEXE 0.90 compression is detected
+        CHECK(mz.is_compressed() == true);
+        CHECK(mz.get_compression() == compression_type::LZEXE_090);
     }
 
     SUBCASE("LZEXE 0.91 - parse MZ header") {
@@ -78,8 +81,9 @@ TEST_CASE("legacy data: LZEXE compressed executables") {
             auto mz = mz_file::from_memory(data);
             CHECK(mz.get_format() == format_type::MZ_DOS);
 
-            // TODO: Once compression detection is implemented:
-            // CHECK(mz.get_compression() == compression_type::LZEXE_091);
+            // Verify LZEXE 0.91 compression is detected
+            CHECK(mz.is_compressed() == true);
+            CHECK(mz.get_compression() == compression_type::LZEXE_091);
         }());
     }
 }
