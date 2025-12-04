@@ -18,6 +18,8 @@ endif()
 add_executable(libexe_unittest
     main.cpp
     test_mz_parser.cpp
+    test_legacy_data.cpp
+    legacy_data_wrapper.cpp  # Includes all legacy test data with proper headers
     # More test files will be added incrementally
     # test_pklite_decompress.cpp
 )
