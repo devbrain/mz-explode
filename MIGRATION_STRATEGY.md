@@ -134,9 +134,49 @@ Error handling verified:
 
 **Success Criteria**: ✅ New datascript-based MZ parser passes all existing test cases with snake_case API and handles real legacy compressed executables.
 
-## Phase 2: Decompression Algorithms Separation
+## Phase 2: Decompression Algorithms Separation ⏳ IN PROGRESS
 
-### 2.1 Architecture Redesign
+### 2.1 Compression Detection & API Design ✅ COMPLETED
+- [x] Created `include/libexe/decompressor.hpp` with modern decompressor API
+- [x] Moved `compression_type` enum to decompressor.hpp (logical location)
+- [x] Designed `decompression_result` struct (code, metadata, relocations)
+- [x] Designed factory function: `create_decompressor(compression_type)`
+- [x] Implemented `detect_compression()` in mz_file
+- [x] Signature-based detection for PKLITE (standard vs extra)
+- [x] Signature-based detection for LZEXE (0.90 vs 0.91)
+- [x] Framework for EXEPACK and Knowledge Dynamics detection
+
+**Detection Results** (all 8 tests pass, 47 assertions):
+- ✅ PKLITE 1.12 → `PKLITE_STANDARD` (h_pklite_info = 0x210C)
+- ✅ PKLITE Extra 1.15 → `PKLITE_EXTRA` (h_pklite_info = 0x310F)
+- ✅ LZEXE 0.90 → `LZEXE_090`
+- ✅ LZEXE 0.91 → `LZEXE_091`
+
+### 2.2 PKLITE Decompressor Extraction ✅ COMPLETED
+- [x] Created `src/libexe/bit_reader.hpp` - Modern bit-level reader utility
+- [x] Created `include/libexe/pklite_decompressor.hpp` - PKLITE decompressor interface
+- [x] Created `src/libexe/pklite_decompressor.cpp` - Algorithm implementation
+- [x] Extracted `adjust_length_code_standard()` from legacy code
+- [x] Extracted `adjust_length_code_large()` from legacy code
+- [x] Extracted `get_base_offset()` - LZ77 back-reference decoding
+- [x] Extracted main decompression loop (literals + back-references)
+- [x] Builds successfully, no regressions in existing tests
+
+**Algorithm Extracted**:
+- Pure algorithm - no file I/O coupling
+- Modern C++20 with std::span, std::vector, RAII
+- Implements decompressor interface
+- Reusable bit_reader for all bit-based compression
+- Supports standard and large compression models
+- Handles XOR encryption variants
+
+**Current Limitations**:
+- ⚠️ Parameter extraction simplified (need full PKLITE version support)
+- ⚠️ Relocation parsing not yet implemented
+- ⚠️ Metadata extraction incomplete
+- ⚠️ No decompression tests yet (structure validated only)
+
+### 2.3 Architecture Redesign (REFERENCE)
 Current architecture mixes parsing and decompression:
 ```
 unpklite class:
