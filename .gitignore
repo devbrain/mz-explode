@@ -1,0 +1,19 @@
+# Build artifacts
+build/
+obj/
+bin/
+lib/
+
+# Generated code (regenerated from .ds files during build)
+generated/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
