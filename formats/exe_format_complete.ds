@@ -9,7 +9,7 @@
  * Based on Microsoft PE/COFF specification and actual Windows loader implementation.
  */
 
-package com.example.exe_parser;
+package libexe.format;
 
 // All Windows executable formats use little-endian byte order (x86 architecture).
 little;
