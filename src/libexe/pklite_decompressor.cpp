@@ -295,7 +295,8 @@ decompression_result pklite_decompressor::decompress(std::span<const uint8_t> co
         pklite_params params = read_parameters(compressed_data);
 
         bit_reader reader(compressed_data);
-        reader.seek(params.data_offset);
+        // data_offset is relative to start of code section (after MZ header)
+        reader.seek(header_size_ + params.data_offset);
 
         std::vector<uint8_t> decompressed;
         decompressed.reserve(params.decomp_size);
