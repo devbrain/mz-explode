@@ -20,6 +20,7 @@ add_executable(libexe_unittest
     test_mz_parser.cpp
     test_legacy_data.cpp
     test_pklite_decompress.cpp
+    test_lzexe_decompress.cpp
     test_bit_reader.cpp
     legacy_data_wrapper.cpp  # Includes all legacy test data with proper headers
 )
