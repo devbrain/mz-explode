@@ -215,8 +215,15 @@ compression_type mz_file::detect_compression() const {
         }
     }
 
-    // Knowledge Dynamics detection is more complex - check for characteristic patterns
-    // This is a heuristic based on the decompressor stub structure
+    // Knowledge Dynamics detection: Check for characteristic signature at offset 0x200
+    // Signature: 0xE9 0x99 0x00 (JMP instruction pattern)
+    if (data_.size() >= 0x200 + 3) {
+        if (data_[0x200] == 0xE9 &&
+            data_[0x201] == 0x99 &&
+            data_[0x202] == 0x00) {
+            return compression_type::KNOWLEDGE_DYNAMICS;
+        }
+    }
 
     return compression_type::NONE;
 }
