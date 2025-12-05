@@ -151,37 +151,139 @@ pklite_decompressor::pklite_params
 pklite_decompressor::read_parameters(std::span<const uint8_t> data) {
     pklite_params params{};
 
-    // Helper to read uint32_t from specific offset
-    auto read_u32_at = [&](size_t offset) -> uint32_t {
-        if (offset + 1 >= data.size()) return 0;
-        return data[offset] | (data[offset + 1] << 8);
+    // Helper to read bytes at offset (relative to header_size_)
+    auto read_u8 = [&](size_t offset) -> uint32_t {
+        size_t pos = header_size_ + offset;
+        if (pos >= data.size()) return 0;
+        return data[pos];
     };
 
-    // Determine parameters based on h_pklite_info
+    auto read_u16 = [&](size_t offset) -> uint32_t {
+        return read_u8(offset) | (read_u8(offset + 1) << 8);
+    };
+
+    // Extract flags from h_pklite_info
+    params.use_xor = (h_pklite_info_ & 0x1000) != 0;
+    params.large_compression = (h_pklite_info_ & 0x2000) != 0;
+
     uint16_t info_lower = h_pklite_info_ & 0xFFF;
 
-    // This is a simplified version - full version would handle all PKLITE variants
-    // For now, handle common cases from legacy code
+    // Handle different PKLITE versions based on h_pklite_info patterns
+    // This follows the legacy code's parameter extraction logic
 
-    if (info_lower == 0x10C || info_lower == 0x10D) {
-        params.decomp_size = (read_u32_at(1) << 4) + (read_u32_at(2) << 12) + 0x100;
-        params.compressed_size = (read_u32_at(4) << 4) + (read_u32_at(5) << 12);
-        params.decompressor_size = (read_u32_at(0x1D) << 1) + (read_u32_at(0x1E) << 9);
-        params.decompressor_size += read_u32_at(0x23) + (read_u32_at(0x24) << 8);
+    if (h_pklite_info_ == 0x100 || h_pklite_info_ == 0x103 ||
+        h_pklite_info_ == 0x1103 || h_pklite_info_ == 0x2103 ||
+        h_pklite_info_ == 0x3103 || h_pklite_info_ == 0x105 ||
+        h_pklite_info_ == 0x2105) {
+
+        params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12);
+        params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
+        params.decompressor_size = (read_u8(0x21) << 1) + (read_u8(0x22) << 9);
+        params.decompressor_size += read_u8(0x27) + (read_u8(0x28) << 8);
+
+        if (h_pklite_info_ == 0x1103) {
+            params.data_offset = 0x1E0;
+        } else if (h_pklite_info_ == 0x2103 || h_pklite_info_ == 0x2105) {
+            params.data_offset = 0x290;
+        } else if (h_pklite_info_ == 0x3103) {
+            params.data_offset = 0x2A0;
+        } else {
+            params.data_offset = 0x1D0;
+        }
+    }
+    else if (h_pklite_info_ == 0x210A) {
+        params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
+        params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
+        params.decompressor_size = (read_u8(0x37) << 1) + (read_u8(0x38) << 9);
+        params.decompressor_size += read_u8(0x3C) + (read_u8(0x3D) << 8);
+        params.data_offset = 0x290;
+    }
+    else if (info_lower == 0x10C || info_lower == 0x10D) {
+        params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
+        params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
+        params.decompressor_size = (read_u8(0x1D) << 1) + (read_u8(0x1E) << 9);
+        params.decompressor_size += read_u8(0x23) + (read_u8(0x24) << 8);
+
+        if ((h_pklite_info_ & 0x2000) != 0 || (h_pklite_info_ & 0x3000) != 0) {
+            params.data_offset = 0x290;
+        } else if ((h_pklite_info_ & 0x1000) != 0) {
+            params.data_offset = 0x1E0;
+        } else {
+            params.data_offset = 0x1D0;
+        }
+    }
+    else if (info_lower == 0x10E || info_lower == 0x10F) {
+        // Check for SYS file marker
+        uint32_t type = read_u8(0);
+        if (type == 0xEB && info_lower == 0x10F) {
+            // SYS file - adjust header
+            // Note: would need to handle this properly
+        }
+
+        params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
+        params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
+        params.decompressor_size = (read_u8(0x37) << 1) + (read_u8(0x38) << 9);
+        params.decompressor_size += read_u8(0x3D) + (read_u8(0x3E) << 8);
 
         if ((h_pklite_info_ & 0x2000) != 0) {
             params.data_offset = 0x290;
         } else {
             params.data_offset = 0x1D0;
         }
-    } else {
-        // Default for testing - will need full parameter extraction
-        params.decomp_size = 0x10000;  // 64KB default
+    }
+    else if ((h_pklite_info_ & 0xF0FF) == 0x10E || (h_pklite_info_ & 0xF0FF) == 0x10F) {
+        params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
+        params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
+        params.decompressor_size = (read_u8(0x35) << 1) + (read_u8(0x36) << 9);
+        params.decompressor_size += read_u8(0x38) + (read_u8(0x39) << 8);
+
+        if ((h_pklite_info_ & 0x3000) != 0) {
+            params.data_offset = 0x2C0;
+        } else {
+            params.data_offset = 0x200;
+        }
+    }
+    else if (h_pklite_info_ == 0x210E) {
+        params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
+        params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
+        params.decompressor_size = (read_u8(0x36) << 1) + (read_u8(0x37) << 9);
+        params.decompressor_size += read_u8(0x3C) + (read_u8(0x3D) << 8);
+        params.data_offset = 0x290;
+    }
+    else if (info_lower == 0x114) {
+        uint32_t type = read_u8(0);
+        if (type != 0x50) {
+            params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
+            params.compressed_size = read_u8(4) + (read_u8(5) << 8);
+            params.decompressor_size = (read_u8(0x34) << 1) + (read_u8(0x35) << 9);
+
+            uint32_t temp = read_u8(0x37) + (read_u8(0x38) << 8);
+            temp = temp + 0xFF10;
+            temp = temp + 0xFFFF0000;
+            temp = temp & 0xFFFFFFF0;
+            params.data_offset = temp;
+        }
+    }
+    else if (info_lower == 0x132) {
+        params.decomp_size = (read_u8(2) << 4) + (read_u8(3) << 12) + 0x100;
+        params.compressed_size = read_u8(5) + (read_u8(6) << 8);
+        params.decompressor_size = (read_u8(0x48) << 1) + (read_u8(0x49) << 9);
+
+        uint32_t temp = params.decompressor_size << 1;
+        uint32_t lo = temp & 0xFFFF;
+        if ((temp & 0xFFFF0000) == 0 && (lo == 0x0E || lo == 0x13F)) {
+            params.uncompressed_region = true;
+        }
+
+        params.decompressor_size += 0x62;
+        params.decompressor_size = params.decompressor_size & 0xFFFFFFF0;
+        params.data_offset = params.decompressor_size;
+    }
+    else {
+        // Fallback for unknown versions
+        params.decomp_size = 0x10000;
         params.data_offset = 0x1D0;
     }
-
-    params.use_xor = (h_pklite_info_ & 0x1000) != 0;
-    params.large_compression = (h_pklite_info_ & 0x2000) != 0;
 
     return params;
 }
@@ -240,13 +342,23 @@ decompression_result pklite_decompressor::decompress(std::span<const uint8_t> co
                     base_offset = static_cast<uint16_t>(base_offset + reader.read_byte());
 
                     // Copy from earlier in the decompressed stream
-                    if (base_offset > decompressed.size()) {
-                        throw std::runtime_error("PKLITE: invalid back-reference offset");
+                    if (base_offset == 0 || base_offset > decompressed.size()) {
+                        throw std::runtime_error("PKLITE: invalid back-reference offset: " +
+                            std::to_string(base_offset) + " > " + std::to_string(decompressed.size()));
                     }
 
                     size_t src_pos = decompressed.size() - base_offset;
+
+                    // Handle overlapping copies (source and destination can overlap)
+                    // Must copy byte-by-byte to handle run-length encoding correctly
                     for (uint16_t i = 0; i < length_code; i++) {
-                        decompressed.push_back(decompressed[src_pos + i]);
+                        if (src_pos + i >= decompressed.size()) {
+                            // This can happen with run-length encoding where we repeat recent bytes
+                            // Copy from the beginning of the back-reference pattern
+                            decompressed.push_back(decompressed[src_pos + (i % base_offset)]);
+                        } else {
+                            decompressed.push_back(decompressed[src_pos + i]);
+                        }
                     }
                 }
             }
@@ -254,8 +366,60 @@ decompression_result pklite_decompressor::decompress(std::span<const uint8_t> co
 
         result.code = std::move(decompressed);
 
-        // TODO: Parse relocations and other metadata
-        // For now, just return the decompressed code
+        // Parse relocations and metadata from end of compressed stream
+        // The reader is now positioned after compressed data
+
+        // Parse relocations based on h_pklite_info format
+        if ((h_pklite_info_ & 0x1000) == 0) {
+            // Standard relocation format
+            while (true) {
+                uint8_t count = reader.read_byte();
+                if (count == 0) break;
+
+                uint16_t segment = reader.read_word();
+
+                for (uint8_t i = 0; i < count; i++) {
+                    uint16_t offset = reader.read_word();
+                    result.relocations.emplace_back(segment, offset);
+                }
+            }
+        } else {
+            // Large executable relocation format
+            uint16_t segment = 0;
+            while (true) {
+                uint16_t count = reader.read_word();
+                if (count == 0xFFFF) break;
+
+                if (count != 0) {
+                    for (uint16_t i = 0; i < count; i++) {
+                        uint16_t offset = reader.read_word();
+                        result.relocations.emplace_back(segment, offset);
+                    }
+                }
+                segment += 0x0FFF;
+            }
+        }
+
+        // Read initial register values and metadata
+        result.initial_ss = reader.read_word();
+        result.initial_sp = reader.read_word();
+        result.initial_cs = reader.read_word();
+        result.initial_ip = 0;  // PKLITE always sets IP to 0
+
+        // Calculate min_extra_paragraphs
+        uint32_t extra_bytes = (params.decomp_size > decompressed.size())
+            ? (params.decomp_size - static_cast<uint32_t>(decompressed.size()))
+            : 0;
+        result.min_extra_paragraphs = static_cast<uint16_t>((extra_bytes + 0x0F) >> 4);
+
+        // Read checksum
+        result.checksum = reader.read_word();
+
+        // Store h_pklite_info in extra header (for compatibility)
+        uint8_t info_lo = h_pklite_info_ & 0xFF;
+        uint8_t info_hi = (h_pklite_info_ >> 8) & 0xFF;
+        result.extra_header.push_back(info_lo);
+        result.extra_header.push_back(info_hi);
 
     } catch (const std::exception& e) {
         throw std::runtime_error(std::string("PKLITE decompression failed: ") + e.what());
