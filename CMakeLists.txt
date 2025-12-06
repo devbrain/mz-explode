@@ -77,6 +77,7 @@ add_library(libexe
     src/libexe/executable_file.cpp
     src/libexe/mz_file.cpp
     src/libexe/pe_file.cpp
+    src/libexe/ne_file.cpp
     # Decompressors
     src/libexe/pklite_decompressor.cpp
     src/libexe/lzexe_decompressor.cpp
