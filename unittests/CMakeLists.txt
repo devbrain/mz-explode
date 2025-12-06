@@ -18,6 +18,7 @@ endif()
 add_executable(libexe_unittest
     main.cpp
     test_mz_parser.cpp
+    test_pe_parser.cpp
     test_legacy_data.cpp
     test_pklite_decompress.cpp
     test_pklite_vs_legacy.cpp  # MD5 verification against legacy
