@@ -75,6 +75,7 @@ add_datascript_parser(formats/exe_format_complete.ds)
 add_library(libexe
     # Core files
     src/libexe/executable_file.cpp
+    src/libexe/executable_factory.cpp
     src/libexe/mz_file.cpp
     src/libexe/pe_file.cpp
     src/libexe/ne_file.cpp
