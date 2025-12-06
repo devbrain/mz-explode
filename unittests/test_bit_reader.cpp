@@ -6,10 +6,10 @@
 using namespace libexe;
 
 TEST_CASE("bit_reader: basic bit reading") {
-    SUBCASE("Read bits LSB-first from single byte") {
-        // Byte 0xAB = 0b10101011
-        // LSB-first: 1,1,0,1,0,1,0,1
-        std::vector<uint8_t> data = {0xAB};
+    SUBCASE("Read bits LSB-first from 16-bit word") {
+        // Word 0x00AB (little-endian: 0xAB, 0x00)
+        // First byte 0xAB = 0b10101011, LSB-first: 1,1,0,1,0,1,0,1
+        std::vector<uint8_t> data = {0xAB, 0x00};
         bit_reader reader(data);
 
         CHECK(reader.read_bit() == 1);  // LSB
@@ -64,16 +64,19 @@ TEST_CASE("bit_reader: byte and word reading") {
     }
 
     SUBCASE("Mix bit and byte reading") {
-        std::vector<uint8_t> data = {0xAB, 0xCD};
+        // With 16-bit buffering: word at 0-1 is loaded for bit reads,
+        // then byte reads come from position 2 onward
+        std::vector<uint8_t> data = {0xAB, 0xCD, 0xEF, 0x12};
         bit_reader reader(data);
 
-        // Read 3 bits from first byte (0xAB = 0b10101011, LSB-first: 1,1,0,...)
+        // Read 3 bits from first word (0xCDAB little-endian)
+        // 0xAB = 0b10101011, LSB-first: 1,1,0,...
         CHECK(reader.read_bit() == 1);
         CHECK(reader.read_bit() == 1);
         CHECK(reader.read_bit() == 0);
 
-        // Read a full byte (should get next byte)
-        CHECK(reader.read_byte() == 0xCD);
+        // Read a full byte (should come from position 2, after the loaded word)
+        CHECK(reader.read_byte() == 0xEF);
     }
 }
 
@@ -95,21 +98,26 @@ TEST_CASE("bit_reader: seek functionality") {
 
 TEST_CASE("bit_reader: error handling") {
     SUBCASE("Read past end throws") {
-        std::vector<uint8_t> data = {0x12};
+        std::vector<uint8_t> data = {0x12, 0x34};
         bit_reader reader(data);
 
+        reader.read_byte();  // OK
         reader.read_byte();  // OK
         CHECK_THROWS_AS(reader.read_byte(), std::runtime_error);
     }
 
     SUBCASE("Read bits past end throws") {
-        std::vector<uint8_t> data = {0x12};
+        // bit_reader uses 16-bit word buffering with EAGER refill (like legacy)
+        // After reading the 16th bit, it tries to eagerly refill, which throws
+        std::vector<uint8_t> data = {0x12, 0x34};
         bit_reader reader(data);
 
-        for (int i = 0; i < 8; i++) {
-            reader.read_bit();  // OK, consumes all 8 bits
+        // Read 15 bits successfully (no eager refill yet)
+        for (int i = 0; i < 15; i++) {
+            reader.read_bit();  // OK
         }
 
+        // Reading the 16th bit triggers eager refill which throws
         CHECK_THROWS_AS(reader.read_bit(), std::runtime_error);
     }
 }

@@ -20,10 +20,16 @@ add_executable(libexe_unittest
     test_mz_parser.cpp
     test_legacy_data.cpp
     test_pklite_decompress.cpp
+    test_pklite_vs_legacy.cpp  # MD5 verification against legacy
     test_lzexe_decompress.cpp
     test_knowledge_dynamics_decompress.cpp
     test_bit_reader.cpp
     legacy_data_wrapper.cpp  # Includes all legacy test data with proper headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/unittest/md5.c  # MD5 implementation
+)
+
+target_include_directories(libexe_unittest PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/../src/unittest  # For md5.h
 )
 
 target_link_libraries(libexe_unittest

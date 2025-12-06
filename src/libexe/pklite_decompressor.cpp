@@ -112,8 +112,10 @@ uint16_t get_base_offset(bit_reader& reader) {
         offs = static_cast<uint16_t>(reader.read_bit() | (offs << 1));
 
         switch (offs) {
-            case 0: return 0x100;
-            case 1: return 0x200;
+            case 0:
+                return 0x100;
+            case 1:
+                return 0x200;
             default:
                 offs = static_cast<uint16_t>(reader.read_bit() | (offs << 1));
                 switch (offs) {
@@ -126,7 +128,8 @@ uint16_t get_base_offset(bit_reader& reader) {
                         switch (offs) {
                             case 0x10: return 0x700;
                             case 0x11: return 0x800;
-                            case 0x12: return 0x900;
+                            case 0x12:
+                                return 0x900;
                             case 0x13: return 0xA00;
                             case 0x14: return 0xB00;
                             case 0x15: return 0xC00;
@@ -212,10 +215,11 @@ pklite_decompressor::read_parameters(std::span<const uint8_t> data) {
             params.data_offset = 0x1D0;
         }
     }
-    else if (info_lower == 0x10E || info_lower == 0x10F) {
+    else if (h_pklite_info_ == 0x010E || h_pklite_info_ == 0x010F || h_pklite_info_ == 0x210F) {
+        // Legacy: handles 0x10E, 0x10F, 0x210F
         // Check for SYS file marker
         uint32_t type = read_u8(0);
-        if (type == 0xEB && info_lower == 0x10F) {
+        if (type == 0xEB && (h_pklite_info_ == 0x010F || h_pklite_info_ == 0x210F)) {
             // SYS file - adjust header
             // Note: would need to handle this properly
         }
@@ -225,19 +229,21 @@ pklite_decompressor::read_parameters(std::span<const uint8_t> data) {
         params.decompressor_size = (read_u8(0x37) << 1) + (read_u8(0x38) << 9);
         params.decompressor_size += read_u8(0x3D) + (read_u8(0x3E) << 8);
 
-        if ((h_pklite_info_ & 0x2000) != 0) {
+        if (h_pklite_info_ == 0x210F) {
             params.data_offset = 0x290;
         } else {
             params.data_offset = 0x1D0;
         }
     }
-    else if ((h_pklite_info_ & 0xF0FF) == 0x10E || (h_pklite_info_ & 0xF0FF) == 0x10F) {
+    else if (h_pklite_info_ == 0x110E || h_pklite_info_ == 0x310E ||
+             h_pklite_info_ == 0x110F || h_pklite_info_ == 0x310F) {
+        // Legacy: different offsets for these versions
         params.decomp_size = (read_u8(1) << 4) + (read_u8(2) << 12) + 0x100;
         params.compressed_size = (read_u8(4) << 4) + (read_u8(5) << 12);
         params.decompressor_size = (read_u8(0x35) << 1) + (read_u8(0x36) << 9);
         params.decompressor_size += read_u8(0x38) + (read_u8(0x39) << 8);
 
-        if ((h_pklite_info_ & 0x3000) != 0) {
+        if (h_pklite_info_ == 0x310E || h_pklite_info_ == 0x310F) {
             params.data_offset = 0x2C0;
         } else {
             params.data_offset = 0x200;
@@ -296,30 +302,37 @@ decompression_result pklite_decompressor::decompress(std::span<const uint8_t> co
 
         bit_reader reader(compressed_data);
         // data_offset is relative to start of code section (after MZ header)
-        reader.seek(header_size_ + params.data_offset);
+        size_t seek_pos = header_size_ + params.data_offset;
+        reader.seek(seek_pos);
 
+        // Pre-allocate output buffer for decompressed data
+        // Back-references are relative to decompressed output only (NOT the stub)
         std::vector<uint8_t> decompressed;
         decompressed.reserve(params.decomp_size);
+
+        // Track decompressed bytes (like legacy bx - starts at 0)
+        uint32_t bx = 0;
 
         // Choose length code adjustment function based on compression model
         auto adjust_length_code = params.large_compression
             ? adjust_length_code_large
             : adjust_length_code_standard;
 
-        // Main decompression loop
-        while (decompressed.size() < params.decomp_size) {
-            uint8_t bit = reader.read_bit();
+        // Main decompression loop (matches legacy unpklite.cc structure)
+        while (bx < params.decomp_size) {
+            uint16_t length_code = reader.read_bit();
 
-            if (bit == 0) {
+            if (length_code == 0) {
                 // Literal byte
                 uint8_t byte = reader.read_byte();
                 if (params.use_xor) {
                     byte ^= reader.bit_count();
                 }
                 decompressed.push_back(byte);
+                bx++;
             } else {
                 // Back-reference (LZ77-style)
-                uint16_t length_code = reader.read_bit();
+                // Read 2 more bits for length_code (legacy: loc_4578, loc_45c7)
                 length_code = static_cast<uint16_t>(reader.read_bit() | (length_code << 1));
                 length_code = static_cast<uint16_t>(reader.read_bit() | (length_code << 1));
 
@@ -342,25 +355,18 @@ decompression_result pklite_decompressor::decompress(std::span<const uint8_t> co
                     }
                     base_offset = static_cast<uint16_t>(base_offset + reader.read_byte());
 
-                    // Copy from earlier in the decompressed stream
-                    if (base_offset == 0 || base_offset > decompressed.size()) {
-                        throw std::runtime_error("PKLITE: invalid back-reference offset: " +
-                            std::to_string(base_offset) + " > " + std::to_string(decompressed.size()));
+                    // Legacy: back_offs = bx - base_offs
+                    // Validate back-reference doesn't go before start of buffer
+                    if (base_offset > bx) {
+                        throw std::runtime_error("PKLITE: invalid back-reference offset");
                     }
+                    uint32_t back_offs = bx - base_offset;
 
-                    size_t src_pos = decompressed.size() - base_offset;
-
-                    // Handle overlapping copies (source and destination can overlap)
-                    // Must copy byte-by-byte to handle run-length encoding correctly
+                    // Copy from earlier in decompressed output (handles overlapping correctly)
                     for (uint16_t i = 0; i < length_code; i++) {
-                        if (src_pos + i >= decompressed.size()) {
-                            // This can happen with run-length encoding where we repeat recent bytes
-                            // Copy from the beginning of the back-reference pattern
-                            decompressed.push_back(decompressed[src_pos + (i % base_offset)]);
-                        } else {
-                            decompressed.push_back(decompressed[src_pos + i]);
-                        }
+                        decompressed.push_back(decompressed[back_offs + i]);
                     }
+                    bx += length_code;
                 }
             }
         }
@@ -407,9 +413,9 @@ decompression_result pklite_decompressor::decompress(std::span<const uint8_t> co
         result.initial_cs = reader.read_word();
         result.initial_ip = 0;  // PKLITE always sets IP to 0
 
-        // Calculate min_extra_paragraphs
-        uint32_t extra_bytes = (params.decomp_size > decompressed.size())
-            ? (params.decomp_size - static_cast<uint32_t>(decompressed.size()))
+        // Calculate min_extra_paragraphs based on actual decompressed size
+        uint32_t extra_bytes = (params.decomp_size > bx)
+            ? (params.decomp_size - static_cast<uint32_t>(bx))
             : 0;
         result.min_extra_paragraphs = static_cast<uint16_t>((extra_bytes + 0x0F) >> 4);
 
