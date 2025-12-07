@@ -84,6 +84,7 @@ add_executable(libexe_unittest
     explode/data_wrapper.cpp  # Includes all decompressor test data
     formats/test_progman.cpp  # Real NE file (Windows 3.11 Program Manager)
     formats/test_ne_font.cpp  # Real NE font (Windows 3.11 CGA font)
+    formats/test_pe64.cpp     # Real PE32+ file (64-bit executable)
     formats/data_wrapper.cpp  # Includes all PE/NE format test data
     md5.c  # MD5 implementation for verification
 )
