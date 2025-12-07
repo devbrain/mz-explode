@@ -78,6 +78,9 @@ add_executable(libexe_unittest
         test_executable_factory.cpp
         resources/test_pe_resources.cpp     # PE resource extraction tests
         resources/test_ne_resources.cpp     # NE resource extraction tests
+        resources/test_icon_parsers.cpp     # Icon parser tests
+        resources/test_font_parsers.cpp     # Font parser tests
+        resources/test_version_manifest_parsers.cpp  # Version & Manifest parser tests
         explode/test_pklite.cpp
         explode/test_lzexe.cpp
         explode/test_knowledge_dynamics.cpp

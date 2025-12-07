@@ -2,6 +2,11 @@
 // Copyright (c) 2024
 
 #include <libexe/resources/resource.hpp>
+#include <libexe/resources/parsers/icon_group_parser.hpp>
+#include <libexe/resources/parsers/icon_parser.hpp>
+#include <libexe/resources/parsers/font_parser.hpp>
+#include <libexe/resources/parsers/version_info_parser.hpp>
+#include <libexe/resources/parsers/manifest_parser.hpp>
 #include <algorithm>
 #include <sstream>
 
@@ -122,6 +127,26 @@ size_t resource_entry::size() const {
 
 uint32_t resource_entry::codepage() const {
     return impl_ ? impl_->codepage : 0;
+}
+
+std::optional<icon_group> resource_entry::as_icon_group() const {
+    return icon_group_parser::parse(data());
+}
+
+std::optional<icon_image> resource_entry::as_icon() const {
+    return icon_parser::parse(data());
+}
+
+std::optional<font_data> resource_entry::as_font() const {
+    return font_parser::parse(data());
+}
+
+std::optional<version_info> resource_entry::as_version_info() const {
+    return version_info_parser::parse(data());
+}
+
+std::optional<manifest_data> resource_entry::as_manifest() const {
+    return manifest_parser::parse(data());
 }
 
 resource_entry resource_entry::create(

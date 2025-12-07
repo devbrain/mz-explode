@@ -82,6 +82,12 @@ add_library(libexe
         resources/resource.cpp
         resources/pe_resource_directory.cpp
         resources/ne_resource_directory.cpp
+        # Resource Parsers
+        resources/parsers/icon_group_parser.cpp
+        resources/parsers/icon_parser.cpp
+        resources/parsers/font_parser.cpp
+        resources/parsers/version_info_parser.cpp
+        resources/parsers/manifest_parser.cpp
         # Decompressors
         decompressors/pklite_decompressor.cpp
         decompressors/lzexe_decompressor.cpp
@@ -107,6 +113,7 @@ target_include_directories(libexe
         PRIVATE
         ${CMAKE_BINARY_DIR}/generated
         ${CMAKE_CURRENT_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/third-party
 )
 
 ## Link dependencies

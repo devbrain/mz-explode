@@ -169,6 +169,60 @@ namespace libexe {
             [[nodiscard]] uint32_t codepage() const;
 
             // =========================================================================
+            // Convenience Parser Methods
+            // =========================================================================
+
+            /**
+             * Parse as icon group (RT_GROUP_ICON)
+             *
+             * Convenience method that parses this resource as an icon group.
+             * Equivalent to: icon_group_parser::parse(entry.data())
+             *
+             * @return Parsed icon group on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct icon_group> as_icon_group() const;
+
+            /**
+             * Parse as icon image (RT_ICON)
+             *
+             * Convenience method that parses this resource as an icon image.
+             * Equivalent to: icon_parser::parse(entry.data())
+             *
+             * @return Parsed icon image on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct icon_image> as_icon() const;
+
+            /**
+             * Parse as font (RT_FONT)
+             *
+             * Convenience method that parses this resource as a Windows raster font.
+             * Equivalent to: font_parser::parse(entry.data())
+             *
+             * @return Parsed font data on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct font_data> as_font() const;
+
+            /**
+             * Parse as version info (RT_VERSION)
+             *
+             * Convenience method that parses this resource as version information.
+             * Equivalent to: version_info_parser::parse(entry.data())
+             *
+             * @return Parsed version info on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct version_info> as_version_info() const;
+
+            /**
+             * Parse as manifest (RT_MANIFEST)
+             *
+             * Convenience method that parses this resource as an application manifest.
+             * Equivalent to: manifest_parser::parse(entry.data())
+             *
+             * @return Parsed manifest data on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct manifest_data> as_manifest() const;
+
+            // =========================================================================
             // Implementation Details (for internal use)
             // =========================================================================
 
