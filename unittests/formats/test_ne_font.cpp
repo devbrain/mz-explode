@@ -5,6 +5,7 @@
 #include <libexe/ne_file.hpp>
 #include <libexe/pe_file.hpp>
 #include <libexe/ne_types.hpp>
+#include <libexe/resources/resource.hpp>
 #include <vector>
 
 using namespace libexe;
@@ -132,5 +133,59 @@ TEST_CASE("CGA40WOA.FON: Font-specific characteristics") {
         // Font files are typically small (< 50KB)
         CHECK(data.size() < 50000);
         CHECK(data.size() == 6336);  // Exact size for CGA40WOA.FON
+    }
+}
+
+TEST_CASE("CGA40WOA.FON: Resource extraction validation") {
+    auto data = load_font();
+    auto ne = ne_file::from_memory(data);
+
+    SUBCASE("Has resources") {
+        CHECK(ne.has_resources());
+    }
+
+    SUBCASE("Validate against wrestool output") {
+        auto rsrc = ne.resources();
+
+        // Total resource count should match wrestool
+        // wrestool --list CGA40WOA.FON reports 3 resources
+        CHECK(rsrc->resource_count() == 3);
+
+        // Validate counts by type (verified with wrestool)
+        // type=7 (RT_FONTDIR): 1
+        // type=8 (RT_FONT): 1
+        // type=16 (RT_VERSION): 1
+        CHECK(rsrc->resources_by_type(resource_type::RT_FONTDIR).size() == 1);
+        CHECK(rsrc->resources_by_type(resource_type::RT_FONT).size() == 1);
+        CHECK(rsrc->resources_by_type(resource_type::RT_VERSION).size() == 1);
+
+        // Verify specific resources exist
+        // FONTDIR has string name "FONTDIR" (not integer ID)
+        auto fontdir = rsrc->find_resource(resource_type::RT_FONTDIR, "FONTDIR");
+        CHECK(fontdir.has_value());
+        if (fontdir) {
+            CHECK(fontdir->size() == 128);  // Exact size from wrestool
+        }
+
+        // FONT has ID 100
+        auto font = rsrc->find_resource(resource_type::RT_FONT, 100);
+        CHECK(font.has_value());
+        if (font) {
+            CHECK(font->size() == 5232);  // Exact size from wrestool
+        }
+
+        // VERSION has ID 1
+        auto version = rsrc->find_resource(resource_type::RT_VERSION, 1);
+        CHECK(version.has_value());
+        if (version) {
+            CHECK(version->size() == 528);  // Exact size from wrestool
+        }
+    }
+
+    SUBCASE("Resource enumeration") {
+        auto rsrc = ne.resources();
+        auto all = rsrc->all_resources();
+
+        CHECK(all.size() == 3);
     }
 }

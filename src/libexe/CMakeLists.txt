@@ -78,6 +78,10 @@ add_library(libexe
         mz_file.cpp
         pe_file.cpp
         ne_file.cpp
+        # Resources
+        resources/resource.cpp
+        resources/pe_resource_directory.cpp
+        resources/ne_resource_directory.cpp
         # Decompressors
         decompressors/pklite_decompressor.cpp
         decompressors/lzexe_decompressor.cpp

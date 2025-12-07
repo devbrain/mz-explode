@@ -11,8 +11,12 @@
 #include <vector>
 #include <span>
 #include <optional>
+#include <memory>
 
 namespace libexe {
+    // Forward declarations
+    class resource_directory;
+
     /// NE segment information
     struct LIBEXE_EXPORT ne_segment {
         uint16_t sector_offset; // File offset (in sectors, multiply by alignment shift)
@@ -67,6 +71,10 @@ namespace libexe {
 
             /// Get segment alignment shift factor (actual offset = sector_offset << alignment_shift)
             [[nodiscard]] uint16_t alignment_shift() const;
+
+            /// Resource access
+            [[nodiscard]] bool has_resources() const;
+            [[nodiscard]] std::shared_ptr<resource_directory> resources() const;
 
         private:
             ne_file() = default; // Use factory methods

@@ -12,8 +12,12 @@
 #include <span>
 #include <string>
 #include <optional>
+#include <memory>
 
 namespace libexe {
+    // Forward declarations
+    class resource_directory;
+
     /// PE section information
     struct LIBEXE_EXPORT pe_section {
         std::string name; // Section name (e.g., ".text", ".data")
@@ -64,6 +68,10 @@ namespace libexe {
 
             /// Get section containing code (.text typically)
             [[nodiscard]] std::optional <pe_section> get_code_section() const;
+
+            /// Resource access
+            [[nodiscard]] bool has_resources() const;
+            [[nodiscard]] std::shared_ptr<resource_directory> resources() const;
 
         private:
             pe_file() = default; // Use factory methods

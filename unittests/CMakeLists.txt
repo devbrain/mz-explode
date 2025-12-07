@@ -3,20 +3,20 @@
 # =============================================================================
 
 # Guard: check if doctest target already exists (provided by parent project)
-if(NOT TARGET doctest::doctest AND NOT TARGET doctest)
+if (NOT TARGET doctest::doctest AND NOT TARGET doctest)
     find_package(doctest QUIET)
-endif()
+endif ()
 
-if(NOT doctest_FOUND AND NOT TARGET doctest::doctest AND NOT TARGET doctest)
+if (NOT doctest_FOUND AND NOT TARGET doctest::doctest AND NOT TARGET doctest)
     message(STATUS "doctest not found, fetching from GitHub...")
 
     include(FetchContent)
     set(FETCHCONTENT_QUIET OFF)
 
     # Allow FetchContent_Populate to be used (suppress CMP0169 warning)
-    if(POLICY CMP0169)
+    if (POLICY CMP0169)
         cmake_policy(SET CMP0169 OLD)
-    endif()
+    endif ()
 
     # Configure doctest options
     set(DOCTEST_WITH_TESTS OFF CACHE INTERNAL "")
@@ -32,7 +32,7 @@ if(NOT doctest_FOUND AND NOT TARGET doctest::doctest AND NOT TARGET doctest)
 
     # Fetch the content first
     FetchContent_GetProperties(doctest)
-    if(NOT doctest_POPULATED)
+    if (NOT doctest_POPULATED)
         FetchContent_Populate(doctest)
 
         # Patch the CMakeLists.txt to fix deprecation warning
@@ -45,53 +45,55 @@ if(NOT doctest_FOUND AND NOT TARGET doctest::doctest AND NOT TARGET doctest)
 
         # Now add the subdirectory
         add_subdirectory(${doctest_SOURCE_DIR} ${doctest_BINARY_DIR} EXCLUDE_FROM_ALL)
-    endif()
+    endif ()
 
     # Verify doctest::doctest target was created
-    if(TARGET doctest::doctest)
+    if (TARGET doctest::doctest)
         message(STATUS "doctest::doctest target created successfully")
-    elseif(TARGET doctest)
+    elseif (TARGET doctest)
         # Create alias if only 'doctest' target exists
         add_library(doctest::doctest ALIAS doctest)
         message(STATUS "Created doctest::doctest alias")
-    else()
+    else ()
         message(FATAL_ERROR "doctest failed to create expected targets")
-    endif()
-else()
+    endif ()
+else ()
     # doctest already available (from system or parent project)
-    if(TARGET doctest::doctest)
+    if (TARGET doctest::doctest)
         message(STATUS "Using existing doctest::doctest target")
-    elseif(TARGET doctest)
+    elseif (TARGET doctest)
         message(STATUS "Using existing doctest target, creating alias")
         add_library(doctest::doctest ALIAS doctest)
-    else()
+    else ()
         message(STATUS "Using system-provided doctest")
-    endif()
-endif()
+    endif ()
+endif ()
 
 # Unit test executable
 add_executable(libexe_unittest
-    main.cpp
-    test_mz_parser.cpp
-    test_pe_parser.cpp
-    test_ne_parser.cpp
-    test_executable_factory.cpp
-    explode/test_pklite.cpp
-    explode/test_lzexe.cpp
-    explode/test_knowledge_dynamics.cpp
-    explode/test_exepack.cpp  # MD5 verification - EXEPACK
-    explode/test_bit_reader.cpp
-    explode/data_wrapper.cpp  # Includes all decompressor test data
-    formats/test_progman.cpp  # Real NE file (Windows 3.11 Program Manager)
-    formats/test_ne_font.cpp  # Real NE font (Windows 3.11 CGA font)
-    formats/test_pe32.cpp     # Real PE32 file (32-bit executable)
-    formats/test_pe64.cpp     # Real PE32+ file (64-bit executable)
-    formats/data_wrapper.cpp  # Includes all PE/NE format test data
-    md5.c  # MD5 implementation for verification
+        main.cpp
+        test_mz_parser.cpp
+        test_pe_parser.cpp
+        test_ne_parser.cpp
+        test_executable_factory.cpp
+        resources/test_pe_resources.cpp     # PE resource extraction tests
+        resources/test_ne_resources.cpp     # NE resource extraction tests
+        explode/test_pklite.cpp
+        explode/test_lzexe.cpp
+        explode/test_knowledge_dynamics.cpp
+        explode/test_exepack.cpp  # MD5 verification - EXEPACK
+        explode/test_bit_reader.cpp
+        explode/data_wrapper.cpp  # Includes all decompressor test data
+        formats/test_progman.cpp  # Real NE file (Windows 3.11 Program Manager)
+        formats/test_ne_font.cpp  # Real NE font (Windows 3.11 CGA font)
+        formats/test_pe32.cpp     # Real PE32 file (32-bit executable)
+        formats/test_pe64.cpp     # Real PE32+ file (64-bit executable)
+        formats/data_wrapper.cpp  # Includes all PE/NE format test data
+        md5.c  # MD5 implementation for verification
 )
 
 target_link_libraries(libexe_unittest
-    PRIVATE
+        PRIVATE
         libexe
         doctest::doctest
 )
@@ -99,11 +101,11 @@ target_link_libraries(libexe_unittest
 target_include_directories(libexe_unittest PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # Register tests with CTest
-if(DEFINED doctest_SOURCE_DIR AND EXISTS ${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
+if (DEFINED doctest_SOURCE_DIR AND EXISTS ${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
     # Using FetchContent doctest - can use discovery
     include(${doctest_SOURCE_DIR}/scripts/cmake/doctest.cmake)
     doctest_discover_tests(libexe_unittest)
-else()
+else ()
     # Using system/parent-provided doctest - simple test registration
     add_test(NAME libexe_unittest COMMAND libexe_unittest)
-endif()
+endif ()
