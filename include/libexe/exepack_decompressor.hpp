@@ -12,12 +12,12 @@
 
 namespace libexe {
 
-class LIBEXE_EXPORT exepack_decompressor : public decompressor {
+class LIBEXE_EXPORT exepack_decompressor final : public decompressor {
 public:
     explicit exepack_decompressor(uint16_t header_size);
 
     decompression_result decompress(std::span<const uint8_t> compressed_data) override;
-    const char* name() const override { return "EXEPACK"; }
+    [[nodiscard]] const char* name() const override { return "EXEPACK"; }
 
 private:
     struct exepack_header {
@@ -40,13 +40,20 @@ private:
         size_t uncompressed_len;
     };
 
-    exepack_params read_parameters(std::span<const uint8_t> data);
+    static exepack_params read_parameters(std::span<const uint8_t> data);
 
     // Core decompression algorithm - works backwards
-    void decompress_data(std::vector<uint8_t>& buf, size_t compressed_len, size_t uncompressed_len);
+    static void decompress_data(std::vector<uint8_t>& buf, size_t compressed_len, size_t uncompressed_len);
 
     // Skip up to 15 bytes of 0xff padding
     static size_t unpad(std::span<const uint8_t> buf, size_t pos);
+
+    // Locate the end of the decompressor stub by pattern matching
+    static size_t locate_stub_end(std::span<const uint8_t> stub);
+
+    // Parse packed relocation table from stub area
+    static std::vector<std::pair<uint16_t, uint16_t>>
+        parse_packed_relocations(std::span<const uint8_t> reloc_data);
 
     uint16_t header_size_;
 };
