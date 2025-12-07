@@ -77,12 +77,12 @@ std::string_view mz_file::format_name() const {
 
 std::span<const uint8_t> mz_file::code_section() const {
     if (data_.size() > code_offset_) {
-        return std::span<const uint8_t>(
+        return {
             data_.data() + code_offset_,
             data_.size() - code_offset_
-        );
+        };
     }
-    return std::span<const uint8_t>();
+    return {};
 }
 
 // Compression detection
@@ -207,11 +207,23 @@ compression_type mz_file::detect_compression() const {
         }
     }
 
-    // EXEPACK detection: Check for characteristic decompressor stub
-    // EXEPACK typically has "RB" signature in the stub
-    if (data_.size() >= 0x12 + 2) {
-        if (data_[0x12] == 0x52 && data_[0x13] == 0x42) {  // "RB"
-            return compression_type::EXEPACK;
+    // EXEPACK detection: Check for "RB" signature in EXEPACK header
+    // EXEPACK header is at CS:0000, signature can be at offset +14 (16-byte header) or +16 (18-byte header)
+    if (data_.size() >= 0x18) {
+        uint16_t e_cs = data_[0x16] | (data_[0x17] << 8);
+        uint32_t cs_offset = header_size_ + (e_cs * 16);
+
+        // Try 16-byte header variant first (signature at +14)
+        if (data_.size() >= cs_offset + 16) {
+            if (data_[cs_offset + 14] == 0x52 && data_[cs_offset + 15] == 0x42) {  // "RB"
+                return compression_type::EXEPACK;
+            }
+        }
+        // Try 18-byte header variant (signature at +16)
+        if (data_.size() >= cs_offset + 18) {
+            if (data_[cs_offset + 16] == 0x52 && data_[cs_offset + 17] == 0x42) {  // "RB"
+                return compression_type::EXEPACK;
+            }
         }
     }
 

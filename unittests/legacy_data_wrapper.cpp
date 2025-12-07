@@ -20,3 +20,9 @@
 #include "testdata/dot.cc"
 #include "testdata/lex.cc"
 #include "testdata/tntega.cc"
+
+// Include test data files - EXEPACK
+#include "testdata/exepack_hello.cc"
+#include "testdata/exepack_masm400.cc"
+#include "testdata/exepack_masm500.cc"
+#include "testdata/exepack_masm510.cc"

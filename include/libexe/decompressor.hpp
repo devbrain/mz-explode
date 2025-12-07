@@ -33,6 +33,7 @@ struct decompression_result {
     uint16_t initial_sp = 0;                // Initial SP register
     uint16_t min_extra_paragraphs = 0;      // Minimum extra memory
     uint16_t max_extra_paragraphs = 0xFFFF; // Maximum extra memory (default = no limit)
+    uint16_t header_paragraphs = 0;         // Original header size (0 = calculate from relocations)
     uint16_t checksum = 0;                  // File checksum
     std::vector<std::pair<uint16_t, uint16_t>> relocations;  // Segment:offset pairs
 };

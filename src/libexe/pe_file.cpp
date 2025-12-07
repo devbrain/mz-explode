@@ -193,7 +193,7 @@ std::span<const uint8_t> pe_file::code_section() const {
     if (code_sec) {
         return code_sec->data;
     }
-    return std::span<const uint8_t>();
+    return {};
 }
 
 // PE-specific accessors

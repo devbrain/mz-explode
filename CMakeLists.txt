@@ -83,6 +83,7 @@ add_library(libexe
         src/libexe/decompressors/pklite_decompressor.cpp
         src/libexe/decompressors/lzexe_decompressor.cpp
         src/libexe/decompressors/knowledge_dynamics_decompressor.cpp
+        src/libexe/decompressors/exepack_decompressor.cpp
 )
 
 # Make library depend on parser generation

@@ -28,6 +28,7 @@ add_executable(libexe_unittest
     test_lzexe_vs_legacy.cpp  # MD5 verification - LZEXE
     test_knowledge_dynamics_decompress.cpp
     test_knowledge_dynamics_vs_legacy.cpp  # MD5 verification - Knowledge Dynamics
+    test_exepack_vs_legacy.cpp  # MD5 verification - EXEPACK
     test_bit_reader.cpp
     legacy_data_wrapper.cpp  # Includes all test data with proper headers
     md5.c  # MD5 implementation for verification
