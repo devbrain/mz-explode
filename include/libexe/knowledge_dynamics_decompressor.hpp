@@ -26,8 +26,11 @@ private:
         uint16_t initial_ip;
         uint16_t initial_ss;
         uint16_t initial_sp;
+        uint16_t checksum;
         uint16_t max_mem_para;
         uint16_t min_mem_para;
+        uint32_t relocation_offset;
+        uint16_t num_relocations;
     };
 
     kd_params read_parameters(std::span<const uint8_t> data);

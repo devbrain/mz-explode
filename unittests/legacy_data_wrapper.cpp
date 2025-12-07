@@ -14,6 +14,9 @@
 // Include test data files - LZEXE
 #include "testdata/z90.cc"
 #include "testdata/z91.cc"
+#include "testdata/z91e.cc"
 
 // Include test data files - Knowledge Dynamics
 #include "testdata/dot.cc"
+#include "testdata/lex.cc"
+#include "testdata/tntega.cc"

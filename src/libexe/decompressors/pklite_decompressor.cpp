@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/pklite_decompressor.hpp>
-#include "bit_reader.hpp"
+#include "../bit_reader.hpp"
 #include <stdexcept>
 #include <vector>
 #include <cstring>

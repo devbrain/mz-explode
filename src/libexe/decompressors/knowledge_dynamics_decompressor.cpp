@@ -56,8 +56,16 @@ knowledge_dynamics_decompressor::kd_params knowledge_dynamics_decompressor::read
     params.initial_cs = inner_header[0x16] | (inner_header[0x17] << 8);
     params.initial_sp = inner_header[0x10] | (inner_header[0x11] << 8);
     params.initial_ss = inner_header[0x0E] | (inner_header[0x0F] << 8);
+    params.checksum = inner_header[0x12] | (inner_header[0x13] << 8);
     params.max_mem_para = inner_header[0x0C] | (inner_header[0x0D] << 8);
     params.min_mem_para = (params.expected_size + 0x20) / 64;
+
+    // Read relocations from inner embedded header
+    uint16_t num_relocs = inner_header[0x06] | (inner_header[0x07] << 8);
+    uint16_t reloc_offset = inner_header[0x18] | (inner_header[0x19] << 8);
+
+    params.relocation_offset = extra_data_start + reloc_offset;
+    params.num_relocations = num_relocs;
 
     return params;
 }
@@ -70,12 +78,29 @@ decompression_result knowledge_dynamics_decompressor::decompress(
     // Read parameters
     kd_params params = read_parameters(compressed_data);
 
-    // Set metadata
+    // Set metadata from embedded header
     result.initial_ip = params.initial_ip;
     result.initial_cs = params.initial_cs;
     result.initial_sp = params.initial_sp;
     result.initial_ss = params.initial_ss;
+    result.checksum = params.checksum;
     result.min_extra_paragraphs = params.min_mem_para;
+    result.max_extra_paragraphs = params.max_mem_para;
+
+    // Parse relocations from inner embedded header
+    if (params.num_relocations > 0) {
+        uint32_t reloc_pos = params.relocation_offset;
+        for (uint16_t i = 0; i < params.num_relocations; i++) {
+            if (compressed_data.size() < reloc_pos + 4) {
+                throw std::runtime_error("Knowledge Dynamics: relocation table truncated");
+            }
+
+            uint16_t offset = compressed_data[reloc_pos] | (compressed_data[reloc_pos + 1] << 8);
+            uint16_t segment = compressed_data[reloc_pos + 2] | (compressed_data[reloc_pos + 3] << 8);
+            result.relocations.emplace_back(segment, offset);
+            reloc_pos += 4;
+        }
+    }
 
     // LZW decompression setup
     constexpr size_t BUFFER_SIZE = 1024;
@@ -146,10 +171,11 @@ decompression_result knowledge_dynamics_decompressor::decompress(
                 file_pos += bytes_to_read;
             }
 
-            // Reset cursor
-            bit_pos = bit_offset + step;
+            // Reset cursor (matching legacy logic exactly)
+            bit_pos = bit_offset + step;  // Recalculate from bit offset
             byte_pos = 0;
 
+            // On dictionary reset, use byte offset as bit offset (legacy comment)
             if (reset_hack) {
                 bit_offset = bytes_extra;
             }

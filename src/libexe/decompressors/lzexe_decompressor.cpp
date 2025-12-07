@@ -116,12 +116,28 @@ decompression_result lzexe_decompressor::decompress(std::span<const uint8_t> com
     // Read parameters
     lzexe_params params = read_parameters(compressed_data);
 
-    // Set metadata
+    // Set metadata from LZEXE header
     result.initial_ip = params.initial_ip;
     result.initial_cs = params.initial_cs;
     result.initial_sp = params.initial_sp;
     result.initial_ss = params.initial_ss;
-    result.checksum = params.checksum;
+
+    // Checksum comes from ORIGINAL MZ header, not LZEXE header
+    // LZEXE header's checksum is for decompressor validation only
+    result.checksum = compressed_data[0x12] | (compressed_data[0x13] << 8);
+
+    // Compute min_extra_paragraphs from original MZ header
+    // Legacy: oexe[MIN_MEM_PARA] = m_exe_file[MIN_MEM_PARA] - delta
+    // where delta = eINC_SIZE + ((eDECOMPRESSOR_SIZE + 15) >> 4) + 9
+    uint16_t original_min_mem = compressed_data[0x0A] | (compressed_data[0x0B] << 8);
+    uint16_t original_max_mem = compressed_data[0x0C] | (compressed_data[0x0D] << 8);
+
+    if (original_max_mem != 0) {
+        int32_t delta = params.inc_size + ((params.decompressor_size + 15) >> 4) + 9;
+        result.min_extra_paragraphs = static_cast<uint16_t>(original_min_mem - delta);
+    } else {
+        result.min_extra_paragraphs = original_min_mem;
+    }
 
     // Parse relocations
     if (version_ == lzexe_version::V090) {
