@@ -6,17 +6,16 @@
 
 #include <libexe/export.hpp>
 #include <libexe/decompressor.hpp>
-#include <cstdint>
 #include <span>
 
 namespace libexe {
 
-class LIBEXE_EXPORT knowledge_dynamics_decompressor : public decompressor {
+class LIBEXE_EXPORT knowledge_dynamics_decompressor final : public decompressor {
 public:
     explicit knowledge_dynamics_decompressor(uint16_t header_size);
 
     decompression_result decompress(std::span<const uint8_t> compressed_data) override;
-    const char* name() const override { return "Knowledge Dynamics"; }
+    [[nodiscard]] const char* name() const override { return "Knowledge Dynamics"; }
 
 private:
     struct kd_params {
@@ -33,7 +32,7 @@ private:
         uint16_t num_relocations;
     };
 
-    kd_params read_parameters(std::span<const uint8_t> data);
+    static kd_params read_parameters(std::span<const uint8_t> data);
 
     uint16_t header_size_;
 };

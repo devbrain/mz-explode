@@ -16,12 +16,12 @@ enum class lzexe_version {
     V091
 };
 
-class LIBEXE_EXPORT lzexe_decompressor : public decompressor {
+class LIBEXE_EXPORT lzexe_decompressor final : public decompressor {
 public:
     explicit lzexe_decompressor(lzexe_version version, uint16_t header_size);
 
     decompression_result decompress(std::span<const uint8_t> compressed_data) override;
-    const char* name() const override { return "LZEXE"; }
+    [[nodiscard]] const char* name() const override { return "LZEXE"; }
 
 private:
     struct lzexe_params {
@@ -37,7 +37,7 @@ private:
         uint32_t code_offset;
     };
 
-    lzexe_params read_parameters(std::span<const uint8_t> data);
+    lzexe_params read_parameters(std::span<const uint8_t> data) const;
     void parse_relocations_v090(std::span<const uint8_t> data, uint32_t offset,
                                 decompression_result& result);
     void parse_relocations_v091(std::span<const uint8_t> data, uint32_t offset,

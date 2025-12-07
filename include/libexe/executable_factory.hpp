@@ -8,9 +8,7 @@
 #include <libexe/executable_file.hpp>
 #include <filesystem>
 #include <span>
-#include <cstdint>
 #include <variant>
-#include <stdexcept>
 
 // Forward declarations
 namespace libexe {
@@ -20,30 +18,28 @@ namespace libexe {
 }
 
 namespace libexe {
+    /// Result type for executable factory - holds one of the supported formats
+    using executable_variant = std::variant <mz_file, ne_file, pe_file>;
 
-/// Result type for executable factory - holds one of the supported formats
-using executable_variant = std::variant<mz_file, ne_file, pe_file>;
+    /// Factory for auto-detecting and loading executable files
+    class LIBEXE_EXPORT executable_factory {
+        public:
+            /// Detect format type from file header without full parsing
+            static format_type detect_format(std::span <const uint8_t> data);
 
-/// Factory for auto-detecting and loading executable files
-class LIBEXE_EXPORT executable_factory {
-public:
-    /// Detect format type from file header without full parsing
-    static format_type detect_format(std::span<const uint8_t> data);
+            /// Detect format type from file
+            static format_type detect_format(const std::filesystem::path& path);
 
-    /// Detect format type from file
-    static format_type detect_format(const std::filesystem::path& path);
+            /// Load executable with automatic format detection
+            /// Returns std::variant containing the appropriate type (mz_file, ne_file, or pe_file)
+            static executable_variant load(std::span <const uint8_t> data);
 
-    /// Load executable with automatic format detection
-    /// Returns std::variant containing the appropriate type (mz_file, ne_file, or pe_file)
-    static executable_variant load(std::span<const uint8_t> data);
+            /// Load executable from file with automatic format detection
+            static executable_variant load(const std::filesystem::path& path);
 
-    /// Load executable from file with automatic format detection
-    static executable_variant load(const std::filesystem::path& path);
-
-    /// Get human-readable format name for a format_type
-    static std::string_view format_type_name(format_type type);
-};
-
+            /// Get human-readable format name for a format_type
+            static std::string_view format_type_name(format_type type);
+    };
 } // namespace libexe
 
 #endif // LIBEXE_EXECUTABLE_FACTORY_HPP

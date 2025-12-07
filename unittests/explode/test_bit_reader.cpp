@@ -1,6 +1,6 @@
 // Tests for bit_reader utility
 #include <doctest/doctest.h>
-#include "../src/libexe/bit_reader.hpp"
+#include "../../src/libexe/decompressors/bit_reader.hpp"
 #include <vector>
 
 using namespace libexe;

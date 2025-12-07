@@ -2,20 +2,33 @@
 // Follows exepack-1.4.0 test logic: allows up to 15 bytes of zero padding
 #include <doctest/doctest.h>
 #include <libexe/mz_file.hpp>
-#include <libexe/exepack_decompressor.hpp>
-#include <fstream>
+#include <libexe/decompressors/exepack_decompressor.hpp>
 #include <string>
 #include <algorithm>
 
 using namespace libexe;
 
-// Reference output from exepack-1.4.0 tests/hello.exe
+// Forward declaration of test data
+namespace data {
+    extern size_t exepack_hello_len;
+    extern unsigned char exepack_hello[];
+
+    extern size_t exepack_masm400_len;
+    extern unsigned char exepack_masm400[];
+
+    extern size_t exepack_masm500_len;
+    extern unsigned char exepack_masm500[];
+
+    extern size_t exepack_masm510_len;
+    extern unsigned char exepack_masm510[];
+}
+
+// Reference output from exepack-1.4.0 tests/hello.exe (embedded)
 static std::vector<uint8_t> read_reference_file() {
-    std::ifstream file("/home/igor/proj/ares/mz-explode/exepack-1.4.0/tests/hello.exe", std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Cannot open reference hello.exe");
-    }
-    return std::vector<uint8_t>(std::istreambuf_iterator<char>(file), {});
+    return std::vector<uint8_t>(
+        data::exepack_hello,
+        data::exepack_hello + data::exepack_hello_len
+    );
 }
 
 // Equivalence check following exepack-1.4.0 test logic
@@ -47,11 +60,6 @@ static void assert_files_equivalent(
 
     // Check size difference (must be <= 15 bytes)
     size_t diff = actual_code.size() - expected_code.size();
-    MESSAGE("Test: ", test_name);
-    MESSAGE("Expected code size: ", expected_code.size(), " bytes");
-    MESSAGE("Actual code size: ", actual_code.size(), " bytes");
-    MESSAGE("Difference: ", diff, " bytes (must be <= 15)");
-
     REQUIRE(diff <= 15);
 
     // Check that first N bytes are identical (where N = shorter length)
@@ -159,28 +167,8 @@ static std::vector<uint8_t> decompress_to_exe(
     auto result = decompressor.decompress(data);
     REQUIRE(result.code.size() > 0);
 
-    MESSAGE("Decompressed ", test_name, ": code_size=", result.code.size(),
-            ", header_paras=", result.header_paragraphs,
-            ", min_extra=", result.min_extra_paragraphs,
-            ", relocations=", result.relocations.size());
-
     // Build complete EXE file
     return build_exe_file(result);
-}
-
-// Test data declared in legacy_data_wrapper.cpp
-namespace data {
-    extern size_t exepack_hello_len;
-    extern unsigned char exepack_hello[];
-
-    extern size_t exepack_masm400_len;
-    extern unsigned char exepack_masm400[];
-
-    extern size_t exepack_masm500_len;
-    extern unsigned char exepack_masm500[];
-
-    extern size_t exepack_masm510_len;
-    extern unsigned char exepack_masm510[];
 }
 
 TEST_CASE("EXEPACK equivalence test against reference implementation") {
