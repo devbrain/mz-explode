@@ -1,6 +1,7 @@
-// Temporary test to examine dialog structure
+// Dialog parser tests - both NE and PE formats
 #include <doctest/doctest.h>
 #include <libexe/ne_file.hpp>
+#include <libexe/pe_file.hpp>
 #include <libexe/resources/resource.hpp>
 #include <libexe/resources/parsers/dialog_parser.hpp>
 #include <filesystem>
@@ -76,5 +77,58 @@ TEST_CASE("Parse dialog resources in PROGMAN.EXE") {
     }
 
     std::cout << "Total controls across all dialogs: " << total_controls << "\n";
+    CHECK(total_controls > 0);
+}
+
+TEST_CASE("Parse PE dialog resources in scheduler.exe") {
+    const std::filesystem::path test_file = "../data/scheduler.exe";
+
+    if (!std::filesystem::exists(test_file)) {
+        std::cout << "scheduler.exe not found, skipping PE dialog test\n";
+        return;
+    }
+
+    auto exe = pe_file::from_file(test_file);
+    REQUIRE(exe.has_resources());
+
+    auto rsrc = exe.resources();
+    REQUIRE(rsrc != nullptr);
+
+    auto all_resources = rsrc->all_resources();
+    auto dialogs = all_resources.filter_by_type(resource_type::RT_DIALOG);
+
+    std::cout << "\nFound " << dialogs.size() << " PE dialog resources\n\n";
+    REQUIRE(dialogs.size() == 4);
+
+    // Test first dialog (should be the main scheduler dialog)
+    const auto& dlg_res = dialogs[0];
+    auto dlg = dlg_res.as_dialog();
+
+    REQUIRE(dlg.has_value());
+    CHECK(dlg_res.id().value() == 101);
+    CHECK(dlg->caption == "Teleport Scheduler");
+    CHECK(dlg->has_font());
+    CHECK(dlg->font_name == "MS Sans Serif");
+    CHECK(dlg->point_size == 8);
+    CHECK(dlg->controls.size() == 3);
+
+    std::cout << "First PE dialog:\n";
+    std::cout << "  ID: " << dlg_res.id().value_or(0) << "\n";
+    std::cout << "  Caption: \"" << dlg->caption << "\"\n";
+    std::cout << "  Position: (" << dlg->x << ", " << dlg->y << ")\n";
+    std::cout << "  Size: " << dlg->width << " x " << dlg->height << "\n";
+    std::cout << "  Style: 0x" << std::hex << dlg->style << std::dec << "\n";
+    std::cout << "  Controls: " << dlg->controls.size() << "\n";
+    std::cout << "  Font: " << dlg->font_name << " (" << dlg->point_size << " pt)\n";
+
+    // Verify all dialogs parse successfully
+    size_t total_controls = 0;
+    for (size_t i = 0; i < dialogs.size(); i++) {
+        auto parsed = dialogs[i].as_dialog();
+        REQUIRE(parsed.has_value());
+        total_controls += parsed->controls.size();
+    }
+
+    std::cout << "\nTotal PE controls across all dialogs: " << total_controls << "\n";
     CHECK(total_controls > 0);
 }

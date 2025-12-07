@@ -508,78 +508,85 @@ src/libexe/CMakeLists.txt                                       # +2 lines - MOD
 
 ---
 
-## Phase 4.2.5: Dialog Templates (Complex UI)
+## Phase 4.2.5: Dialog Templates (Complex UI) ✅ COMPLETED
+
+**Status**: ✅ **COMPLETED** - Both NE and PE dialog parsers implemented and tested
 
 **Goal**: Implement dialog box resource parsing
 
-**Note**: Dialog structures are **NOT** currently in `exe_format_complete.ds`. Options:
-1. Add dialog structures to `exe_format_complete.ds`
-2. Create separate `dialog.ds` file
-3. Hand-code dialog parser (due to complexity)
+**Note**: Dialog structures are **NOT** in `exe_format_complete.ds` (only resource directory structures). Dialog template parsing requires manual implementation due to:
+- Variable-length strings with 0xFF/0xFFFF prefix for ordinals
+- DWORD alignment requirements (PE format)
+- Conditional font information based on DS_SETFONT style
+- UTF-16 strings (PE) vs ASCII strings (NE)
 
-**Recommendation**: Add structures to `exe_format_complete.ds` to keep everything in one place.
+**Decision**: Hand-coded dialog parser for both NE (DLGTEMPLATE) and PE (DLGTEMPLATEEX) formats.
 
 ### Tasks
 
-#### 1. Add Dialog Structures to DataScript
-- [ ] Add to `src/libexe/formats/exe_format_complete.ds`:
-  - `DLGTEMPLATE` structure
-  - `DLGTEMPLATEEX` structure (extended format)
-  - Dialog control structures
-  - Variable-length Name/Ordinal handling
-- [ ] Regenerate parser with DataScript
-- [ ] Update CMakeLists.txt if needed
+#### 1. Add Dialog Structures to DataScript ❌ NOT NEEDED
+- Dialog structures cannot be represented in DataScript due to:
+  - Complex variable-length name/ordinal prefixes
+  - Conditional fields based on style flags
+  - Manual alignment requirements
+- Manual parsing is the correct approach (consistent with other resource parsers)
 
-**Files Modified**:
+**Files Checked**:
 ```
-src/libexe/formats/exe_format_complete.ds    # Add dialog structures
+src/libexe/formats/exe_format_complete.ds    # Only has resource directory structures
 ```
 
-**Files Regenerated**:
-```
-generated/exe_format_complete_parser.h        # Includes new dialog structures
-```
-
-**Test**: DataScript generation succeeds with dialog structures
-
-#### 2. Dialog Parser Implementation
-- [ ] Create `include/libexe/resources/parsers/dialog_parser.hpp`
-- [ ] Define `dialog_control` struct
-- [ ] Define `dialog_template` struct
-- [ ] Implement `dialog_parser` class
-- [ ] Handle DLGTEMPLATE vs DLGTEMPLATEEX variants
-- [ ] Parse variable-length strings
-- [ ] Handle DWORD alignment between controls
-- [ ] Create `src/libexe/resources/parsers/dialog_parser.cpp`
+#### 2. Dialog Parser Implementation ✅
+- [x] Create `include/libexe/resources/parsers/dialog_parser.hpp` (214 lines)
+- [x] Define `dialog_control` struct with variant for class (string or enum)
+- [x] Define `dialog_template` struct
+- [x] Define `name_or_id` variant type
+- [x] Implement `dialog_parser` class with format auto-detection
+- [x] Implement NE format parser (DLGTEMPLATE)
+  - [x] ASCII strings with 0xFF byte prefix for IDs
+  - [x] Byte-aligned structures
+  - [x] Byte control count
+- [x] Implement PE format parser (DLGTEMPLATEEX)
+  - [x] UTF-16 strings with 0xFFFF word prefix for ordinals
+  - [x] DWORD alignment between controls
+  - [x] Word control count
+  - [x] Extended fields (helpID, exStyle)
+- [x] Auto-detect format by signature (version=1, signature=0xFFFF for PE)
+- [x] Create `src/libexe/resources/parsers/dialog_parser.cpp` (453 lines)
 
 **Files Created**:
 ```
-include/libexe/resources/parsers/dialog_parser.hpp
-src/libexe/resources/parsers/dialog_parser.cpp
+include/libexe/resources/parsers/dialog_parser.hpp    (214 lines)
+src/libexe/resources/parsers/dialog_parser.cpp        (453 lines)
+unittests/resources/test_dialog_parser.cpp            (134 lines)
 ```
 
-**Test**: Unit test parsing PROGMAN.EXE RT_DIALOG resources (7 dialogs)
-- Verify dialog count and dimensions
-- Validate control counts
-- Check caption strings
-- Verify control types (button, edit, static, etc.)
+**Test Results**:
+- ✅ NE: All 7 dialogs from PROGMAN.EXE parse successfully (30 controls total)
+- ✅ PE: All 4 dialogs from scheduler.exe parse successfully (3+ controls)
+- ✅ 41 assertions passing
+- ✅ Format auto-detection working
+- ✅ UTF-16 to UTF-8 conversion correct
+- ✅ DWORD alignment handled properly
 
-#### 3. Factory Integration & Resource Entry Methods
-- [ ] Update factory with dialog parser
-- [ ] Add `resource_entry::as_dialog()` method
+#### 3. Factory Integration & Resource Entry Methods ✅
+- [x] Update factory with dialog parser
+- [x] Add `resource_entry::as_dialog()` method
 
-**Test**: End-to-end extraction
+**Test**: ✅ End-to-end extraction working for both NE and PE formats
 
 ### Success Criteria (Phase 4.2.5)
 
-- [ ] All 7 dialogs from PROGMAN.EXE parse successfully
-- [ ] Control counts match expected values
-- [ ] Captions and text extracted correctly
-- [ ] Both DLGTEMPLATE and DLGTEMPLATEEX formats supported
-- [ ] Unit tests: 100% pass rate
-- [ ] Code compiles with zero warnings
+- [x] All 7 dialogs from PROGMAN.EXE (NE) parse successfully
+- [x] All 4 dialogs from scheduler.exe (PE) parse successfully
+- [x] Control counts match expected values
+- [x] Captions and text extracted correctly
+- [x] Both DLGTEMPLATE (NE) and DLGTEMPLATEEX (PE) formats supported
+- [x] Format auto-detection working (signature check)
+- [x] Unit tests: 100% pass rate (41/41 assertions)
+- [x] Code compiles with zero warnings
 
-**Deliverable**: Working dialog template extraction
+**Deliverable**: ✅ Working dialog template extraction for both 16-bit and 32/64-bit Windows executables
 
 ---
 

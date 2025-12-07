@@ -12,7 +12,7 @@
 namespace libexe {
 
 /**
- * Dialog box styles (DS_* flags for NE dialogs).
+ * Dialog box styles (DS_* flags for both NE and PE dialogs).
  */
 enum class dialog_style : uint32_t {
     DS_ABSALIGN     = 0x0001,  // Absolute alignment
@@ -24,7 +24,7 @@ enum class dialog_style : uint32_t {
 };
 
 /**
- * Predefined control classes for NE dialogs.
+ * Predefined control classes (both NE and PE formats use the same IDs).
  */
 enum class control_class : uint8_t {
     BUTTON      = 0x80,  // Button control
@@ -201,7 +201,11 @@ struct LIBEXE_EXPORT dialog_template {
 class LIBEXE_EXPORT dialog_parser {
 public:
     /**
-     * Parse an NE dialog template resource.
+     * Parse a dialog template resource (auto-detects NE or PE format).
+     *
+     * Supports both NE (16-bit Windows) DLGTEMPLATE and PE (32/64-bit Windows)
+     * DLGTEMPLATEEX formats. Format is detected by checking for the PE signature
+     * (version=1, signature=0xFFFF).
      *
      * @param data Raw resource data from RT_DIALOG resource
      * @return Parsed dialog template on success, std::nullopt on parse error
