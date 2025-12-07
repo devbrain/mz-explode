@@ -76,13 +76,14 @@ add_executable(libexe_unittest
     test_pe_parser.cpp
     test_ne_parser.cpp
     test_executable_factory.cpp
-    test_progman.cpp  # Real NE file (Windows 3.11 Program Manager)
     explode/test_pklite.cpp
     explode/test_lzexe.cpp
     explode/test_knowledge_dynamics.cpp
     explode/test_exepack.cpp  # MD5 verification - EXEPACK
     explode/test_bit_reader.cpp
-    explode/data_wrapper.cpp  # Includes all test data with proper headers
+    explode/data_wrapper.cpp  # Includes all decompressor test data
+    formats/test_progman.cpp  # Real NE file (Windows 3.11 Program Manager)
+    formats/data_wrapper.cpp  # Includes all PE/NE format test data
     md5.c  # MD5 implementation for verification
 )
 

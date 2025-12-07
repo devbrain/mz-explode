@@ -5,27 +5,24 @@
 #include <libexe/ne_file.hpp>
 #include <libexe/pe_file.hpp>
 #include <libexe/ne_types.hpp>
-#include <fstream>
 #include <vector>
 
 using namespace libexe;
 
+// External test data
+namespace data {
+    extern size_t progman_len;
+    extern unsigned char progman[];
+}
+
 namespace {
 
-// Load PROGMAN.EXE from data directory
+// Load PROGMAN.EXE from embedded data
 std::vector<uint8_t> load_progman() {
-    std::ifstream file("../data/PROGMAN.EXE", std::ios::binary);
-    if (!file) {
-        throw std::runtime_error("Cannot open PROGMAN.EXE - run tests from build directory");
-    }
-
-    file.seekg(0, std::ios::end);
-    size_t size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::vector<uint8_t> data(size);
-    file.read(reinterpret_cast<char*>(data.data()), size);
-    return data;
+    return std::vector<uint8_t>(
+        data::progman,
+        data::progman + data::progman_len
+    );
 }
 
 } // anonymous namespace
@@ -35,7 +32,7 @@ TEST_CASE("PROGMAN.EXE: Windows 3.11 Program Manager") {
 
     SUBCASE("File loads successfully") {
         CHECK(data.size() > 0);
-        CHECK(data.size() > 100000);  // PROGMAN.EXE is ~113KB
+        CHECK(data.size() == 115312);  // PROGMAN.EXE exact size
     }
 
     SUBCASE("Format detection identifies as NE") {
