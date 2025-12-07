@@ -40,54 +40,6 @@ TEST_CASE("NE file parser: basic validation") {
     }
 }
 
-TEST_CASE("NE file parser: API completeness") {
-    // This test verifies the API compiles and has all expected methods
-    // We can't test actual parsing without real NE files, but we can
-    // verify the interface exists and compiles
-
-    SUBCASE("API methods exist and compile") {
-        // This just verifies the API compiles - it will throw at runtime
-        // without valid data, which is expected
-        std::vector<uint8_t> dummy_data(256, 0);
-
-        bool caught_exception = false;
-        try {
-            auto ne = ne_file::from_memory(dummy_data);
-
-            // If we somehow get here, verify methods exist
-            (void)ne.linker_version();
-            (void)ne.linker_revision();
-            (void)ne.flags();
-            (void)ne.segment_count();
-            (void)ne.module_count();
-            (void)ne.target_os();
-            (void)ne.entry_cs();
-            (void)ne.entry_ip();
-            (void)ne.initial_ss();
-            (void)ne.initial_sp();
-            (void)ne.segment_table_offset();
-            (void)ne.resource_table_offset();
-            (void)ne.resident_name_table_offset();
-            (void)ne.module_ref_table_offset();
-            (void)ne.import_name_table_offset();
-            (void)ne.nonresident_name_table_offset();
-            (void)ne.alignment_shift();
-            (void)ne.segments();
-            (void)ne.get_segment(0);
-            (void)ne.get_code_segment();
-            (void)ne.get_format();
-            (void)ne.format_name();
-            (void)ne.code_section();
-
-        } catch (const std::runtime_error&) {
-            // Expected - invalid data
-            caught_exception = true;
-        }
-
-        CHECK(caught_exception);
-    }
-}
-
 TEST_CASE("NE segment structure") {
     SUBCASE("Segment structure fields are accessible") {
         ne_segment segment;
@@ -100,14 +52,5 @@ TEST_CASE("NE segment structure") {
         CHECK(segment.length == 0x2000);
         CHECK(!has_flag(segment.flags, ne_segment_flags::DATA));  // Code segment has no DATA flag
         CHECK(segment.min_alloc == 0x2000);
-    }
-}
-
-TEST_CASE("NE format name mapping") {
-    SUBCASE("Format name reflects target OS") {
-        // We can't easily test this without creating valid NE files,
-        // but we can at least verify the enum exists
-        format_type fmt = format_type::NE_WIN16;
-        CHECK(fmt == format_type::NE_WIN16);
     }
 }

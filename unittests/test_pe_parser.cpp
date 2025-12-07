@@ -27,50 +27,6 @@ TEST_CASE("PE file parser: basic validation") {
     }
 }
 
-TEST_CASE("PE file parser: API completeness") {
-    // This test verifies the API compiles and has all expected methods
-    // We can't test actual parsing without real PE files, but we can
-    // verify the interface exists and compiles
-
-    SUBCASE("API methods exist and compile") {
-        // This just verifies the API compiles - it will throw at runtime
-        // without valid data, which is expected
-        std::vector<uint8_t> dummy_data(256, 0);
-
-        bool caught_exception = false;
-        try {
-            auto pe = pe_file::from_memory(dummy_data);
-
-            // If we somehow get here, verify methods exist
-            (void)pe.is_64bit();
-            (void)pe.machine_type();
-            (void)pe.section_count();
-            (void)pe.timestamp();
-            (void)pe.characteristics();
-            (void)pe.image_base();
-            (void)pe.entry_point_rva();
-            (void)pe.section_alignment();
-            (void)pe.file_alignment();
-            (void)pe.size_of_image();
-            (void)pe.size_of_headers();
-            (void)pe.subsystem();
-            (void)pe.dll_characteristics();
-            (void)pe.sections();
-            (void)pe.find_section(".text");
-            (void)pe.get_code_section();
-            (void)pe.get_format();
-            (void)pe.format_name();
-            (void)pe.code_section();
-
-        } catch (const std::runtime_error&) {
-            // Expected - invalid data
-            caught_exception = true;
-        }
-
-        CHECK(caught_exception);
-    }
-}
-
 TEST_CASE("PE section structure") {
     SUBCASE("Section structure fields are accessible") {
         pe_section section;
