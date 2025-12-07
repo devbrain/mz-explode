@@ -76,6 +76,7 @@ add_executable(libexe_unittest
     test_pe_parser.cpp
     test_ne_parser.cpp
     test_executable_factory.cpp
+    test_progman.cpp  # Real NE file (Windows 3.11 Program Manager)
     explode/test_pklite.cpp
     explode/test_lzexe.cpp
     explode/test_knowledge_dynamics.cpp
