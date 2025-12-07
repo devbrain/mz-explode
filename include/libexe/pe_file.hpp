@@ -49,7 +49,7 @@ namespace libexe {
             [[nodiscard]] pe_file_characteristics characteristics() const;
 
             /// Optional Header accessors
-            [[nodiscard]] uint32_t image_base() const;
+            [[nodiscard]] uint64_t image_base() const;
             [[nodiscard]] uint32_t entry_point_rva() const;
             [[nodiscard]] uint32_t section_alignment() const;
             [[nodiscard]] uint32_t file_alignment() const;
@@ -85,7 +85,7 @@ namespace libexe {
             uint16_t section_count_ = 0;
             uint32_t timestamp_ = 0;
             uint16_t characteristics_ = 0;
-            uint32_t image_base_ = 0;
+            uint64_t image_base_ = 0;
             uint32_t entry_point_rva_ = 0;
             uint32_t section_alignment_ = 0;
             uint32_t file_alignment_ = 0;

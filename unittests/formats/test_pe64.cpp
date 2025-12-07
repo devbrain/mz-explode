@@ -50,73 +50,87 @@ TEST_CASE("TCMADM64.EXE: 64-bit PE executable") {
         CHECK(pe.format_name() == "PE32+ (64-bit Windows)");
     }
 
-    SUBCASE("PE header parsing") {
+    SUBCASE("PE header parsing - reference values from dump-pe") {
         auto pe = pe_file::from_memory(data);
 
         // Should be 64-bit
         CHECK(pe.is_64bit());
         CHECK(pe.get_format() == format_type::PE_PLUS_WIN64);
 
-        // Machine type should be AMD64
+        // Machine type: 0x8664 (AMD64) - from dump-pe
         CHECK(pe.machine_type() == pe_machine_type::AMD64);
 
-        // Should have sections
-        CHECK(pe.section_count() > 0);
+        // Number of sections: 5 - from dump-pe
+        CHECK(pe.section_count() == 5);
 
-        // Timestamp should be set
-        CHECK(pe.timestamp() > 0);
+        // Timestamp: 1611747597 - from dump-pe
+        CHECK(pe.timestamp() == 1611747597);
 
-        // Characteristics (can read them)
+        // Characteristics: 0x23 - from dump-pe
         auto characteristics = pe.characteristics();
         // Note: MACHINE_32BIT is NOT set for 64-bit executables
         CHECK_FALSE(has_flag(characteristics, pe_file_characteristics::MACHINE_32BIT));
 
-        // Image base (64-bit executables have higher base addresses)
+        // Image base: 0x140000000 - from dump-pe
         auto image_base = pe.image_base();
-        CHECK(image_base > 0);
+        CHECK(image_base == 0x140000000ULL);
 
-        // Entry point RVA should be set
+        // Entry point RVA: 0x66c0 - from dump-pe
         auto entry_rva = pe.entry_point_rva();
-        CHECK(entry_rva > 0);
+        CHECK(entry_rva == 0x66c0);
 
-        // Alignment values should be powers of 2
-        CHECK(pe.section_alignment() > 0);
-        CHECK(pe.file_alignment() > 0);
+        // Section alignment: 0x1000 - from dump-pe
+        CHECK(pe.section_alignment() == 0x1000);
 
-        // Image size
-        CHECK(pe.size_of_image() > 0);
-        CHECK(pe.size_of_headers() > 0);
-        CHECK(pe.size_of_headers() < pe.size_of_image());
+        // File alignment: 0x200 - from dump-pe
+        CHECK(pe.file_alignment() == 0x200);
+
+        // Size of image: 0x1d000 - from dump-pe
+        CHECK(pe.size_of_image() == 0x1d000);
+
+        // Size of headers: 0x400 - from dump-pe
+        CHECK(pe.size_of_headers() == 0x400);
     }
 
-    SUBCASE("Section table parsing") {
+    SUBCASE("Section table parsing - reference from dump-pe") {
         auto pe = pe_file::from_memory(data);
 
         auto sections = pe.sections();
-        CHECK(sections.size() > 0);
 
-        // Common sections for executables
-        bool has_text = false;
-        bool has_data = false;
-        bool has_rdata = false;
+        // Number of sections: 5 - from dump-pe
+        CHECK(sections.size() == 5);
 
-        for (const auto& section : sections) {
-            // Section names should be non-empty
-            CHECK(section.name.size() > 0);
+        // Verify section names from dump-pe: .text, .rdata, .data, .pdata, .rsrc
+        CHECK(sections[0].name == ".text");
+        CHECK(sections[1].name == ".rdata");
+        CHECK(sections[2].name == ".data");
+        CHECK(sections[3].name == ".pdata");
+        CHECK(sections[4].name == ".rsrc");
 
-            // Check for common sections
-            if (section.name == ".text") has_text = true;
-            if (section.name == ".data") has_data = true;
-            if (section.name == ".rdata") has_rdata = true;
+        // .text section - from dump-pe: Base=0x140001000
+        auto& text_sec = sections[0];
+        CHECK(text_sec.virtual_address == 0x1000);  // RVA
+        CHECK(text_sec.virtual_size == 71134);  // Actual size before alignment
 
-            // Virtual address should be non-zero (except maybe first section)
-            // Virtual size should be set
-            bool has_size = (section.virtual_size > 0) || (section.raw_data_size > 0);
-            CHECK(has_size);
-        }
+        // .rdata section - from dump-pe: Base=0x140013000
+        auto& rdata_sec = sections[1];
+        CHECK(rdata_sec.virtual_address == 0x13000);  // RVA
+        CHECK(rdata_sec.virtual_size == 14528);  // Actual size before alignment
 
-        // Typical PE executables have .text section
-        CHECK(has_text);
+        // .data section - from dump-pe: Base=0x140017000
+        auto& data_sec = sections[2];
+        CHECK(data_sec.virtual_address == 0x17000);  // RVA
+        CHECK(data_sec.virtual_size == 10200);  // Actual size before alignment
+
+        // .pdata section - from dump-pe: Base=0x14001a000
+        auto& pdata_sec = sections[3];
+        CHECK(pdata_sec.virtual_address == 0x1a000);  // RVA
+        CHECK(pdata_sec.virtual_size == 3132);  // Actual size before alignment
+
+        // .rsrc section - from dump-pe: Base=0x14001b000
+        auto& rsrc_sec = sections[4];
+        CHECK(rsrc_sec.virtual_address == 0x1b000);  // RVA
+        CHECK(rsrc_sec.virtual_size == 7272);  // Actual size before alignment
     }
 
     SUBCASE("Code section extraction") {
@@ -156,19 +170,12 @@ TEST_CASE("TCMADM64.EXE: 64-bit PE executable") {
         CHECK(code.size() > 0);
     }
 
-    SUBCASE("Subsystem and DLL characteristics") {
+    SUBCASE("Subsystem - reference from dump-pe") {
         auto pe = pe_file::from_memory(data);
 
-        // Subsystem should be set (console or GUI)
+        // Subsystem: 0x2 (WINDOWS_GUI) - from dump-pe
         auto subsystem = pe.subsystem();
-        CHECK(subsystem != pe_subsystem::UNKNOWN);
-
-        // DLL characteristics (ASLR, DEP, etc.)
-        auto dll_chars = pe.dll_characteristics();
-        // Modern executables typically have some DLL characteristics
-        // Just verify we can read it
-        (void)dll_chars;
-        CHECK(true);  // Placeholder - actual DLL characteristics tested elsewhere
+        CHECK(subsystem == pe_subsystem::WINDOWS_GUI);
     }
 }
 
@@ -185,12 +192,14 @@ TEST_CASE("TCMADM64.EXE: 64-bit specific characteristics") {
         CHECK(pe.machine_type() == pe_machine_type::AMD64);
     }
 
-    SUBCASE("Image base is 64-bit address") {
+    SUBCASE("Image base is 64-bit address - from dump-pe") {
         auto image_base = pe.image_base();
 
-        // 64-bit executables typically have base addresses > 4GB
-        // But at minimum, should be non-zero
-        CHECK(image_base > 0);
+        // Image base: 0x140000000 - from dump-pe
+        CHECK(image_base == 0x140000000ULL);
+
+        // Verify it's a 64-bit address (> 4GB)
+        CHECK(image_base > 0x100000000ULL);
     }
 
     SUBCASE("All PE methods accessible") {

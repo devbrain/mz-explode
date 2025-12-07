@@ -115,7 +115,7 @@ void pe_file::parse_pe_headers() {
         is_64bit_ = true;
         auto opt_header = libexe::format::ImageOptionalHeader64::read(ptr, end);
 
-        image_base_ = static_cast<uint32_t>(opt_header.ImageBase & 0xFFFFFFFF);  // Truncate for API
+        image_base_ = opt_header.ImageBase;
         entry_point_rva_ = opt_header.AddressOfEntryPoint;
         section_alignment_ = opt_header.SectionAlignment;
         file_alignment_ = opt_header.FileAlignment;
@@ -217,7 +217,7 @@ pe_file_characteristics pe_file::characteristics() const {
     return static_cast<pe_file_characteristics>(characteristics_);
 }
 
-uint32_t pe_file::image_base() const {
+uint64_t pe_file::image_base() const {
     return image_base_;
 }
 

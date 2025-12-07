@@ -50,71 +50,80 @@ TEST_CASE("TCMDX32.EXE: 32-bit PE executable") {
         CHECK(pe.format_name() == "PE32 (32-bit Windows)");
     }
 
-    SUBCASE("PE header parsing") {
+    SUBCASE("PE header parsing - reference values from dump-pe") {
         auto pe = pe_file::from_memory(data);
 
         // Should be 32-bit
         CHECK_FALSE(pe.is_64bit());
         CHECK(pe.get_format() == format_type::PE_WIN32);
 
-        // Machine type should be I386
+        // Machine type: 0x14c (I386) - from dump-pe
         CHECK(pe.machine_type() == pe_machine_type::I386);
 
-        // Should have sections
-        CHECK(pe.section_count() > 0);
+        // Number of sections: 4 - from dump-pe
+        CHECK(pe.section_count() == 4);
 
-        // Timestamp should be set
-        CHECK(pe.timestamp() > 0);
+        // Timestamp: 1467963278 - from dump-pe
+        CHECK(pe.timestamp() == 1467963278);
 
-        // Characteristics (32-bit flag should be set for 32-bit executables)
+        // Characteristics: 0x10f - from dump-pe
         auto characteristics = pe.characteristics();
         CHECK(has_flag(characteristics, pe_file_characteristics::MACHINE_32BIT));
 
-        // Image base (32-bit executables typically have lower base addresses)
+        // Image base: 0x400000 - from dump-pe
         auto image_base = pe.image_base();
-        CHECK(image_base > 0);
-        // 32-bit executables typically use addresses < 4GB
-        CHECK(image_base < 0x100000000ULL);
+        CHECK(image_base == 0x400000);
 
-        // Entry point RVA should be set
+        // Entry point RVA: 0x4b58 - from dump-pe
         auto entry_rva = pe.entry_point_rva();
-        CHECK(entry_rva > 0);
+        CHECK(entry_rva == 0x4b58);
 
-        // Alignment values should be powers of 2
-        CHECK(pe.section_alignment() > 0);
-        CHECK(pe.file_alignment() > 0);
+        // Section alignment: 0x1000 - from dump-pe
+        CHECK(pe.section_alignment() == 0x1000);
 
-        // Image size
-        CHECK(pe.size_of_image() > 0);
-        CHECK(pe.size_of_headers() > 0);
-        CHECK(pe.size_of_headers() < pe.size_of_image());
+        // File alignment: 0x1000 - from dump-pe
+        CHECK(pe.file_alignment() == 0x1000);
+
+        // Size of image: 0x15000 - from dump-pe
+        CHECK(pe.size_of_image() == 0x15000);
+
+        // Size of headers: 0x1000 - from dump-pe
+        CHECK(pe.size_of_headers() == 0x1000);
     }
 
-    SUBCASE("Section table parsing") {
+    SUBCASE("Section table parsing - reference from dump-pe") {
         auto pe = pe_file::from_memory(data);
 
         auto sections = pe.sections();
-        CHECK(sections.size() > 0);
 
-        // Common sections for executables
-        bool has_text = false;
-        bool has_data = false;
+        // Number of sections: 4 - from dump-pe
+        CHECK(sections.size() == 4);
 
-        for (const auto& section : sections) {
-            // Section names should be non-empty
-            CHECK(section.name.size() > 0);
+        // Verify section names from dump-pe: .text, .rdata, .data, .rsrc
+        CHECK(sections[0].name == ".text");
+        CHECK(sections[1].name == ".rdata");
+        CHECK(sections[2].name == ".data");
+        CHECK(sections[3].name == ".rsrc");
 
-            // Check for common sections
-            if (section.name == ".text") has_text = true;
-            if (section.name == ".data") has_data = true;
+        // .text section - from dump-pe: Base=0x401000
+        auto& text_sec = sections[0];
+        CHECK(text_sec.virtual_address == 0x1000);  // RVA, not absolute
+        CHECK(text_sec.virtual_size == 37875);  // Actual size before alignment
 
-            // Virtual size should be set
-            bool has_size = (section.virtual_size > 0) || (section.raw_data_size > 0);
-            CHECK(has_size);
-        }
+        // .rdata section - from dump-pe: Base=0x40b000
+        auto& rdata_sec = sections[1];
+        CHECK(rdata_sec.virtual_address == 0xb000);  // RVA
+        CHECK(rdata_sec.virtual_size == 5092);  // Actual size before alignment
 
-        // Typical PE executables have .text section
-        CHECK(has_text);
+        // .data section - from dump-pe: Base=0x40d000
+        auto& data_sec = sections[2];
+        CHECK(data_sec.virtual_address == 0xd000);  // RVA
+        CHECK(data_sec.virtual_size == 20736);  // Actual size before alignment
+
+        // .rsrc section - from dump-pe: Base=0x413000
+        auto& rsrc_sec = sections[3];
+        CHECK(rsrc_sec.virtual_address == 0x13000);  // RVA
+        CHECK(rsrc_sec.virtual_size == 7344);  // Actual size before alignment
     }
 
     SUBCASE("Code section extraction") {
@@ -154,18 +163,12 @@ TEST_CASE("TCMDX32.EXE: 32-bit PE executable") {
         CHECK(code.size() > 0);
     }
 
-    SUBCASE("Subsystem and DLL characteristics") {
+    SUBCASE("Subsystem - reference from dump-pe") {
         auto pe = pe_file::from_memory(data);
 
-        // Subsystem should be set (console or GUI)
+        // Subsystem: 0x2 (WINDOWS_GUI) - from dump-pe
         auto subsystem = pe.subsystem();
-        CHECK(subsystem != pe_subsystem::UNKNOWN);
-
-        // DLL characteristics (ASLR, DEP, etc.)
-        auto dll_chars = pe.dll_characteristics();
-        // Just verify we can read it
-        (void)dll_chars;
-        CHECK(true);
+        CHECK(subsystem == pe_subsystem::WINDOWS_GUI);
     }
 }
 
@@ -186,15 +189,14 @@ TEST_CASE("TCMDX32.EXE: 32-bit specific characteristics") {
         CHECK(has_flag(characteristics, pe_file_characteristics::MACHINE_32BIT));
     }
 
-    SUBCASE("Image base is 32-bit address") {
+    SUBCASE("Image base is 32-bit address - from dump-pe") {
         auto image_base = pe.image_base();
 
-        // 32-bit executables have base addresses < 4GB
-        CHECK(image_base > 0);
-        CHECK(image_base < 0x100000000ULL);
+        // Image base: 0x400000 - from dump-pe
+        CHECK(image_base == 0x400000);
 
-        // Typical 32-bit Windows base is 0x00400000
-        // But we just verify it's in 32-bit range
+        // Verify it's in 32-bit address space (< 4GB)
+        CHECK(image_base < 0x100000000ULL);
     }
 
     SUBCASE("All PE methods accessible") {
