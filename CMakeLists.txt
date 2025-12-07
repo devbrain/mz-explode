@@ -136,24 +136,7 @@ if(BUILD_TOOLS)
     endif()
 endif()
 
-# =============================================================================
-# Legacy Explode Library (for comparison testing)
-# =============================================================================
-
-add_library(explode STATIC
-    src/explode/exceptions.cc
-    src/explode/io.cc
-    src/explode/exe_file.cc
-    src/explode/unpklite.cc
-    src/explode/unlzexe.cc
-    src/explode/unexepack.cc
-    src/explode/knowledge_dynamics.cc
-)
-
-target_include_directories(explode
-    PUBLIC
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
+# Legacy code removed - modern implementation complete
 
 # =============================================================================
 # Unit Tests
@@ -162,16 +145,6 @@ target_include_directories(explode
 if(BUILD_TESTING)
     enable_testing()
     add_subdirectory(unittests)
-
-    # Legacy unittest (MD5-based verification)
-    add_executable(legacy_unittest
-        src/unittest/main.cc
-        src/unittest/md5.c
-    )
-    target_include_directories(legacy_unittest PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-    )
-    target_link_libraries(legacy_unittest PRIVATE explode)
 endif()
 
 # =============================================================================
