@@ -242,6 +242,17 @@ namespace libexe {
              */
             [[nodiscard]] std::optional<struct accelerator_table> as_accelerator_table() const;
 
+            /**
+             * Parse as dialog template (RT_DIALOG)
+             *
+             * Convenience method that parses this resource as a dialog template.
+             * Note: This parser supports NE (16-bit Windows) dialog format only.
+             * Equivalent to: dialog_parser::parse(entry.data())
+             *
+             * @return Parsed dialog template on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct dialog_template> as_dialog() const;
+
             // =========================================================================
             // Implementation Details (for internal use)
             // =========================================================================

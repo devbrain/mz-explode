@@ -9,6 +9,7 @@
 #include <libexe/resources/parsers/manifest_parser.hpp>
 #include <libexe/resources/parsers/string_table_parser.hpp>
 #include <libexe/resources/parsers/accelerator_parser.hpp>
+#include <libexe/resources/parsers/dialog_parser.hpp>
 #include <algorithm>
 #include <sstream>
 
@@ -161,6 +162,10 @@ std::optional<string_table> resource_entry::as_string_table() const {
 
 std::optional<accelerator_table> resource_entry::as_accelerator_table() const {
     return accelerator_parser::parse(data());
+}
+
+std::optional<dialog_template> resource_entry::as_dialog() const {
+    return dialog_parser::parse(data());
 }
 
 resource_entry resource_entry::create(

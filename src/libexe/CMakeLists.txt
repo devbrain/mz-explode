@@ -95,6 +95,8 @@ add_library(libexe
         decompressors/lzexe_decompressor.cpp
         decompressors/knowledge_dynamics_decompressor.cpp
         decompressors/exepack_decompressor.cpp
+        # Dialog parser
+        resources/parsers/dialog_parser.cpp
 )
 
 # Make library depend on parser generation
