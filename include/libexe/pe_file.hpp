@@ -6,6 +6,7 @@
 
 #include <libexe/export.hpp>
 #include <libexe/executable_file.hpp>
+#include <libexe/pe_types.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
@@ -17,13 +18,13 @@ namespace libexe {
 
 /// PE section information
 struct LIBEXE_EXPORT pe_section {
-    std::string name;                    // Section name (e.g., ".text", ".data")
-    uint32_t virtual_address;            // RVA where section is loaded
-    uint32_t virtual_size;               // Size in memory
-    uint32_t raw_data_offset;            // File offset
-    uint32_t raw_data_size;              // Size on disk
-    uint32_t characteristics;            // Section flags
-    std::span<const uint8_t> data;       // Section data
+    std::string name;                              // Section name (e.g., ".text", ".data")
+    uint32_t virtual_address;                      // RVA where section is loaded
+    uint32_t virtual_size;                         // Size in memory
+    uint32_t raw_data_offset;                      // File offset
+    uint32_t raw_data_size;                        // Size on disk
+    pe_section_characteristics characteristics;    // Section flags
+    std::span<const uint8_t> data;                 // Section data
 };
 
 /// PE (Portable Executable) file - Windows PE32/PE32+
@@ -44,10 +45,10 @@ public:
     bool is_64bit() const;
 
     /// COFF File Header accessors
-    uint16_t machine_type() const;
+    pe_machine_type machine_type() const;
     uint16_t section_count() const;
     uint32_t timestamp() const;
-    uint16_t characteristics() const;
+    pe_file_characteristics characteristics() const;
 
     /// Optional Header accessors
     uint32_t image_base() const;
@@ -56,8 +57,8 @@ public:
     uint32_t file_alignment() const;
     uint32_t size_of_image() const;
     uint32_t size_of_headers() const;
-    uint16_t subsystem() const;
-    uint16_t dll_characteristics() const;
+    pe_subsystem subsystem() const;
+    pe_dll_characteristics dll_characteristics() const;
 
     /// Section access
     const std::vector<pe_section>& sections() const;

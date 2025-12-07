@@ -1,6 +1,7 @@
 // Test PE file parser functionality
 #include <doctest/doctest.h>
 #include <libexe/pe_file.hpp>
+#include <libexe/pe_types.hpp>
 #include <vector>
 
 using namespace libexe;
@@ -78,13 +79,17 @@ TEST_CASE("PE section structure") {
         section.virtual_size = 0x2000;
         section.raw_data_offset = 0x400;
         section.raw_data_size = 0x2000;
-        section.characteristics = 0x60000020;  // CODE | EXECUTE | READ
+        section.characteristics = pe_section_characteristics::CNT_CODE |
+                                  pe_section_characteristics::MEM_EXECUTE |
+                                  pe_section_characteristics::MEM_READ;
 
         CHECK(section.name == ".text");
         CHECK(section.virtual_address == 0x1000);
         CHECK(section.virtual_size == 0x2000);
         CHECK(section.raw_data_offset == 0x400);
         CHECK(section.raw_data_size == 0x2000);
-        CHECK(section.characteristics == 0x60000020);
+        CHECK(has_flag(section.characteristics, pe_section_characteristics::CNT_CODE));
+        CHECK(has_flag(section.characteristics, pe_section_characteristics::MEM_EXECUTE));
+        CHECK(has_flag(section.characteristics, pe_section_characteristics::MEM_READ));
     }
 }

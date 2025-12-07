@@ -6,6 +6,7 @@
 
 #include <libexe/export.hpp>
 #include <libexe/executable_file.hpp>
+#include <libexe/ne_types.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
@@ -17,11 +18,11 @@ namespace libexe {
 
 /// NE segment information
 struct LIBEXE_EXPORT ne_segment {
-    uint16_t sector_offset;      // File offset (in sectors, multiply by alignment shift)
-    uint16_t length;             // Segment length in bytes (0 = 65536)
-    uint16_t flags;              // Segment flags
-    uint16_t min_alloc;          // Minimum allocation size
-    std::span<const uint8_t> data;  // Segment data
+    uint16_t sector_offset;              // File offset (in sectors, multiply by alignment shift)
+    uint16_t length;                     // Segment length in bytes (0 = 65536)
+    ne_segment_flags flags;              // Segment flags
+    uint16_t min_alloc;                  // Minimum allocation size
+    std::span<const uint8_t> data;       // Segment data
 };
 
 /// NE (New Executable) file - 16-bit Windows (Windows 3.x) and OS/2
@@ -41,10 +42,10 @@ public:
     /// NE Header accessors
     uint8_t linker_version() const;      // Major version
     uint8_t linker_revision() const;     // Minor version
-    uint16_t flags() const;              // NE flags
+    ne_file_flags flags() const;         // NE flags
     uint16_t segment_count() const;      // Number of segments
     uint16_t module_count() const;       // Number of module references
-    uint8_t target_os() const;           // Target operating system
+    ne_target_os target_os() const;      // Target operating system
 
     /// Entry point and stack
     uint16_t entry_cs() const;           // Entry point code segment

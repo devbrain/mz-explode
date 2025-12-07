@@ -1,6 +1,7 @@
 // Test NE file parser functionality
 #include <doctest/doctest.h>
 #include <libexe/ne_file.hpp>
+#include <libexe/ne_types.hpp>
 #include <vector>
 
 using namespace libexe;
@@ -92,12 +93,12 @@ TEST_CASE("NE segment structure") {
         ne_segment segment;
         segment.sector_offset = 0x0010;
         segment.length = 0x2000;
-        segment.flags = 0x0000;  // Code segment
+        segment.flags = ne_segment_flags::CODE;  // Code segment
         segment.min_alloc = 0x2000;
 
         CHECK(segment.sector_offset == 0x0010);
         CHECK(segment.length == 0x2000);
-        CHECK(segment.flags == 0x0000);
+        CHECK(!has_flag(segment.flags, ne_segment_flags::DATA));  // Code segment has no DATA flag
         CHECK(segment.min_alloc == 0x2000);
     }
 }

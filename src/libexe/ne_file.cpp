@@ -119,7 +119,7 @@ void ne_file::parse_segments() {
         ne_segment segment;
         segment.sector_offset = seg_entry.sector_offset;
         segment.length = seg_entry.length;
-        segment.flags = seg_entry.flags;
+        segment.flags = static_cast<ne_segment_flags>(seg_entry.flags);
         segment.min_alloc = seg_entry.min_alloc;
 
         // Calculate actual file offset using alignment shift
@@ -150,13 +150,13 @@ format_type ne_file::get_format() const {
 
 std::string_view ne_file::format_name() const {
     // Determine specific OS target
-    switch (target_os_) {
-        case 0x01: return "NE (OS/2)";
-        case 0x02: return "NE (Windows 16-bit)";
-        case 0x03: return "NE (European MS-DOS 4.x)";
-        case 0x04: return "NE (Windows 386)";
-        case 0x05: return "NE (BOSS - Borland Operating System Services)";
-        default:   return "NE (Unknown target)";
+    switch (target_os()) {
+        case ne_target_os::OS2:     return "NE (OS/2)";
+        case ne_target_os::WINDOWS: return "NE (Windows 16-bit)";
+        case ne_target_os::DOS4:    return "NE (European MS-DOS 4.x)";
+        case ne_target_os::WIN386:  return "NE (Windows 386)";
+        case ne_target_os::BOSS:    return "NE (BOSS - Borland Operating System Services)";
+        default:                    return "NE (Unknown target)";
     }
 }
 
@@ -177,8 +177,8 @@ uint8_t ne_file::linker_revision() const {
     return linker_rev_;
 }
 
-uint16_t ne_file::flags() const {
-    return flags_;
+ne_file_flags ne_file::flags() const {
+    return static_cast<ne_file_flags>(flags_);
 }
 
 uint16_t ne_file::segment_count() const {
@@ -189,8 +189,8 @@ uint16_t ne_file::module_count() const {
     return module_count_;
 }
 
-uint8_t ne_file::target_os() const {
-    return target_os_;
+ne_target_os ne_file::target_os() const {
+    return static_cast<ne_target_os>(target_os_);
 }
 
 uint16_t ne_file::entry_cs() const {
@@ -253,8 +253,8 @@ std::optional<ne_segment> ne_file::get_code_segment() const {
     // If no entry point, find first code segment
     // NE segment flags: bit 0 = data, bit 1 = code (actually inverted - if bit 0 clear, it's code)
     for (const auto& segment : segments_) {
-        // Code segment: bit 0 (data flag) is NOT set
-        if ((segment.flags & 0x0001) == 0) {
+        // Code segment: DATA flag is NOT set
+        if (!has_flag(segment.flags, ne_segment_flags::DATA)) {
             return segment;
         }
     }

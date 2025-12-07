@@ -159,7 +159,7 @@ void pe_file::parse_sections() {
         section.virtual_size = section_header.VirtualSize;
         section.raw_data_offset = section_header.PointerToRawData;
         section.raw_data_size = section_header.SizeOfRawData;
-        section.characteristics = static_cast<uint32_t>(section_header.Characteristics);
+        section.characteristics = static_cast<pe_section_characteristics>(section_header.Characteristics);
 
         // Create span for section data
         if (section.raw_data_offset > 0 &&
@@ -201,8 +201,8 @@ bool pe_file::is_64bit() const {
     return is_64bit_;
 }
 
-uint16_t pe_file::machine_type() const {
-    return machine_type_;
+pe_machine_type pe_file::machine_type() const {
+    return static_cast<pe_machine_type>(machine_type_);
 }
 
 uint16_t pe_file::section_count() const {
@@ -213,8 +213,8 @@ uint32_t pe_file::timestamp() const {
     return timestamp_;
 }
 
-uint16_t pe_file::characteristics() const {
-    return characteristics_;
+pe_file_characteristics pe_file::characteristics() const {
+    return static_cast<pe_file_characteristics>(characteristics_);
 }
 
 uint32_t pe_file::image_base() const {
@@ -241,12 +241,12 @@ uint32_t pe_file::size_of_headers() const {
     return size_of_headers_;
 }
 
-uint16_t pe_file::subsystem() const {
-    return subsystem_;
+pe_subsystem pe_file::subsystem() const {
+    return static_cast<pe_subsystem>(subsystem_);
 }
 
-uint16_t pe_file::dll_characteristics() const {
-    return dll_characteristics_;
+pe_dll_characteristics pe_file::dll_characteristics() const {
+    return static_cast<pe_dll_characteristics>(dll_characteristics_);
 }
 
 const std::vector<pe_section>& pe_file::sections() const {
@@ -272,8 +272,7 @@ std::optional<pe_section> pe_file::get_code_section() const {
 
     // If not found by name, return first executable section
     for (const auto& section : sections_) {
-        // IMAGE_SCN_MEM_EXECUTE = 0x20000000
-        if (section.characteristics & 0x20000000) {
+        if (has_flag(section.characteristics, pe_section_characteristics::MEM_EXECUTE)) {
             return section;
         }
     }
