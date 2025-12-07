@@ -14,9 +14,13 @@ namespace data {
     // Forward declarations - PE format
     extern size_t tcmadm64_len;
     extern unsigned char tcmadm64[];
+
+    extern size_t tcmdx32_len;
+    extern unsigned char tcmdx32[];
 }
 
 // Include test data implementations
 #include "testdata/progman.cc"
 #include "testdata/cga40woa_fon.cc"
 #include "testdata/tcmadm64.cc"
+#include "testdata/tcmdx32.cc"
