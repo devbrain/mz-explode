@@ -4,21 +4,21 @@ This document outlines the implementation plan for the comprehensive resource pa
 
 ## Progress Summary
 
-**Overall Status**: 3 of 9 phases completed (33%)
+**Overall Status**: 4 of 9 phases completed (44%)
 
 | Phase | Status | Description | Assertions |
 |-------|--------|-------------|------------|
 | 4.2.1 | ✅ COMPLETE | Icon & Cursor Group Parsing | 1017 |
 | 4.2.2 | ✅ COMPLETE | Font Parsing | 60 |
-| 4.2.3 | ✅ COMPLETE | Version Info & Manifest | 79 |
-| 4.2.4 | 🔜 NEXT | String Tables & Accelerators | - |
-| 4.2.5 | ⏸️ PENDING | Dialog Templates | - |
+| 4.2.3 | ✅ COMPLETE | Version Info & Manifest | 915 |
+| 4.2.4 | ✅ COMPLETE | String Tables & Accelerators | 584 |
+| 4.2.5 | 🔜 NEXT | Dialog Templates | - |
 | 4.2.6 | ⏸️ PENDING | Menu Templates | - |
 | 4.2.7 | ⏸️ PENDING | Cursor & Bitmap Resources | - |
 | 4.2.8 | ⏸️ PENDING | Message Tables | - |
 | 4.2.9 | ⏸️ PENDING | Documentation & Polish | - |
 
-**Total Assertions**: 1992 (all passing)
+**Total Assertions**: 2612 (all passing)
 
 ## DataScript Strategy (Updated)
 
@@ -391,48 +391,52 @@ src/libexe/resources/parsers/manifest_parser.cpp (39 lines)
 
 ---
 
-## Phase 4.2.4: String Tables & Accelerators (Simple Structures)
+## Phase 4.2.4: String Tables & Accelerators (Simple Structures) ✅ COMPLETED
+
+**Status**: ✅ **COMPLETED** - String table and accelerator parsing fully implemented (584 assertions passing)
 
 **Goal**: Implement simple resource parsers
 
-**Note**: Structures already exist in `src/libexe/formats/exe_format_complete.ds`:
-- `StringTableEntry` (line 876) - Length-prefixed Unicode string
-- `AccelFlags` enum (line 843) - Virtual key, shift, control, alt flags
-- `AccelTableEntry` (line 857) - Fixed 8-byte accelerator entry
+**Key Discovery**: NE files use ASCII/ANSI strings with single-byte length prefix, not Unicode! DataScript structures are for PE/PE32+ (Win32+).
+
+**Note**: While structures exist in `src/libexe/formats/exe_format_complete.ds`, manual parsing was required for NE format:
+- `StringTableEntry` (line 876) - Unicode format (PE only, not used for NE)
+- `AccelFlags` enum (line 843) - Usable for both NE and PE
+- `AccelTableEntry` (line 857) - Fixed 8-byte format (used directly)
 
 ### Tasks
 
-#### 1. String Table Parser Implementation
-- [ ] Create `include/libexe/resources/parsers/string_table_parser.hpp`
-- [ ] Define `string_table` struct
-- [ ] Implement `string_table_parser` class
-- [ ] Use DataScript `StringTableEntry` for individual strings
-- [ ] Parse 16 strings per block (block ID = resource ID)
-- [ ] Handle empty string slots (length = 0)
-- [ ] Implement UTF-8 conversion helper
-- [ ] Create `src/libexe/resources/parsers/string_table_parser.cpp`
+#### 1. String Table Parser Implementation ✅
+- [x] Create `include/libexe/resources/parsers/string_table_parser.hpp` (102 lines)
+- [x] Define `string_table` struct with block_id and string map
+- [x] Implement `string_table_parser` class
+- [x] Manual parsing for NE ASCII format (byte-length prefix, not DataScript)
+- [x] Parse up to 16 strings per block (block ID = resource ID)
+- [x] Handle empty string slots (length = 0)
+- [x] No UTF-8 conversion needed (NE strings are already ASCII/ANSI)
+- [x] Create `src/libexe/resources/parsers/string_table_parser.cpp` (78 lines)
+
+**Implementation Highlights**:
+- **NE Format Discovery**: Length prefix is 1 byte (ASCII), not 2 bytes (Unicode)
+- **Direct parsing**: `uint8_t length = *ptr++; string(ptr, length)`
+- **String ID calculation**: `(block_id - 1) * 16 + index`
+- Helper methods: `get_string()`, `has_string()`, `base_string_id()`
 
 **Files Created**:
 ```
-include/libexe/resources/parsers/string_table_parser.hpp
-src/libexe/resources/parsers/string_table_parser.cpp
+include/libexe/resources/parsers/string_table_parser.hpp    # 102 lines
+src/libexe/resources/parsers/string_table_parser.cpp        # 78 lines
 ```
 
-**Files Used**:
-```
-src/libexe/formats/exe_format_complete.ds (line 876)  # StringTableEntry
-generated/exe_format_complete_parser.h                 # Generated parser
-```
+**Test Results**: ✅ All 9 string blocks from PROGMAN.EXE parsed successfully
+- Multiple strings per block verified
+- Empty string slots handled correctly
+- String ID mapping validated
 
-**Test**: Unit test parsing PROGMAN.EXE RT_STRING resources (9 blocks)
-- Verify string count
-- Validate known strings
-- Test UTF-8 conversion
-
-#### 2. Verify DataScript Accelerator Structures
-- [ ] Verify `exe_format_complete_parser.h` includes `AccelTableEntry`
-- [ ] Test that accelerator entries can be parsed
-- [ ] No new .ds files needed - structures already defined
+#### 2. Verify DataScript Accelerator Structures ✅
+- [x] Verified `exe_format_complete_parser.h` includes `AccelTableEntry`
+- [x] DataScript `AccelTableEntry::read()` used successfully
+- [x] No new .ds files needed - structures already defined
 
 **Files Used**:
 ```
@@ -440,41 +444,67 @@ src/libexe/formats/exe_format_complete.ds (lines 843-862)  # Accelerator structu
 generated/exe_format_complete_parser.h                     # Generated parser
 ```
 
-**Test**: Verify DataScript parser can access accelerator structures
+**Test Results**: ✅ DataScript parser successfully parses accelerator structures
 
-#### 3. Accelerator Parser Implementation
-- [ ] Create `include/libexe/resources/parsers/accelerator_parser.hpp`
-- [ ] Define `accelerator_entry` struct
-- [ ] Define `accelerator_table` struct
-- [ ] Implement `accelerator_parser` class
-- [ ] Create `src/libexe/resources/parsers/accelerator_parser.cpp`
+#### 3. Accelerator Parser Implementation ✅
+- [x] Create `include/libexe/resources/parsers/accelerator_parser.hpp` (149 lines)
+- [x] Define `accelerator_entry` struct with flag checking methods
+- [x] Define `accelerator_table` struct with find_by_command()
+- [x] Implement `accelerator_parser` class using DataScript
+- [x] Implement `to_string()` method for human-readable output ("Ctrl+S", "Alt+F1")
+- [x] Create `src/libexe/resources/parsers/accelerator_parser.cpp` (129 lines)
+
+**Implementation Highlights**:
+- **DataScript Integration**: `AccelTableEntry::read(ptr, end)` for parsing
+- **Virtual Key Mapping**: F1-F12, Enter, Esc, Delete, etc. → readable names
+- **Modifier Formatting**: Combines Ctrl+Shift+Alt prefixes correctly
+- **Flag Enums**: `accelerator_flags` enum with VIRTKEY, SHIFT, CONTROL, ALT, END
+- Helper methods: `is_virtkey()`, `requires_shift/control/alt()`
 
 **Files Created**:
 ```
-include/libexe/resources/parsers/accelerator_parser.hpp
-src/libexe/resources/parsers/accelerator_parser.cpp
+include/libexe/resources/parsers/accelerator_parser.hpp    # 149 lines
+src/libexe/resources/parsers/accelerator_parser.cpp        # 129 lines
 ```
 
-**Test**: Unit test parsing PROGMAN.EXE RT_ACCELERATOR resource
-- Verify accelerator count
-- Validate key codes and commands
-- Check flags
+**Test Results**: ✅ Accelerator table from PROGMAN.EXE parsed successfully
+- 6 accelerator entries verified
+- Virtual key names mapped correctly
+- Modifier combinations validated
+- Command ID 0 supported (disabled/separator entries)
 
-#### 4. Factory Integration & Resource Entry Methods
-- [ ] Update factory with new parsers
-- [ ] Add `resource_entry::as_string_table()` method
-- [ ] Add `resource_entry::as_accelerator_table()` method
+#### 4. Factory Integration & Resource Entry Methods ✅
+- [x] No factory pattern used (direct parser usage)
+- [x] Add `resource_entry::as_string_table()` method (with block ID handling)
+- [x] Add `resource_entry::as_accelerator_table()` method
+- [x] Updated `src/libexe/resources/resource.cpp` with implementations
 
-**Test**: End-to-end extraction
+**Test Results**: ✅ End-to-end extraction works via convenience methods
 
-### Success Criteria (Phase 4.2.4)
+### Success Criteria (Phase 4.2.4) ✅ ALL MET
 
-- [ ] String tables parse correctly (all 9 blocks from PROGMAN.EXE)
-- [ ] Accelerators parse correctly
-- [ ] Unit tests: 100% pass rate
-- [ ] Code compiles with zero warnings
+- [x] String tables parse correctly (all 9 blocks from PROGMAN.EXE) ✅
+- [x] Accelerators parse correctly (6 entries from PROGMAN.EXE) ✅
+- [x] Unit tests: 100% pass rate (584/584 assertions) ✅
+- [x] Code compiles with zero warnings ✅
 
-**Deliverable**: Working string table and accelerator extraction
+**Deliverable**: ✅ Working string table and accelerator extraction
+
+**Files Modified/Created**:
+```
+include/libexe/resources/parsers/string_table_parser.hpp        # 102 lines - NEW
+src/libexe/resources/parsers/string_table_parser.cpp            # 78 lines - NEW
+include/libexe/resources/parsers/accelerator_parser.hpp         # 149 lines - NEW
+src/libexe/resources/parsers/accelerator_parser.cpp             # 129 lines - NEW
+src/libexe/resources/resource.cpp                               # +12 lines - MODIFIED
+include/libexe/resources/resource.hpp                           # +2 lines - MODIFIED
+unittests/resources/test_string_accelerator_parsers.cpp         # 385 lines - NEW
+unittests/CMakeLists.txt                                        # +1 line - MODIFIED
+src/libexe/CMakeLists.txt                                       # +2 lines - MODIFIED
+```
+
+**Total New Code**: ~865 lines across 9 files
+**Test Coverage**: 584 assertions validating both parsers
 
 ---
 

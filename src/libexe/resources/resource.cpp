@@ -7,6 +7,8 @@
 #include <libexe/resources/parsers/font_parser.hpp>
 #include <libexe/resources/parsers/version_info_parser.hpp>
 #include <libexe/resources/parsers/manifest_parser.hpp>
+#include <libexe/resources/parsers/string_table_parser.hpp>
+#include <libexe/resources/parsers/accelerator_parser.hpp>
 #include <algorithm>
 #include <sstream>
 
@@ -147,6 +149,18 @@ std::optional<version_info> resource_entry::as_version_info() const {
 
 std::optional<manifest_data> resource_entry::as_manifest() const {
     return manifest_parser::parse(data());
+}
+
+std::optional<string_table> resource_entry::as_string_table() const {
+    // String tables need the block ID to calculate string IDs
+    // The resource ID IS the block ID
+    auto res_id = id();
+    if (!res_id) return std::nullopt;
+    return string_table_parser::parse(data(), res_id.value());
+}
+
+std::optional<accelerator_table> resource_entry::as_accelerator_table() const {
+    return accelerator_parser::parse(data());
 }
 
 resource_entry resource_entry::create(

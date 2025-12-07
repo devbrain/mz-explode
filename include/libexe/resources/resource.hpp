@@ -222,6 +222,26 @@ namespace libexe {
              */
             [[nodiscard]] std::optional<struct manifest_data> as_manifest() const;
 
+            /**
+             * Parse as string table (RT_STRING)
+             *
+             * Convenience method that parses this resource as a string table block.
+             * Equivalent to: string_table_parser::parse(entry.data(), entry.id().value())
+             *
+             * @return Parsed string table on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct string_table> as_string_table() const;
+
+            /**
+             * Parse as accelerator table (RT_ACCELERATOR)
+             *
+             * Convenience method that parses this resource as an accelerator table.
+             * Equivalent to: accelerator_parser::parse(entry.data())
+             *
+             * @return Parsed accelerator table on success, std::nullopt on error
+             */
+            [[nodiscard]] std::optional<struct accelerator_table> as_accelerator_table() const;
+
             // =========================================================================
             // Implementation Details (for internal use)
             // =========================================================================

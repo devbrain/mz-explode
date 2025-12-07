@@ -88,6 +88,8 @@ add_library(libexe
         resources/parsers/font_parser.cpp
         resources/parsers/version_info_parser.cpp
         resources/parsers/manifest_parser.cpp
+        resources/parsers/string_table_parser.cpp
+        resources/parsers/accelerator_parser.cpp
         # Decompressors
         decompressors/pklite_decompressor.cpp
         decompressors/lzexe_decompressor.cpp

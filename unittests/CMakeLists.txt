@@ -81,6 +81,7 @@ add_executable(libexe_unittest
         resources/test_icon_parsers.cpp     # Icon parser tests
         resources/test_font_parsers.cpp     # Font parser tests
         resources/test_version_manifest_parsers.cpp  # Version & Manifest parser tests
+        resources/test_string_accelerator_parsers.cpp  # String & Accelerator parser tests
         explode/test_pklite.cpp
         explode/test_lzexe.cpp
         explode/test_knowledge_dynamics.cpp
