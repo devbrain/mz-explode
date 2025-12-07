@@ -28,12 +28,11 @@ static std::string md5_to_string(const unsigned char* digest) {
 static std::vector<uint8_t> build_exe_file(const decompression_result& result) {
     std::vector<uint8_t> output;
 
-    // Calculate header size
-    uint16_t relloc_bytes = static_cast<uint16_t>(result.relocations.size() * 4);
-    uint16_t par_size = (relloc_bytes + 0x1FF) & 0xFE00;
-    par_size >>= 4;
-
-    uint16_t header_size_para = par_size;
+    // Calculate header size (Knowledge Dynamics uses standard MZ calculation, not PKLITE's)
+    // hsize = sizeof(header) + relocations_size
+    // header_size_para = (hsize + 15) / 16  (round up to paragraph)
+    size_t hsize = 28 + result.relocations.size() * 4;  // 28-byte header + relocations
+    uint16_t header_size_para = static_cast<uint16_t>((hsize + 15) / 16);
     uint32_t code_size = static_cast<uint32_t>(result.code.size());
     uint32_t total_size = header_size_para * 16 + code_size;
 
