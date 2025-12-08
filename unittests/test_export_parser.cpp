@@ -11,6 +11,19 @@
 
 using namespace libexe;
 
+// External test data (embedded scheduler.exe)
+namespace data {
+    extern size_t scheduler_len;
+    extern unsigned char scheduler[];
+}
+
+static std::vector<uint8_t> load_scheduler() {
+    return std::vector<uint8_t>(
+        data::scheduler,
+        data::scheduler + data::scheduler_len
+    );
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
@@ -35,14 +48,10 @@ static std::vector<uint8_t> read_file(const std::filesystem::path& path) {
 // =============================================================================
 
 TEST_CASE("Export parser - Data directory accessors") {
-    std::filesystem::path test_file = "data/scheduler.exe";
+    auto data = load_scheduler();
+    REQUIRE(!data.empty());
 
-    if (!std::filesystem::exists(test_file)) {
-        MESSAGE("Test file not found: " << test_file << " (skipping test)");
-        return;
-    }
-
-    auto pe = pe_file::from_file(test_file);
+    auto pe = pe_file::from_memory(data);
 
     SUBCASE("Check if export directory exists") {
         // Most EXE files don't export functions (only DLLs do)
@@ -63,14 +72,10 @@ TEST_CASE("Export parser - Data directory accessors") {
 }
 
 TEST_CASE("Export parser - Export directory parsing (EXE without exports)") {
-    std::filesystem::path test_file = "data/scheduler.exe";
+    auto data = load_scheduler();
+    REQUIRE(!data.empty());
 
-    if (!std::filesystem::exists(test_file)) {
-        MESSAGE("Test file not found: " << test_file << " (skipping test)");
-        return;
-    }
-
-    auto pe = pe_file::from_file(test_file);
+    auto pe = pe_file::from_memory(data);
 
     SUBCASE("Get export directory from EXE") {
         auto exports = pe.exports();
@@ -308,14 +313,10 @@ TEST_CASE("Export entry - display names") {
 }
 
 TEST_CASE("Export parser - Invalid data directory index") {
-    std::filesystem::path test_file = "data/scheduler.exe";
+    auto data = load_scheduler();
+    REQUIRE(!data.empty());
 
-    if (!std::filesystem::exists(test_file)) {
-        MESSAGE("Test file not found: " << test_file << " (skipping test)");
-        return;
-    }
-
-    auto pe = pe_file::from_file(test_file);
+    auto pe = pe_file::from_memory(data);
 
     SUBCASE("Out of range directory entry should throw") {
         CHECK_THROWS_AS(

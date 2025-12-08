@@ -116,6 +116,7 @@ add_executable(libexe_unittest
         formats/test_pe64.cpp     # Real PE32+ file (64-bit executable)
         formats/data_wrapper.cpp  # Includes all PE/NE format test data
         testdata/corkami_test_data.cc  # Embedded Corkami PE test corpus files
+        testdata/scheduler.cc  # Embedded scheduler.exe for PE parser tests
         md5.c  # MD5 implementation for verification
 )
 

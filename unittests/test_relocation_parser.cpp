@@ -11,6 +11,19 @@
 
 using namespace libexe;
 
+// External test data (embedded scheduler.exe)
+namespace data {
+    extern size_t scheduler_len;
+    extern unsigned char scheduler[];
+}
+
+static std::vector<uint8_t> load_scheduler() {
+    return std::vector<uint8_t>(
+        data::scheduler,
+        data::scheduler + data::scheduler_len
+    );
+}
+
 // =============================================================================
 // Helper Functions
 // =============================================================================
@@ -35,14 +48,10 @@ static std::vector<uint8_t> read_file(const std::filesystem::path& path) {
 // =============================================================================
 
 TEST_CASE("Relocation parser - Data directory accessors") {
-    std::filesystem::path test_file = "data/scheduler.exe";
+    auto data = load_scheduler();
+    REQUIRE(!data.empty());
 
-    if (!std::filesystem::exists(test_file)) {
-        MESSAGE("Test file not found: " << test_file << " (skipping test)");
-        return;
-    }
-
-    auto pe = pe_file::from_file(test_file);
+    auto pe = pe_file::from_memory(data);
 
     SUBCASE("Check if base relocation directory exists") {
         bool has_relocs = pe.has_data_directory(directory_entry::BASERELOC);
@@ -62,14 +71,10 @@ TEST_CASE("Relocation parser - Data directory accessors") {
 }
 
 TEST_CASE("Relocation parser - Relocation directory parsing") {
-    std::filesystem::path test_file = "data/scheduler.exe";
+    auto data = load_scheduler();
+    REQUIRE(!data.empty());
 
-    if (!std::filesystem::exists(test_file)) {
-        MESSAGE("Test file not found: " << test_file << " (skipping test)");
-        return;
-    }
-
-    auto pe = pe_file::from_file(test_file);
+    auto pe = pe_file::from_memory(data);
 
     SUBCASE("Get relocation directory") {
         auto relocs = pe.relocations();
@@ -171,14 +176,10 @@ TEST_CASE("Relocation parser - Relocation directory parsing") {
 }
 
 TEST_CASE("Relocation parser - Find relocation by RVA") {
-    std::filesystem::path test_file = "data/scheduler.exe";
+    auto data = load_scheduler();
+    REQUIRE(!data.empty());
 
-    if (!std::filesystem::exists(test_file)) {
-        MESSAGE("Test file not found: " << test_file << " (skipping test)");
-        return;
-    }
-
-    auto pe = pe_file::from_file(test_file);
+    auto pe = pe_file::from_memory(data);
     auto relocs = pe.relocations();
     REQUIRE(relocs != nullptr);
 

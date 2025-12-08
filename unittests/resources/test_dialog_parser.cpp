@@ -97,15 +97,27 @@ TEST_CASE("Parse dialog resources in PROGMAN.EXE") {
     CHECK(total_controls > 0);
 }
 
-TEST_CASE("Parse PE dialog resources in scheduler.exe") {
-    const std::filesystem::path test_file = "../data/scheduler.exe";
+// External test data (embedded scheduler.exe)
+namespace data {
+    extern size_t scheduler_len;
+    extern unsigned char scheduler[];
+}
 
-    if (!std::filesystem::exists(test_file)) {
-        std::cout << "scheduler.exe not found, skipping PE dialog test\n";
-        return;
+namespace {
+    // Load scheduler.exe from embedded data
+    std::vector<uint8_t> load_scheduler() {
+        return std::vector<uint8_t>(
+            data::scheduler,
+            data::scheduler + data::scheduler_len
+        );
     }
+}
 
-    auto exe = pe_file::from_file(test_file);
+TEST_CASE("Parse PE dialog resources in scheduler.exe") {
+    auto data_vec = load_scheduler();
+    REQUIRE(!data_vec.empty());
+
+    auto exe = pe_file::from_memory(data_vec);
     REQUIRE(exe.has_resources());
 
     auto rsrc = exe.resources();
