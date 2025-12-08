@@ -101,7 +101,7 @@ name_or_id read_pe_name_or_ordinal(const uint8_t*& ptr, const uint8_t* end) {
     }
 }
 
-// Read null-terminated string, advance pointer
+// Read null-terminated string, advance pointer (PE format)
 std::string read_string(const uint8_t*& ptr, const uint8_t* end) {
     std::string result;
 
@@ -117,7 +117,41 @@ std::string read_string(const uint8_t*& ptr, const uint8_t* end) {
     return result;
 }
 
-// Read name or ID: 0xFF prefix means ID follows, otherwise string
+// Read length-prefixed string (NE format: [length byte][characters])
+// Implements the ne_pstring structure from dialogs.ds
+//
+// Format per dialogs.ds:
+//   struct ne_pstring {
+//       uint8 length;
+//       uint8 chars[length];
+//   };
+//
+// NE format uses Pascal-style strings (NOT null-terminated).
+// Per ne.fmt specification (line 273): "String table follows (length-prefixed, NOT null-terminated)"
+std::string read_length_prefixed_string(const uint8_t*& ptr, const uint8_t* end) {
+    if (ptr >= end) {
+        return std::string();
+    }
+
+    uint8_t length = *ptr++;
+
+    if (length == 0) {
+        return std::string();
+    }
+
+    if (ptr + length > end) {
+        // Not enough data - return what we can
+        length = static_cast<uint8_t>(end - ptr);
+    }
+
+    std::string result(reinterpret_cast<const char*>(ptr), length);
+    ptr += length;
+
+    return result;
+}
+
+// Read name or ID: 0xFF prefix means ID follows, otherwise length-prefixed string (NE format)
+// Implements the ne_name_or_id pattern from dialogs.ds
 name_or_id read_name_or_id(const uint8_t*& ptr, const uint8_t* end, bool is_word_id = true) {
     if (ptr >= end) {
         return std::string("");
@@ -139,8 +173,8 @@ name_or_id read_name_or_id(const uint8_t*& ptr, const uint8_t* end, bool is_word
             return id;
         }
     } else {
-        // String follows
-        return read_string(ptr, end);
+        // Length-prefixed string follows (NE format per dialogs.ds ne_pstring)
+        return read_length_prefixed_string(ptr, end);
     }
 }
 
@@ -331,6 +365,7 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
     result.menu = read_name_or_id(ptr, end);
 
     // Read window class (usually empty)
+    // NE format uses length-prefixed strings (ne_pstring from dialogs.ds)
     if (ptr < end) {
         if (*ptr == 0xFF) {
             // Class ID (rarely used)
@@ -340,14 +375,14 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
                 ptr++;
             }
         } else {
-            // Class name string
-            result.window_class = read_string(ptr, end);
+            // Class name string (length-prefixed)
+            result.window_class = read_length_prefixed_string(ptr, end);
         }
     }
 
-    // Read caption
+    // Read caption (length-prefixed per dialogs.ds ne_pstring)
     if (ptr < end) {
-        result.caption = read_string(ptr, end);
+        result.caption = read_length_prefixed_string(ptr, end);
     }
 
     // If DS_SETFONT, read font info
@@ -356,8 +391,9 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
             result.point_size = read_u16(ptr);
             ptr += 2;
 
+            // Font name (length-prefixed per dialogs.ds ne_pstring)
             if (ptr < end) {
-                result.font_name = read_string(ptr, end);
+                result.font_name = read_length_prefixed_string(ptr, end);
             }
         }
     }
@@ -388,6 +424,7 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
         ptr += 4;
 
         // Read control class (can be predefined or custom string)
+        // Implements ne_control_class pattern from dialogs.ds
         if (ptr < end) {
             if (*ptr == 0xFF) {
                 // Predefined class
@@ -402,8 +439,8 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
                     }
                 }
             } else {
-                // Custom class name
-                control.control_class_id = read_string(ptr, end);
+                // Custom class name (length-prefixed per dialogs.ds ne_pstring)
+                control.control_class_id = read_length_prefixed_string(ptr, end);
             }
         }
 
