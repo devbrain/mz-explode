@@ -101,6 +101,7 @@ add_executable(libexe_unittest
         resources/test_dialog_parser.cpp    # Dialog parser tests - NE and PE formats
         resources/test_menu_parser.cpp      # Menu parser tests
         resources/test_bitmap_message_parsers.cpp  # Bitmap & Message Table parser tests
+        test_corkami_corpus.cpp     # Integration tests using Corkami PE test corpus
         explode/test_pklite.cpp
         explode/test_lzexe.cpp
         explode/test_knowledge_dynamics.cpp
