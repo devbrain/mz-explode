@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/version_info_parser.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include "libexe_format_version.hh"  // Generated DataScript parser (modular)
 #include <sstream>
 #include <cstring>
 
@@ -160,33 +160,33 @@ std::optional<version_info> version_info_parser::parse(std::span<const uint8_t> 
             return std::nullopt;
         }
 
-        auto ds_fixed_info = formats::exe_format_complete::VsFixedFileInfo::read(ptr, end);
+        auto ds_fixed_info = formats::resources::version::vs_fixed_file_info::read(ptr, end);
 
         version_info result;
 
         // Convert DataScript structure to our public API
-        result.fixed_info.signature = ds_fixed_info.dwSignature;
-        result.fixed_info.struct_version = ds_fixed_info.dwStrucVersion;
+        result.fixed_info.signature = ds_fixed_info.signature;
+        result.fixed_info.struct_version = ds_fixed_info.struct_version;
 
         // File version
-        result.fixed_info.file_version_major = static_cast<uint16_t>(ds_fixed_info.dwFileVersionMS >> 16);
-        result.fixed_info.file_version_minor = static_cast<uint16_t>(ds_fixed_info.dwFileVersionMS & 0xFFFF);
-        result.fixed_info.file_version_patch = static_cast<uint16_t>(ds_fixed_info.dwFileVersionLS >> 16);
-        result.fixed_info.file_version_build = static_cast<uint16_t>(ds_fixed_info.dwFileVersionLS & 0xFFFF);
+        result.fixed_info.file_version_major = static_cast<uint16_t>(ds_fixed_info.file_version_ms >> 16);
+        result.fixed_info.file_version_minor = static_cast<uint16_t>(ds_fixed_info.file_version_ms & 0xFFFF);
+        result.fixed_info.file_version_patch = static_cast<uint16_t>(ds_fixed_info.file_version_ls >> 16);
+        result.fixed_info.file_version_build = static_cast<uint16_t>(ds_fixed_info.file_version_ls & 0xFFFF);
 
         // Product version
-        result.fixed_info.product_version_major = static_cast<uint16_t>(ds_fixed_info.dwProductVersionMS >> 16);
-        result.fixed_info.product_version_minor = static_cast<uint16_t>(ds_fixed_info.dwProductVersionMS & 0xFFFF);
-        result.fixed_info.product_version_patch = static_cast<uint16_t>(ds_fixed_info.dwProductVersionLS >> 16);
-        result.fixed_info.product_version_build = static_cast<uint16_t>(ds_fixed_info.dwProductVersionLS & 0xFFFF);
+        result.fixed_info.product_version_major = static_cast<uint16_t>(ds_fixed_info.product_version_ms >> 16);
+        result.fixed_info.product_version_minor = static_cast<uint16_t>(ds_fixed_info.product_version_ms & 0xFFFF);
+        result.fixed_info.product_version_patch = static_cast<uint16_t>(ds_fixed_info.product_version_ls >> 16);
+        result.fixed_info.product_version_build = static_cast<uint16_t>(ds_fixed_info.product_version_ls & 0xFFFF);
 
-        result.fixed_info.file_flags_mask = ds_fixed_info.dwFileFlagsMask;
-        result.fixed_info.file_flags = ds_fixed_info.dwFileFlags;
-        result.fixed_info.file_os = ds_fixed_info.dwFileOS;
-        result.fixed_info.file_type = ds_fixed_info.dwFileType;
-        result.fixed_info.file_subtype = ds_fixed_info.dwFileSubtype;
-        result.fixed_info.file_date = (static_cast<uint64_t>(ds_fixed_info.dwFileDateMS) << 32) |
-                                       ds_fixed_info.dwFileDateLS;
+        result.fixed_info.file_flags_mask = ds_fixed_info.file_flags_mask;
+        result.fixed_info.file_flags = ds_fixed_info.file_flags;
+        result.fixed_info.file_os = ds_fixed_info.file_os;
+        result.fixed_info.file_type = ds_fixed_info.file_type;
+        result.fixed_info.file_subtype = ds_fixed_info.file_subtype;
+        result.fixed_info.file_date = (static_cast<uint64_t>(ds_fixed_info.file_date_ms) << 32) |
+                                       ds_fixed_info.file_date_ls;
 
         // Move past VS_FIXEDFILEINFO
         ptr = align_dword(ptr, base);

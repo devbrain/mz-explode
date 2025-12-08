@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/resources/pe_resource_directory.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include "libexe_format_pe.hh"  // Generated DataScript parser (modular)
 #include <algorithm>
 #include <stdexcept>
 #include <cstring>
@@ -77,15 +77,15 @@ namespace libexe {
         const uint8_t* end = rsrc_data.data() + rsrc_data.size();
 
         // Parse directory header using DataScript
-        auto dir = formats::exe_format_complete::ImageResourceDirectory::read(ptr, end);
+        auto dir = formats::pe::pe_header::image_resource_directory::read(ptr, end);
 
         // Save timestamp from root directory
         if (level == 1) {
-            timestamp_ = dir.TimeDateStamp;
+            timestamp_ = dir.time_date_stamp;
         }
 
         // Calculate total entries
-        uint16_t total_entries = dir.NumberOfNamedEntries + dir.NumberOfIdEntries;
+        uint16_t total_entries = dir.number_of_named_entries + dir.number_of_id_entries;
 
         // Entries immediately follow the directory header
         size_t entry_offset = dir_offset + 16;
@@ -98,16 +98,16 @@ namespace libexe {
             const uint8_t* entry_ptr = rsrc_data.data() + entry_offset;
 
             // Parse directory entry using DataScript
-            auto entry = formats::exe_format_complete::ImageResourceDirectoryEntry::read(entry_ptr, end);
+            auto entry = formats::pe::pe_header::image_resource_directory_entry::read(entry_ptr, end);
 
             // Extract name/ID from Name field
-            bool is_named = (entry.Name & 0x80000000) != 0;
-            uint32_t name_offset = entry.Name & 0x7FFFFFFF;
-            uint16_t entry_id = static_cast <uint16_t>(entry.Name & 0xFFFF);
+            bool is_named = (entry.name & 0x80000000) != 0;
+            uint32_t name_offset = entry.name & 0x7FFFFFFF;
+            uint16_t entry_id = static_cast <uint16_t>(entry.name & 0xFFFF);
 
             // Extract offset and check if it points to subdirectory or data
-            bool is_subdirectory = (entry.Offset & 0x80000000) != 0;
-            uint32_t offset = entry.Offset & 0x7FFFFFFF;
+            bool is_subdirectory = (entry.offset & 0x80000000) != 0;
+            uint32_t offset = entry.offset & 0x7FFFFFFF;
 
             // Determine values for next level
             uint16_t next_type_id = type_id;
@@ -141,7 +141,7 @@ namespace libexe {
                     // Get codepage from data entry
                     if (offset + 16 <= rsrc_data.size()) {
                         const uint8_t* data_entry_ptr = rsrc_data.data() + offset;
-                        auto data_entry = formats::exe_format_complete::ImageResourceDataEntry::read(data_entry_ptr, end);
+                        auto data_entry = formats::pe::pe_header::image_resource_data_entry::read(data_entry_ptr, end);
 
                         // Build resource entry
                         auto resource = resource_entry::create(
@@ -149,7 +149,7 @@ namespace libexe {
                             next_name_id,
                             next_name_str,
                             language,
-                            data_entry.CodePage,
+                            data_entry.code_page,
                             data
                         );
 
@@ -171,14 +171,14 @@ namespace libexe {
         const uint8_t* end = rsrc_data.data() + rsrc_data.size();
 
         try {
-            auto str = formats::exe_format_complete::ImageResourceDirStringU::read(ptr, end);
+            auto str = formats::pe::pe_header::image_resource_dir_string_u::read(ptr, end);
 
             // Convert Unicode (UTF-16LE) to UTF-8 (simplified - just take low byte)
             std::string result;
-            result.reserve(str.Length);
+            result.reserve(str.length);
 
-            for (uint16_t i = 0; i < str.Length && i < str.NameString.size(); ++i) {
-                uint16_t wchar = str.NameString[i];
+            for (uint16_t i = 0; i < str.length && i < str.name_string.size(); ++i) {
+                uint16_t wchar = str.name_string[i];
                 if (wchar < 128) {
                     result.push_back(static_cast <char>(wchar));
                 } else {
@@ -202,22 +202,22 @@ namespace libexe {
         const uint8_t* end = rsrc_data.data() + rsrc_data.size();
 
         try {
-            auto data_entry = formats::exe_format_complete::ImageResourceDataEntry::read(ptr, end);
+            auto data_entry = formats::pe::pe_header::image_resource_data_entry::read(ptr, end);
 
             // Convert RVA to offset within .rsrc section
-            if (data_entry.OffsetToData < rsrc_rva) {
+            if (data_entry.offset_to_data < rsrc_rva) {
                 return {}; // Invalid RVA
             }
 
-            size_t offset = data_entry.OffsetToData - rsrc_rva;
+            size_t offset = data_entry.offset_to_data - rsrc_rva;
 
-            if (offset + data_entry.Size > rsrc_data.size()) {
+            if (offset + data_entry.size > rsrc_data.size()) {
                 return {}; // Data extends beyond section
             }
 
             return std::span <const uint8_t>(
                 rsrc_data.data() + offset,
-                data_entry.Size
+                data_entry.size
             );
         } catch (...) {
             return {};

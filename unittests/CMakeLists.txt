@@ -83,6 +83,8 @@ add_executable(libexe_unittest
         resources/test_version_manifest_parsers.cpp  # Version & Manifest parser tests
         resources/test_string_accelerator_parsers.cpp  # String & Accelerator parser tests
         resources/test_dialog_parser.cpp    # Dialog parser tests - NE and PE formats
+        resources/test_menu_parser.cpp      # Menu parser tests
+        resources/test_bitmap_message_parsers.cpp  # Bitmap & Message Table parser tests
         explode/test_pklite.cpp
         explode/test_lzexe.cpp
         explode/test_knowledge_dynamics.cpp

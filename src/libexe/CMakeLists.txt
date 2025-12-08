@@ -68,12 +68,14 @@ endfunction()
 # Generate Parsers from Modular DataScript Files
 # =============================================================================
 
-# Generate parser from OLD monolithic specification (kept for compatibility during migration)
-add_datascript_parser(formats/exe_format_complete.ds exe_format.hh)
-
-# Generate parsers from NEW modular specifications
+# Generate parsers from modular specifications
 # Common types (no dependencies, generate first)
 add_datascript_parser(formats/common.ds libexe_format_common.hh)
+
+# Executable format parsers (independent, no dependencies)
+add_datascript_parser(formats/mz.ds libexe_format_mz.hh)
+add_datascript_parser(formats/ne/ne_header.ds libexe_format_ne.hh)
+add_datascript_parser(formats/pe/pe_header.ds libexe_format_pe.hh)
 
 # Resource format parsers (depend on common.ds)
 add_datascript_parser(formats/resources/dialogs.ds libexe_format_dialogs.hh)
@@ -81,6 +83,7 @@ add_datascript_parser(formats/resources/version.ds libexe_format_version.hh)
 add_datascript_parser(formats/resources/basic.ds libexe_format_basic.hh)
 add_datascript_parser(formats/resources/tables.ds libexe_format_tables.hh)
 add_datascript_parser(formats/resources/fonts.ds libexe_format_fonts.hh)
+add_datascript_parser(formats/resources/menus.ds libexe_format_menus.hh)
 
 # Set up dependencies: resource parsers depend on common being generated first
 add_dependencies(generate_dialogs_parser generate_common_parser)
@@ -88,6 +91,7 @@ add_dependencies(generate_version_parser generate_common_parser)
 add_dependencies(generate_basic_parser generate_common_parser)
 add_dependencies(generate_tables_parser generate_common_parser)
 add_dependencies(generate_fonts_parser generate_common_parser)
+add_dependencies(generate_menus_parser generate_common_parser)
 
 # =============================================================================
 # Main Library
@@ -112,6 +116,9 @@ add_library(libexe
         resources/parsers/manifest_parser.cpp
         resources/parsers/string_table_parser.cpp
         resources/parsers/accelerator_parser.cpp
+        resources/parsers/menu_parser.cpp
+        resources/parsers/bitmap_parser.cpp
+        resources/parsers/message_table_parser.cpp
         # Decompressors
         decompressors/pklite_decompressor.cpp
         decompressors/lzexe_decompressor.cpp
@@ -123,14 +130,17 @@ add_library(libexe
 
 # Make library depend on parser generation
 add_dependencies(libexe
-    generate_exe_format_complete_parser  # Old monolithic parser
-    # New modular parsers
+    # Modular parsers
     generate_common_parser
+    generate_mz_parser
+    generate_ne_header_parser
+    generate_pe_header_parser
     generate_dialogs_parser
     generate_version_parser
     generate_basic_parser
     generate_tables_parser
     generate_fonts_parser
+    generate_menus_parser
 )
 
 # Generate portable export header

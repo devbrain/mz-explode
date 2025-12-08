@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/accelerator_parser.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include "libexe_format_tables.hh"  // Generated DataScript parser (modular)
 #include <sstream>
 
 namespace libexe {
@@ -98,17 +98,17 @@ std::optional<accelerator_table> accelerator_parser::parse(std::span<const uint8
         // Parse entries until we hit the end flag or run out of data
         while (ptr + 8 <= end) {
             // Parse entry using DataScript
-            auto ds_entry = formats::exe_format_complete::AccelTableEntry::read(ptr, end);
+            auto ds_entry = formats::resources::tables::accel_table_entry::read(ptr, end);
 
             accelerator_entry entry;
-            entry.flags = ds_entry.fFlags;
-            entry.key = ds_entry.wEvent;
-            entry.command_id = ds_entry.wId;
+            entry.flags = ds_entry.flags;
+            entry.key = ds_entry.event;
+            entry.command_id = ds_entry.id;
 
             result.entries.push_back(entry);
 
             // Check for END flag
-            if ((ds_entry.fFlags & static_cast<uint16_t>(accelerator_flags::END)) != 0) {
+            if ((ds_entry.flags & static_cast<uint16_t>(accelerator_flags::END)) != 0) {
                 break;
             }
         }

@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/string_table_parser.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include <vector>
 #include <sstream>
 
 namespace libexe {

@@ -1,0 +1,153 @@
+// Windows Menu Resource Structures (RT_MENU)
+// Standard menu format (Win32/Win16)
+package formats.resources.menus;
+
+// No imports needed - standalone file
+
+// Global endianness (Windows is little-endian)
+little;
+
+// =============================================================================
+// Menu Resource Structures (RT_MENU)
+// =============================================================================
+
+/**
+ * Menu flags for menu items
+ *
+ * These flags determine the appearance and behavior of menu items,
+ * and critically, they determine whether an item is a popup menu
+ * or a normal (command) menu item.
+ *
+ * Per resfmt.txt section 4.3 (lines 664-672)
+ */
+enum uint16 menu_flags {
+    MF_GRAYED       = 0x0001,  // GRAYED keyword - item is inactive and grayed
+    MF_INACTIVE     = 0x0002,  // INACTIVE keyword - item is inactive
+    MF_BITMAP       = 0x0004,  // BITMAP keyword - item displays a bitmap
+    MF_CHECKED      = 0x0008,  // CHECKED keyword - item has checkmark
+    MF_POPUP        = 0x0010,  // Used internally (signals popup submenu)
+    MF_MENUBARBREAK = 0x0020,  // MENUBARBREAK keyword - new column with separator
+    MF_MENUBREAK    = 0x0040,  // MENUBREAK keyword - new column without separator
+    MF_END          = 0x0080,  // Used internally (marks last item in popup)
+    MF_OWNERDRAW    = 0x0100   // OWNERDRAW keyword - owner-drawn item
+};
+
+/**
+ * Menu header
+ *
+ * Precedes all menu items. Both fields are typically zero for
+ * standard Windows 3.0+ menus.
+ *
+ * Per resfmt.txt section 4.3 (lines 633-636)
+ */
+struct menu_header {
+    uint16 version;       // Menu template version (currently 0)
+    uint16 header_size;   // Size of header in bytes (currently 0)
+};
+
+/*
+ * MENU ITEM STRUCTURES (VARIABLE-LENGTH - MANUAL PARSING REQUIRED)
+ *
+ * Menu items follow the header but their structure varies based on the
+ * MF_POPUP flag. DataScript cannot model this runtime-variable layout
+ * because the structure changes based on flag values.
+ *
+ * Per resfmt.txt section 4.3 (lines 638-680):
+ *
+ * POPUP MENU ITEM (fItemFlags & MF_POPUP):
+ *   struct PopupMenuItem {
+ *     WORD   fItemFlags;      // Menu flags (includes MF_POPUP)
+ *     WCHAR  szItemText[];    // Null-terminated Unicode string
+ *   };
+ *
+ * NORMAL MENU ITEM (!(fItemFlags & MF_POPUP)):
+ *   struct NormalMenuItem {
+ *     WORD   fItemFlags;      // Menu flags (no MF_POPUP)
+ *     WORD   wMenuID;         // Command ID for this item
+ *     WCHAR  szItemText[];    // Null-terminated Unicode string
+ *   };
+ *
+ * MENU SEPARATOR:
+ *   Special case of NormalMenuItem with:
+ *   - Empty string (szItemText = single 0x0000)
+ *   - wMenuID = 0
+ *   - fItemFlags = 0
+ *
+ * Menu items are inserted SEQUENTIALLY in the binary file. When a popup
+ * menu contains nested items, those items follow immediately after the
+ * popup's header item. The fItemFlags of the LAST item in each popup
+ * is OR'd with MF_END (0x0080).
+ *
+ * PARSING ALGORITHM:
+ *
+ * 1. Read menu_header (4 bytes)
+ * 2. While not at end of resource:
+ *    a. Read WORD fItemFlags
+ *    b. If (fItemFlags & MF_POPUP):
+ *         - This is a popup menu item
+ *         - Read null-terminated Unicode string (szItemText)
+ *         - Popup's child items follow immediately
+ *    c. Else:
+ *         - This is a normal menu item
+ *         - Read WORD wMenuID
+ *         - Read null-terminated Unicode string (szItemText)
+ *    d. If (fItemFlags & MF_END):
+ *         - This is the last item in current popup level
+ *         - Return to parent level
+ *
+ * EXAMPLE MENU STRUCTURE:
+ *
+ *   File
+ *     New
+ *     Open
+ *     ---       (separator)
+ *     Exit
+ *   Edit
+ *     Cut
+ *     Copy
+ *     Paste
+ *
+ * BINARY LAYOUT:
+ *
+ *   [menu_header: version=0, header_size=0]
+ *   [POPUP "File" (MF_POPUP)]
+ *     [NORMAL "New" (MF_NORMAL, id=ID_FILE_NEW)]
+ *     [NORMAL "Open" (MF_NORMAL, id=ID_FILE_OPEN)]
+ *     [SEPARATOR (MF_NORMAL, id=0, text="")]
+ *     [NORMAL "Exit" (MF_NORMAL | MF_END, id=ID_FILE_EXIT)]  <- MF_END set
+ *   [POPUP "Edit" (MF_POPUP | MF_END)]                        <- MF_END set (last top-level)
+ *     [NORMAL "Cut" (MF_NORMAL, id=ID_EDIT_CUT)]
+ *     [NORMAL "Copy" (MF_NORMAL, id=ID_EDIT_COPY)]
+ *     [NORMAL "Paste" (MF_NORMAL | MF_END, id=ID_EDIT_PASTE)] <- MF_END set
+ *
+ * Note the nested MF_END flags - each popup level has its own MF_END marker
+ * on the last item at that level.
+ *
+ * C++ IMPLEMENTATION EXAMPLE:
+ *
+ *   auto header = menu_header::read(data, end);
+ *
+ *   while (data < end) {
+ *       uint16_t flags = read_uint16_le(data, end);
+ *
+ *       if (flags & MF_POPUP) {
+ *           // Read popup menu item
+ *           std::u16string text = read_u16string(data, end);
+ *           // Push new level, recursively parse children
+ *       } else {
+ *           // Read normal menu item
+ *           uint16_t id = read_uint16_le(data, end);
+ *           std::u16string text = read_u16string(data, end);
+ *           // Add menu item at current level
+ *       }
+ *
+ *       if (flags & MF_END) {
+ *           // End of current popup level
+ *           break;
+ *       }
+ *   }
+ *
+ * REFERENCES:
+ * - resfmt.txt section 4.3 (lines 623-680)
+ * - Windows SDK documentation for MENUITEMTEMPLATE
+ */

@@ -34,7 +34,7 @@ namespace libexe {
                 bool large_compression; // Large compression model (bit 0x2000 set)
             };
 
-            pklite_params read_parameters(std::span <const uint8_t> data) const;
+            [[nodiscard]] pklite_params read_parameters(std::span <const uint8_t> data) const;
 
             uint16_t h_pklite_info_;
             uint16_t header_size_;

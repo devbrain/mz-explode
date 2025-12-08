@@ -18,10 +18,11 @@
  */
 package formats.resources.version;
 
-import formats.common;
-
 // All Windows resource formats use little-endian byte order
 little;
+
+// Version info signature constant
+const uint32 VS_VERSION_INFO_SIGNATURE = 0xFEEF04BD;
 
 // =============================================================================
 // VS_FIXEDFILEINFO - Fixed File Version Information

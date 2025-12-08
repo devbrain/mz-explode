@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/resources/ne_resource_directory.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include "libexe_format_ne.hh"  // Generated DataScript parser (modular)
 #include <algorithm>
 #include <stdexcept>
 #include <cstring>
@@ -65,7 +65,7 @@ namespace libexe {
             while (ptr + 8 <= end) {
                 // Need at least 8 bytes for NeResourceTypeInfo
                 // Read type info
-                auto type_info = formats::exe_format_complete::NeResourceTypeInfo::read(ptr, end);
+                auto type_info = formats::ne::ne_header::ne_resource_type_info::read(ptr, end);
 
                 // Type ID of 0 marks end of resource table
                 if (type_info.type_id == 0) {
@@ -86,7 +86,7 @@ namespace libexe {
                     }
 
                     // Read resource name info
-                    auto name_info = formats::exe_format_complete::NeResourceNameInfo::read(ptr, end);
+                    auto name_info = formats::ne::ne_header::ne_resource_name_info::read(ptr, end);
 
                     // Determine if resource name is integer ID or string offset
                     bool is_integer_id = (name_info.id & 0x8000) != 0;

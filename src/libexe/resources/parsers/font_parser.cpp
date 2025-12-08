@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/font_parser.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include "libexe_format_fonts.hh"  // Generated DataScript parser (modular)
 #include <cstring>
 #include <algorithm>
 
@@ -46,50 +46,50 @@ std::optional<font_data> font_parser::parse(std::span<const uint8_t> data) {
         // Parse using generated DataScript parser
         const uint8_t* ptr = data.data();
         const uint8_t* end = data.data() + data.size();
-        auto ds_font = formats::exe_format_complete::FontHeader::read(ptr, end);
+        auto ds_font = formats::resources::fonts::font_header::read(ptr, end);
 
         // Convert to our public API structure
         font_data result;
 
         // Metadata
-        result.version = ds_font.dfVersion;
-        result.size = ds_font.dfSize;
-        result.copyright = extract_string(ds_font.dfCopyright.data(), ds_font.dfCopyright.size());
-        result.type = static_cast<font_type>(ds_font.dfType);
+        result.version = ds_font.version;
+        result.size = ds_font.size;
+        result.copyright = extract_string(ds_font.copyright.data(), ds_font.copyright.size());
+        result.type = static_cast<font_type>(ds_font.type);
 
         // Metrics
-        result.points = ds_font.dfPoints;
-        result.vertical_res = ds_font.dfVertRes;
-        result.horizontal_res = ds_font.dfHorizRes;
-        result.ascent = ds_font.dfAscent;
-        result.internal_leading = ds_font.dfInternalLeading;
-        result.external_leading = ds_font.dfExternalLeading;
+        result.points = ds_font.points;
+        result.vertical_res = ds_font.vert_res;
+        result.horizontal_res = ds_font.horiz_res;
+        result.ascent = ds_font.ascent;
+        result.internal_leading = ds_font.internal_leading;
+        result.external_leading = ds_font.external_leading;
 
         // Appearance
-        result.italic = ds_font.dfItalic != 0;
-        result.underline = ds_font.dfUnderline != 0;
-        result.strikeout = ds_font.dfStrikeOut != 0;
-        result.weight = ds_font.dfWeight;
-        result.charset = ds_font.dfCharSet;
+        result.italic = ds_font.italic != 0;
+        result.underline = ds_font.underline != 0;
+        result.strikeout = ds_font.strike_out != 0;
+        result.weight = ds_font.weight;
+        result.charset = ds_font.char_set;
 
         // Dimensions
-        result.pixel_width = ds_font.dfPixWidth;
-        result.pixel_height = ds_font.dfPixHeight;
-        result.avg_width = ds_font.dfAvgWidth;
-        result.max_width = ds_font.dfMaxWidth;
+        result.pixel_width = ds_font.pix_width;
+        result.pixel_height = ds_font.pix_height;
+        result.avg_width = ds_font.avg_width;
+        result.max_width = ds_font.max_width;
 
         // Character range
-        result.first_char = ds_font.dfFirstChar;
-        result.last_char = ds_font.dfLastChar;
-        result.default_char = ds_font.dfDefaultChar;
-        result.break_char = ds_font.dfBreakChar;
+        result.first_char = ds_font.first_char;
+        result.last_char = ds_font.last_char;
+        result.default_char = ds_font.default_char;
+        result.break_char = ds_font.break_char;
 
         // Pitch and family
-        result.pitch = static_cast<font_pitch>(ds_font.dfPitchAndFamily & 0x0F);
-        result.family = static_cast<font_family>(ds_font.dfPitchAndFamily & 0xF0);
+        result.pitch = static_cast<font_pitch>(ds_font.pitch_and_family & 0x0F);
+        result.family = static_cast<font_family>(ds_font.pitch_and_family & 0xF0);
 
-        // Face name (stored at dfFace offset)
-        result.face_name = read_string_at_offset(data, ds_font.dfFace);
+        // Face name (stored at face offset)
+        result.face_name = read_string_at_offset(data, ds_font.face);
 
         // Parse glyph table
         // The glyph table immediately follows the header
@@ -100,8 +100,8 @@ std::optional<font_data> font_parser::parse(std::span<const uint8_t> data) {
         ptr = data.data() + 118;  // Start of glyph table (after header)
 
         // Determine glyph entry size based on version and flags
-        bool has_abc_spacing = (ds_font.dfFlags & 0x0001) != 0;  // DFF_ABCFIXED or DFF_ABCPROPORTIONAL
-        bool is_color = (ds_font.dfFlags & 0x0004) != 0;         // DFF_COLORFONT
+        bool has_abc_spacing = (ds_font.flags & 0x0001) != 0;  // DFF_ABCFIXED or DFF_ABCPROPORTIONAL
+        bool is_color = (ds_font.flags & 0x0004) != 0;         // DFF_COLORFONT
 
         for (size_t i = 0; i < char_count && ptr + 6 <= end; ++i) {
             glyph_entry glyph;
@@ -139,10 +139,10 @@ std::optional<font_data> font_parser::parse(std::span<const uint8_t> data) {
         }
 
         // The bitmap data starts after the glyph table
-        // For simplicity, we store everything from dfBitsOffset to end of file
-        if (ds_font.dfBitsOffset < data.size()) {
-            const uint8_t* bitmap_start = data.data() + ds_font.dfBitsOffset;
-            size_t bitmap_size = data.size() - ds_font.dfBitsOffset;
+        // For simplicity, we store everything from bits_offset to end of file
+        if (ds_font.bits_offset < data.size()) {
+            const uint8_t* bitmap_start = data.data() + ds_font.bits_offset;
+            size_t bitmap_size = data.size() - ds_font.bits_offset;
             result.bitmap_data.assign(bitmap_start, bitmap_start + bitmap_size);
         }
 

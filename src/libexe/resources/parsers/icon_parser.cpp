@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/icon_parser.hpp>
-#include "exe_format.hh"  // Generated DataScript parser
+#include "libexe_format_basic.hh"  // Generated DataScript parser (modular)
 #include <cstring>
 #include <algorithm>
 
@@ -58,22 +58,22 @@ std::optional<icon_image> icon_parser::parse(std::span<const uint8_t> data) {
         // Parse using generated DataScript parser
         const uint8_t* ptr = data.data();
         const uint8_t* end = data.data() + data.size();
-        auto ds_header = formats::exe_format_complete::BitmapInfoHeader::read(ptr, end);
+        auto ds_header = formats::resources::basic::bitmap_info_header::read(ptr, end);
 
         icon_image result;
 
         // Convert DataScript structure to our public API
-        result.header.size = ds_header.biSize;
-        result.header.width = ds_header.biWidth;
-        result.header.height = ds_header.biHeight;
-        result.header.planes = ds_header.biPlanes;
-        result.header.bit_count = ds_header.biBitCount;
-        result.header.compression = ds_header.biCompression;
-        result.header.size_image = ds_header.biSizeImage;
-        result.header.x_pels_per_meter = ds_header.biXPelsPerMeter;
-        result.header.y_pels_per_meter = ds_header.biYPelsPerMeter;
-        result.header.clr_used = ds_header.biClrUsed;
-        result.header.clr_important = ds_header.biClrImportant;
+        result.header.size = ds_header.size;
+        result.header.width = ds_header.width;
+        result.header.height = ds_header.height;
+        result.header.planes = ds_header.planes;
+        result.header.bit_count = ds_header.bit_count;
+        result.header.compression = ds_header.compression;
+        result.header.size_image = ds_header.size_image;
+        result.header.x_pels_per_meter = ds_header.x_pels_per_meter;
+        result.header.y_pels_per_meter = ds_header.y_pels_per_meter;
+        result.header.clr_used = ds_header.clr_used;
+        result.header.clr_important = ds_header.clr_important;
 
         // Validate dimensions
         if (result.header.width <= 0 || result.header.height <= 0) {
