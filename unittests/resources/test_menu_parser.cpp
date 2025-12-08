@@ -5,6 +5,23 @@
 #include <filesystem>
 #include <iostream>
 #include <iomanip>
+#include <vector>
+
+// External test data (embedded PROGMAN.EXE)
+namespace data {
+    extern size_t progman_len;
+    extern unsigned char progman[];
+}
+
+namespace {
+    // Load PROGMAN.EXE from embedded data
+    std::vector<uint8_t> load_progman() {
+        return std::vector<uint8_t>(
+            data::progman,
+            data::progman + data::progman_len
+        );
+    }
+}
 
 TEST_SUITE("Menu Parser") {
     /**
@@ -14,10 +31,10 @@ TEST_SUITE("Menu Parser") {
      * the hierarchical menu structure from a real Windows 3.1 executable.
      */
     TEST_CASE("Parse NE menu resource") {
-        const std::filesystem::path test_file = "../data/PROGMAN.EXE";
-        REQUIRE(std::filesystem::exists(test_file));
+        auto data = load_progman();
+        REQUIRE(!data.empty());
 
-        auto ne = libexe::ne_file::from_file(test_file);
+        auto ne = libexe::ne_file::from_memory(data);
         REQUIRE(ne.has_resources());
 
         auto rsrc = ne.resources();

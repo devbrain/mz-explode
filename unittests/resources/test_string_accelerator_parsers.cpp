@@ -7,15 +7,31 @@
 #include <libexe/resources/parsers/string_table_parser.hpp>
 #include <libexe/resources/parsers/accelerator_parser.hpp>
 #include <filesystem>
+#include <vector>
 
 using namespace libexe;
 
+// External test data (embedded PROGMAN.EXE)
+namespace data {
+    extern size_t progman_len;
+    extern unsigned char progman[];
+}
+
+namespace {
+    // Load PROGMAN.EXE from embedded data
+    std::vector<uint8_t> load_progman() {
+        return std::vector<uint8_t>(
+            data::progman,
+            data::progman + data::progman_len
+        );
+    }
+}
+
 TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
-    const std::filesystem::path test_file = "../data/PROGMAN.EXE";
+    auto data = load_progman();
+    REQUIRE(!data.empty());
 
-    REQUIRE(std::filesystem::exists(test_file));
-
-    auto exe = ne_file::from_file(test_file);
+    auto exe = ne_file::from_memory(data);
     REQUIRE(exe.has_resources());
 
     auto rsrc = exe.resources();

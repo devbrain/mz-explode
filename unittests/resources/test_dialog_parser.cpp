@@ -7,14 +7,31 @@
 #include <filesystem>
 #include <iomanip>
 #include <iostream>
+#include <vector>
 
 using namespace libexe;
 
-TEST_CASE("Parse dialog resources in PROGMAN.EXE") {
-    const std::filesystem::path test_file = "../data/PROGMAN.EXE";
-    REQUIRE(std::filesystem::exists(test_file));
+// External test data (embedded PROGMAN.EXE)
+namespace data {
+    extern size_t progman_len;
+    extern unsigned char progman[];
+}
 
-    auto exe = ne_file::from_file(test_file);
+namespace {
+    // Load PROGMAN.EXE from embedded data
+    std::vector<uint8_t> load_progman() {
+        return std::vector<uint8_t>(
+            data::progman,
+            data::progman + data::progman_len
+        );
+    }
+}
+
+TEST_CASE("Parse dialog resources in PROGMAN.EXE") {
+    auto data = load_progman();
+    REQUIRE(!data.empty());
+
+    auto exe = ne_file::from_memory(data);
     REQUIRE(exe.has_resources());
 
     auto rsrc = exe.resources();
