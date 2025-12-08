@@ -150,20 +150,20 @@ TEST_CASE("Corkami Generated - imports_mixed.exe - Import Directory") {
     }
 
     SUBCASE("DLL count") {
-        CHECK(imports->dll_count() == 1);
+        CHECK(imports->dll_count() == 2);
     }
 
-    SUBCASE("DLL: kernel32.dll") {
+    SUBCASE("DLL: KernEl32") {
         const import_dll* dll = nullptr;
         for (const auto& d : imports->dlls) {
-            if (iequals(d.name, "kernel32.dll")) {
+            if (iequals(d.name, "KernEl32")) {
                 dll = &d;
                 break;
             }
         }
 
         REQUIRE(dll != nullptr);
-        CHECK(dll->functions.size() == 3);
+        CHECK(dll->functions.size() == 1);
 
         // Check for ExitProcess
         bool found_exitprocess = false;
@@ -175,17 +175,30 @@ TEST_CASE("Corkami Generated - imports_mixed.exe - Import Directory") {
             }
         }
         CHECK(found_exitprocess);
+    }
 
-        // Check for GetProcAddress
-        bool found_getprocaddress = false;
+    SUBCASE("DLL: mSVCrT") {
+        const import_dll* dll = nullptr;
+        for (const auto& d : imports->dlls) {
+            if (iequals(d.name, "mSVCrT")) {
+                dll = &d;
+                break;
+            }
+        }
+
+        REQUIRE(dll != nullptr);
+        CHECK(dll->functions.size() == 1);
+
+        // Check for printf
+        bool found_printf = false;
         for (const auto& f : dll->functions) {
-            if (iequals(f.name, "GetProcAddress")) {
-                found_getprocaddress = true;
+            if (iequals(f.name, "printf")) {
+                found_printf = true;
                 CHECK_FALSE(f.is_ordinal);
                 break;
             }
         }
-        CHECK(found_getprocaddress);
+        CHECK(found_printf);
     }
 }
 
@@ -212,20 +225,44 @@ TEST_CASE("Corkami Generated - impbyord.exe - Import Directory") {
     }
 
     SUBCASE("DLL count") {
-        CHECK(imports->dll_count() == 1);
+        CHECK(imports->dll_count() == 2);
     }
 
-    SUBCASE("DLL: kernel32.dll") {
+    SUBCASE("DLL: msvcrt.dll") {
         const import_dll* dll = nullptr;
         for (const auto& d : imports->dlls) {
-            if (iequals(d.name, "kernel32.dll")) {
+            if (iequals(d.name, "msvcrt.dll")) {
                 dll = &d;
                 break;
             }
         }
 
         REQUIRE(dll != nullptr);
-        CHECK(dll->functions.size() == 2);
+        CHECK(dll->functions.size() == 1);
+
+        // Check for printf
+        bool found_printf = false;
+        for (const auto& f : dll->functions) {
+            if (iequals(f.name, "printf")) {
+                found_printf = true;
+                CHECK_FALSE(f.is_ordinal);
+                break;
+            }
+        }
+        CHECK(found_printf);
+    }
+
+    SUBCASE("DLL: impbyord.exe") {
+        const import_dll* dll = nullptr;
+        for (const auto& d : imports->dlls) {
+            if (iequals(d.name, "impbyord.exe")) {
+                dll = &d;
+                break;
+            }
+        }
+
+        REQUIRE(dll != nullptr);
+        CHECK(dll->functions.size() == 1);
     }
 }
 

@@ -57,24 +57,24 @@
       "data_directories": {
         "IMPORT": {
           "present": true,
-          "dll_count": 1,
+          "dll_count": 2,
           "dlls": [
             {
-              "name": "kernel32.dll",
-              "function_count": 3,
+              "name": "KernEl32",
+              "function_count": 1,
               "functions": [
                 {
                   "name": "ExitProcess",
                   "is_ordinal": false
-                },
+                }
+              ]
+            },
+            {
+              "name": "mSVCrT",
+              "function_count": 1,
+              "functions": [
                 {
-                  "name": null,
-                  "is_ordinal": true,
-                  "ordinal": 1,
-                  "comment": "Import by ordinal only"
-                },
-                {
-                  "name": "GetProcAddress",
+                  "name": "printf",
                   "is_ordinal": false
                 }
               ]
@@ -86,28 +86,32 @@
     {
       "binary_file": "impbyord.exe",
       "asm_source": "impbyord.asm",
-      "description": "Import by ordinal - Tests ordinal-only imports",
-      "test_categories": ["import_directory", "ordinal_imports"],
+      "description": "Import by ordinal - Tests ordinal-only imports and self-import",
+      "test_categories": ["import_directory", "ordinal_imports", "self_import"],
       "data_directories": {
         "IMPORT": {
           "present": true,
-          "dll_count": 1,
+          "dll_count": 2,
           "dlls": [
             {
-              "name": "kernel32.dll",
-              "function_count": 2,
+              "name": "msvcrt.dll",
+              "function_count": 1,
+              "functions": [
+                {
+                  "name": "printf",
+                  "is_ordinal": false
+                }
+              ]
+            },
+            {
+              "name": "impbyord.exe",
+              "function_count": 1,
               "functions": [
                 {
                   "name": null,
                   "is_ordinal": true,
-                  "ordinal": 1,
-                  "comment": "ExitProcess by ordinal"
-                },
-                {
-                  "name": null,
-                  "is_ordinal": true,
-                  "ordinal": 2,
-                  "comment": "Another function by ordinal"
+                  "ordinal": 35,
+                  "comment": "Self-import by ordinal"
                 }
               ]
             }
