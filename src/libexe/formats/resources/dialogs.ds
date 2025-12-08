@@ -222,8 +222,16 @@ choice ne_control_class : uint8 {
  * Key differences from PE:
  *   - BYTE item count (not WORD)
  *   - No DWORD alignment
- *   - Length-prefixed strings (not UTF-16)
+ *   - Mixed string types: null-terminated for template, length-prefixed for controls
  *   - Simpler structure
+ *
+ * String format rules (discovered through testing):
+ *   - menu: ne_name_or_id (0xFF + ordinal OR length-prefixed)
+ *   - window_class: null-terminated
+ *   - title/caption: null-terminated
+ *   - typeface/font: null-terminated
+ *   - Control class: ne_control_class (0xFF + byte ID OR length-prefixed)
+ *   - Control text: ne_name_or_id (0xFF + ordinal OR length-prefixed)
  */
 struct ne_dialog_template {
     uint32 style;
@@ -233,18 +241,18 @@ struct ne_dialog_template {
     int16 cx;
     int16 cy;
 
-    // Menu name or ID (0xFF prefix for ordinal)
+    // Menu name or ID (0xFF prefix for ordinal, else length-prefixed)
     ne_name_or_id menu;
 
-    // Window class (usually empty, length=0)
-    ne_pstring window_class;
+    // Window class (null-terminated, usually empty)
+    string window_class;
 
-    // Dialog caption
-    ne_pstring title;
+    // Dialog caption (null-terminated)
+    string title;
 
     // Font info (optional - only if DS_SETFONT is set)
     uint16 point_size optional (style & DS_SETFONT) != 0;
-    ne_pstring typeface optional (style & DS_SETFONT) != 0;
+    string typeface optional (style & DS_SETFONT) != 0;  // null-terminated
 };
 
 /**

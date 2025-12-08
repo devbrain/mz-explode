@@ -365,7 +365,7 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
     result.menu = read_name_or_id(ptr, end);
 
     // Read window class (usually empty)
-    // NE format uses length-prefixed strings (ne_pstring from dialogs.ds)
+    // NE format: null-terminated string OR 0xFF + byte ID
     if (ptr < end) {
         if (*ptr == 0xFF) {
             // Class ID (rarely used)
@@ -375,14 +375,14 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
                 ptr++;
             }
         } else {
-            // Class name string (length-prefixed)
-            result.window_class = read_length_prefixed_string(ptr, end);
+            // Class name string (null-terminated, NOT length-prefixed)
+            result.window_class = read_string(ptr, end);
         }
     }
 
-    // Read caption (length-prefixed per dialogs.ds ne_pstring)
+    // Read caption (null-terminated, NOT length-prefixed!)
     if (ptr < end) {
-        result.caption = read_length_prefixed_string(ptr, end);
+        result.caption = read_string(ptr, end);
     }
 
     // If DS_SETFONT, read font info
@@ -391,9 +391,9 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
             result.point_size = read_u16(ptr);
             ptr += 2;
 
-            // Font name (length-prefixed per dialogs.ds ne_pstring)
+            // Font name (null-terminated, NOT length-prefixed)
             if (ptr < end) {
-                result.font_name = read_length_prefixed_string(ptr, end);
+                result.font_name = read_string(ptr, end);
             }
         }
     }
