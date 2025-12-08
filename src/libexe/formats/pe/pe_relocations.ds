@@ -1,0 +1,150 @@
+/**
+ * PE Base Relocation Structures
+ *
+ * Defines structures for parsing PE base relocation table (.reloc section).
+ * Base relocations are used for Address Space Layout Randomization (ASLR)
+ * to adjust addresses when a module is loaded at a different base address
+ * than its preferred ImageBase.
+ *
+ * Based on Microsoft PE/COFF specification.
+ *
+ * Package: formats.pe.pe_relocations
+ */
+
+package formats.pe.pe_relocations;
+
+// PE is little-endian
+little;
+
+/**
+ * IMAGE_BASE_RELOCATION
+ *
+ * Header for a block of base relocations. Each block covers one 4KB page
+ * of the executable. The block is followed by an array of type/offset entries.
+ *
+ * Size: 8 bytes (header only, entries follow)
+ *
+ * Block format:
+ *   [IMAGE_BASE_RELOCATION header]
+ *   [type_offset entry 1] (16 bits)
+ *   [type_offset entry 2] (16 bits)
+ *   ...
+ *   [type_offset entry N] (16 bits)
+ *
+ * Number of entries = (size_of_block - 8) / 2
+ *
+ * Type/Offset format (16 bits):
+ *   Bits 0-11:  Offset within the page (0-4095)
+ *   Bits 12-15: Relocation type (0-10)
+ *
+ * To extract:
+ *   offset = type_offset & 0x0FFF
+ *   type = (type_offset >> 12) & 0x0F
+ *   actual_rva = virtual_address + offset
+ *
+ * Relocation types:
+ *   0 = IMAGE_REL_BASED_ABSOLUTE  (no-op, padding)
+ *   1 = IMAGE_REL_BASED_HIGH      (high 16 bits)
+ *   2 = IMAGE_REL_BASED_LOW       (low 16 bits)
+ *   3 = IMAGE_REL_BASED_HIGHLOW   (32-bit address, PE32)
+ *   4 = IMAGE_REL_BASED_HIGHADJ   (complex adjustment)
+ *   5 = MIPS/ARM/RISCV specific
+ *   7 = ARM Thumb / RISCV specific
+ *   8 = RISCV specific
+ *   9 = MIPS16 specific
+ *  10 = IMAGE_REL_BASED_DIR64     (64-bit address, PE32+)
+ */
+struct image_base_relocation {
+    /**
+     * Page RVA
+     *
+     * RVA of the 4KB page that this block relocates.
+     * All offsets in this block are relative to this RVA.
+     */
+    uint32 virtual_address;
+
+    /**
+     * Block size
+     *
+     * Total size of this relocation block in bytes, including:
+     * - This 8-byte header
+     * - All following type/offset entries (2 bytes each)
+     *
+     * Number of entries = (size_of_block - 8) / 2
+     */
+    uint32 size_of_block;
+
+    // Note: Type/offset entries follow immediately after this header.
+    // They are NOT part of this structure - must be read separately
+    // as an array of uint16 values. Each entry encodes:
+    //   - Relocation type (high 4 bits)
+    //   - Page offset (low 12 bits)
+};
+
+/*
+ * BASE RELOCATION USAGE:
+ *
+ * Parsing base relocations:
+ *   1. Read base relocation directory from data directory[5]
+ *   2. While not at end of relocation data:
+ *      a. Read IMAGE_BASE_RELOCATION header (8 bytes)
+ *      b. Calculate entry count: (size_of_block - 8) / 2
+ *      c. Read entry count * 2 bytes (type/offset entries)
+ *      d. For each entry:
+ *         - Extract type: (entry >> 12) & 0x0F
+ *         - Extract offset: entry & 0x0FFF
+ *         - Calculate RVA: virtual_address + offset
+ *   3. Continue until all relocation data processed
+ *
+ * Applying relocations (loader):
+ *   1. Calculate delta: ActualBase - PreferredBase
+ *   2. For each relocation:
+ *      - Convert RVA to address
+ *      - Read current value at address
+ *      - Add delta based on relocation type:
+ *        * HIGHLOW: Add full 32-bit delta
+ *        * DIR64: Add full 64-bit delta
+ *        * HIGH: Add high 16 bits of delta
+ *        * LOW: Add low 16 bits of delta
+ *      - Write adjusted value back
+ *
+ * Alignment and padding:
+ *   - Blocks are padded to 32-bit boundaries
+ *   - ABSOLUTE (type 0) relocations are used for padding
+ *   - If (size_of_block - 8) is odd, one ABSOLUTE entry is added
+ *
+ * Example (PE32):
+ *   Block 1:
+ *     virtual_address = 0x00001000  (page RVA)
+ *     size_of_block = 20            (8 header + 12 entries)
+ *     entries = 6 * uint16:
+ *       0x3010: type=3 (HIGHLOW), offset=0x010 -> RVA 0x00001010
+ *       0x3020: type=3 (HIGHLOW), offset=0x020 -> RVA 0x00001020
+ *       0x3030: type=3 (HIGHLOW), offset=0x030 -> RVA 0x00001030
+ *       0x3040: type=3 (HIGHLOW), offset=0x040 -> RVA 0x00001040
+ *       0x3050: type=3 (HIGHLOW), offset=0x050 -> RVA 0x00001050
+ *       0x0000: type=0 (ABSOLUTE), offset=0x000 -> padding
+ *
+ *   Block 2:
+ *     virtual_address = 0x00002000
+ *     size_of_block = 12
+ *     entries = 2 * uint16:
+ *       0x3100: type=3 (HIGHLOW), offset=0x100 -> RVA 0x00002100
+ *       0x3200: type=3 (HIGHLOW), offset=0x200 -> RVA 0x00002200
+ *
+ * PE32 vs PE32+:
+ *   - PE32: Uses HIGHLOW (type 3) for 32-bit addresses
+ *   - PE32+: Uses DIR64 (type 10) for 64-bit addresses
+ *   - Both can have ABSOLUTE (type 0) for padding
+ *
+ * ASLR (Address Space Layout Randomization):
+ *   - Modern Windows uses ASLR to load modules at random addresses
+ *   - Base relocations enable this by allowing address adjustments
+ *   - Executables without relocations cannot support ASLR
+ *   - DLLs typically always have relocations
+ *
+ * Stripping relocations:
+ *   - /FIXED linker option removes base relocations
+ *   - Makes executable smaller but disables ASLR
+ *   - Security tradeoff: smaller size vs ASLR protection
+ */

@@ -77,6 +77,20 @@ add_datascript_parser(formats/mz.ds libexe_format_mz.hh)
 add_datascript_parser(formats/ne/ne_header.ds libexe_format_ne.hh)
 add_datascript_parser(formats/pe/pe_header.ds libexe_format_pe.hh)
 
+# PE data directory parsers
+add_datascript_parser(formats/pe/pe_imports.ds libexe_format_pe_imports.hh)
+add_datascript_parser(formats/pe/pe_exports.ds libexe_format_pe_exports.hh)
+add_datascript_parser(formats/pe/pe_relocations.ds libexe_format_pe_relocations.hh)
+add_datascript_parser(formats/pe/pe_tls.ds libexe_format_pe_tls.hh)
+add_datascript_parser(formats/pe/pe_debug.ds libexe_format_pe_debug.hh)
+add_datascript_parser(formats/pe/pe_load_config.ds libexe_format_pe_load_config.hh)
+add_datascript_parser(formats/pe/pe_exception.ds libexe_format_pe_exception.hh)
+add_datascript_parser(formats/pe/pe_delay_imports.ds libexe_format_pe_delay_imports.hh)
+add_datascript_parser(formats/pe/pe_bound_imports.ds libexe_format_pe_bound_imports.hh)
+add_datascript_parser(formats/pe/pe_security.ds libexe_format_pe_security.hh)
+add_datascript_parser(formats/pe/pe_com_descriptor.ds libexe_format_pe_com_descriptor.hh)
+add_datascript_parser(formats/pe/pe_iat.ds libexe_format_pe_iat.hh)
+
 # Resource format parsers (depend on common.ds)
 add_datascript_parser(formats/resources/dialogs.ds libexe_format_dialogs.hh)
 add_datascript_parser(formats/resources/version.ds libexe_format_version.hh)
@@ -104,6 +118,31 @@ add_library(libexe
         mz_file.cpp
         pe_file.cpp
         ne_file.cpp
+        # Section parsers
+        pe_section_parser.cpp
+        ne_segment_parser.cpp
+        # Data directory parsers
+        parsers/import_directory_parser.cpp
+        parsers/export_directory_parser.cpp
+        parsers/base_relocation_parser.cpp
+        parsers/tls_directory_parser.cpp
+        parsers/debug_directory_parser.cpp
+        parsers/load_config_directory_parser.cpp
+        parsers/exception_directory_parser.cpp
+        parsers/delay_import_directory_parser.cpp
+        parsers/bound_import_directory_parser.cpp
+        parsers/security_directory_parser.cpp
+        parsers/com_descriptor_parser.cpp
+        parsers/iat_directory_parser.cpp
+        parsers/global_ptr_directory_parser.cpp
+        parsers/architecture_directory_parser.cpp
+        parsers/reserved_directory_parser.cpp
+        # Data directory structures (only those with implementation)
+        debug_directory.cpp
+        load_config_directory.cpp
+        bound_import_directory.cpp
+        security_directory.cpp
+        com_descriptor.cpp
         # Resources
         resources/resource.cpp
         resources/pe_resource_directory.cpp
@@ -135,6 +174,18 @@ add_dependencies(libexe
     generate_mz_parser
     generate_ne_header_parser
     generate_pe_header_parser
+    generate_pe_imports_parser
+    generate_pe_exports_parser
+    generate_pe_relocations_parser
+    generate_pe_tls_parser
+    generate_pe_debug_parser
+    generate_pe_load_config_parser
+    generate_pe_exception_parser
+    generate_pe_delay_imports_parser
+    generate_pe_bound_imports_parser
+    generate_pe_security_parser
+    generate_pe_com_descriptor_parser
+    generate_pe_iat_parser
     generate_dialogs_parser
     generate_version_parser
     generate_basic_parser

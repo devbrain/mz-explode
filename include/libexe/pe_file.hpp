@@ -7,27 +7,33 @@
 #include <libexe/export.hpp>
 #include <libexe/executable_file.hpp>
 #include <libexe/pe_types.hpp>
+#include <libexe/section.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
 #include <string>
 #include <optional>
 #include <memory>
+#include <array>
 
 namespace libexe {
     // Forward declarations
     class resource_directory;
-
-    /// PE section information
-    struct LIBEXE_EXPORT pe_section {
-        std::string name; // Section name (e.g., ".text", ".data")
-        uint32_t virtual_address; // RVA where section is loaded
-        uint32_t virtual_size; // Size in memory
-        uint32_t raw_data_offset; // File offset
-        uint32_t raw_data_size; // Size on disk
-        pe_section_characteristics characteristics; // Section flags
-        std::span <const uint8_t> data; // Section data
-    };
+    struct import_directory;
+    struct export_directory;
+    struct base_relocation_directory;
+    struct tls_directory;
+    struct debug_directory;
+    struct load_config_directory;
+    struct exception_directory;
+    struct delay_import_directory;
+    struct bound_import_directory;
+    struct security_directory;
+    struct com_descriptor;
+    struct iat_directory;
+    struct global_ptr_directory;
+    struct architecture_directory;
+    struct reserved_directory;
 
     /// PE (Portable Executable) file - Windows PE32/PE32+
     class LIBEXE_EXPORT pe_file final : public executable_file {
@@ -73,6 +79,56 @@ namespace libexe {
             [[nodiscard]] bool has_resources() const;
             [[nodiscard]] std::shared_ptr<resource_directory> resources() const;
 
+            /// Data directory accessors
+            [[nodiscard]] uint32_t data_directory_rva(directory_entry entry) const;
+            [[nodiscard]] uint32_t data_directory_size(directory_entry entry) const;
+            [[nodiscard]] bool has_data_directory(directory_entry entry) const;
+
+            /// Import directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<import_directory> imports() const;
+
+            /// Export directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<export_directory> exports() const;
+
+            /// Base relocation directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<base_relocation_directory> relocations() const;
+
+            /// TLS directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<tls_directory> tls() const;
+
+            /// Debug directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<debug_directory> debug() const;
+
+            /// Load configuration directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<load_config_directory> load_config() const;
+
+            /// Exception directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<exception_directory> exceptions() const;
+
+            /// Delay import directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<delay_import_directory> delay_imports() const;
+
+            /// Bound import directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<bound_import_directory> bound_imports() const;
+
+            /// Security directory access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<security_directory> security() const;
+
+            /// COM descriptor access (CLR runtime header, lazy-parsed)
+            [[nodiscard]] std::shared_ptr<com_descriptor> clr_header() const;
+
+            /// Import Address Table (IAT) access (lazy-parsed)
+            [[nodiscard]] std::shared_ptr<iat_directory> import_address_table() const;
+
+            /// Global Pointer directory access (IA64 only, lazy-parsed)
+            [[nodiscard]] std::shared_ptr<global_ptr_directory> global_ptr() const;
+
+            /// Architecture directory access (reserved, should be zero, lazy-parsed)
+            [[nodiscard]] std::shared_ptr<architecture_directory> architecture() const;
+
+            /// Reserved directory access (reserved, must be zero, lazy-parsed)
+            [[nodiscard]] std::shared_ptr<reserved_directory> reserved() const;
+
         private:
             pe_file() = default; // Use factory methods
 
@@ -101,6 +157,30 @@ namespace libexe {
             uint32_t size_of_headers_ = 0;
             uint16_t subsystem_ = 0;
             uint16_t dll_characteristics_ = 0;
+
+            // Data directories (RVA and size pairs)
+            struct data_directory_entry {
+                uint32_t rva = 0;
+                uint32_t size = 0;
+            };
+            std::array<data_directory_entry, 16> data_directories_;
+
+            // Lazy-parsed data directories (mutable for lazy initialization)
+            mutable std::shared_ptr<import_directory> imports_;
+            mutable std::shared_ptr<export_directory> exports_;
+            mutable std::shared_ptr<base_relocation_directory> relocations_;
+            mutable std::shared_ptr<tls_directory> tls_;
+            mutable std::shared_ptr<debug_directory> debug_;
+            mutable std::shared_ptr<load_config_directory> load_config_;
+            mutable std::shared_ptr<exception_directory> exceptions_;
+            mutable std::shared_ptr<delay_import_directory> delay_imports_;
+            mutable std::shared_ptr<bound_import_directory> bound_imports_;
+            mutable std::shared_ptr<security_directory> security_;
+            mutable std::shared_ptr<com_descriptor> com_descriptor_;
+            mutable std::shared_ptr<iat_directory> iat_;
+            mutable std::shared_ptr<global_ptr_directory> global_ptr_;
+            mutable std::shared_ptr<architecture_directory> architecture_;
+            mutable std::shared_ptr<reserved_directory> reserved_;
     };
 } // namespace libexe
 

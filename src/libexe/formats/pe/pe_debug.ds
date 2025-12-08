@@ -1,0 +1,224 @@
+/**
+ * PE Debug Directory Structures
+ *
+ * Defines structures for parsing PE debug directory.
+ * Based on Microsoft PE/COFF specification.
+ * Data directory index: 6 (IMAGE_DIRECTORY_ENTRY_DEBUG)
+ *
+ * Package: formats.pe.pe_debug
+ */
+
+package formats.pe.pe_debug;
+
+/**
+ * IMAGE_DEBUG_DIRECTORY
+ *
+ * Debug directory entry structure.
+ * Size: 28 bytes
+ *
+ * The debug directory is an array of these structures, where the array size
+ * is determined by dividing the data directory size by sizeof(IMAGE_DEBUG_DIRECTORY).
+ *
+ * Reference: PE/COFF Specification Section 6.1
+ */
+struct image_debug_directory {
+    /**
+     * Characteristics
+     *
+     * Reserved, must be 0.
+     */
+    uint32 characteristics;
+
+    /**
+     * TimeDateStamp
+     *
+     * Time and date the debug data was created (seconds since 1970-01-01).
+     */
+    uint32 time_date_stamp;
+
+    /**
+     * MajorVersion
+     *
+     * Major version number of the debug data format.
+     */
+    uint16 major_version;
+
+    /**
+     * MinorVersion
+     *
+     * Minor version number of the debug data format.
+     */
+    uint16 minor_version;
+
+    /**
+     * Type
+     *
+     * Debug type:
+     *   0 = Unknown
+     *   1 = COFF
+     *   2 = CodeView (most common - contains PDB info)
+     *   3 = FPO (frame pointer omission)
+     *   4 = MISC (DBG file)
+     *   5 = Exception
+     *   6 = Fixup
+     *   7 = OMAP to source
+     *   8 = OMAP from source
+     *   9 = Borland
+     *  10 = Reserved
+     *  11 = CLSID
+     *  12 = VC Feature
+     *  13 = POGO (profile guided optimization)
+     *  14 = ILTCG
+     *  15 = MPX
+     *  16 = REPRO (reproducible build)
+     *  17 = Embedded Portable PDB
+     *  18 = SPGO
+     *  19 = PDB Checksum
+     *  20 = Extended DLL Characteristics
+     */
+    uint32 type_;
+
+    /**
+     * SizeOfData
+     *
+     * Size of the debug data (not including this structure).
+     */
+    uint32 size_of_data;
+
+    /**
+     * AddressOfRawData
+     *
+     * RVA of the debug data when loaded in memory.
+     * 0 if the data is not mapped to memory.
+     */
+    uint32 address_of_raw_data;
+
+    /**
+     * PointerToRawData
+     *
+     * File offset of the debug data.
+     * This points to the actual debug information.
+     */
+    uint32 pointer_to_raw_data;
+};
+
+/**
+ * CV_INFO_PDB70
+ *
+ * CodeView PDB 7.0 format (most modern and common).
+ * Signature: 'RSDS' (0x53445352)
+ *
+ * This structure is stored in the debug data (at PointerToRawData)
+ * for IMAGE_DEBUG_TYPE_CODEVIEW entries with RSDS signature.
+ */
+struct cv_info_pdb70 {
+    /**
+     * Signature
+     *
+     * Always 'RSDS' (0x53445352) for PDB 7.0 format.
+     */
+    uint32 signature;  // 0x53445352 = 'RSDS'
+
+    /**
+     * GUID
+     *
+     * 16-byte GUID identifying the PDB file.
+     * Format: {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX}
+     */
+    uint8 guid[16];
+
+    /**
+     * Age
+     *
+     * Incremented each time the PDB is modified.
+     * Used to match PDB to executable.
+     *
+     * Note: This structure is followed by a variable-length null-terminated
+     * string containing the PDB file path. The parser will read this manually.
+     */
+    uint32 age;
+};
+
+/**
+ * CV_INFO_PDB20
+ *
+ * CodeView PDB 2.0 format (older, less common).
+ * Signature: 'NB10' (0x3031424E)
+ *
+ * Used by older Visual C++ versions.
+ */
+struct cv_info_pdb20 {
+    /**
+     * Signature
+     *
+     * 'NB10' (0x3031424E) for PDB 2.0 format.
+     * Other values: 'NB09' (0x3930424E), 'NB11' (0x3131424E)
+     */
+    uint32 signature;  // 0x3031424E = 'NB10'
+
+    /**
+     * Offset
+     *
+     * CodeView signature offset (usually 0).
+     */
+    uint32 offset;
+
+    /**
+     * Signature (timestamp)
+     *
+     * Timestamp used as signature to match PDB to executable.
+     */
+    uint32 sig;
+
+    /**
+     * Age
+     *
+     * Incremented each time the PDB is modified.
+     *
+     * Note: This structure is followed by a variable-length null-terminated
+     * string containing the PDB file path. The parser will read this manually.
+     */
+    uint32 age;
+};
+
+/**
+ * IMAGE_DEBUG_MISC
+ *
+ * Miscellaneous debug information (IMAGE_DEBUG_TYPE_MISC).
+ * Contains path to external .DBG file.
+ *
+ * Rarely used in modern executables.
+ */
+struct image_debug_misc {
+    /**
+     * DataType
+     *
+     * Type of data:
+     *   1 = EXENAME (DBG file name)
+     */
+    uint32 data_type;
+
+    /**
+     * Length
+     *
+     * Total length of this structure including the data.
+     */
+    uint32 length;
+
+    /**
+     * Unicode
+     *
+     * TRUE if data is Unicode, FALSE if ANSI.
+     */
+    uint8 unicode;
+
+    /**
+     * Reserved
+     *
+     * Must be 0.
+     *
+     * Note: This structure is followed by variable-length data containing
+     * the DBG file name. Format depends on 'unicode' field.
+     */
+    uint8 reserved[3];
+};

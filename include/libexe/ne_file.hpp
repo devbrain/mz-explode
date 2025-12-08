@@ -7,6 +7,7 @@
 #include <libexe/export.hpp>
 #include <libexe/executable_file.hpp>
 #include <libexe/ne_types.hpp>
+#include <libexe/section.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
@@ -16,15 +17,6 @@
 namespace libexe {
     // Forward declarations
     class resource_directory;
-
-    /// NE segment information
-    struct LIBEXE_EXPORT ne_segment {
-        uint16_t sector_offset; // File offset (in sectors, multiply by alignment shift)
-        uint16_t length; // Segment length in bytes (0 = 65536)
-        ne_segment_flags flags; // Segment flags
-        uint16_t min_alloc; // Minimum allocation size
-        std::span <const uint8_t> data; // Segment data
-    };
 
     /// NE (New Executable) file - 16-bit Windows (Windows 3.x) and OS/2
     class LIBEXE_EXPORT ne_file final : public executable_file {

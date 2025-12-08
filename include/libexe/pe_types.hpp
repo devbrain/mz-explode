@@ -128,6 +128,26 @@ namespace libexe {
         MEM_WRITE = 0x80000000, // Section is writable
     };
 
+    /// PE Data Directory Entry (indices into DataDirectory array)
+    enum class directory_entry : uint32_t {
+        EXPORT = 0,          // Export directory
+        IMPORT = 1,          // Import directory
+        RESOURCE = 2,        // Resource directory
+        EXCEPTION = 3,       // Exception directory
+        SECURITY = 4,        // Security/Certificate directory
+        BASERELOC = 5,       // Base relocation table
+        DEBUG = 6,           // Debug directory
+        ARCHITECTURE = 7,    // Architecture-specific data
+        GLOBALPTR = 8,       // Global pointer register
+        TLS = 9,             // Thread Local Storage directory
+        LOAD_CONFIG = 10,    // Load configuration directory
+        BOUND_IMPORT = 11,   // Bound import directory
+        IAT = 12,            // Import Address Table
+        DELAY_IMPORT = 13,   // Delay import descriptor
+        COM_DESCRIPTOR = 14, // CLR runtime header (.NET)
+        RESERVED = 15        // Reserved (must be zero)
+    };
+
     // ============================================================================
     // Enable bitmask operators for PE flag types
     // ============================================================================

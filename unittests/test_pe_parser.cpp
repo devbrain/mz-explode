@@ -31,21 +31,23 @@ TEST_CASE("PE section structure") {
     SUBCASE("Section structure fields are accessible") {
         pe_section section;
         section.name = ".text";
+        section.type = section_type::CODE;
         section.virtual_address = 0x1000;
         section.virtual_size = 0x2000;
         section.raw_data_offset = 0x400;
         section.raw_data_size = 0x2000;
-        section.characteristics = pe_section_characteristics::CNT_CODE |
-                                  pe_section_characteristics::MEM_EXECUTE |
-                                  pe_section_characteristics::MEM_READ;
+        section.characteristics = static_cast<uint32_t>(pe_section_characteristics::CNT_CODE) |
+                                  static_cast<uint32_t>(pe_section_characteristics::MEM_EXECUTE) |
+                                  static_cast<uint32_t>(pe_section_characteristics::MEM_READ);
+        section.alignment = 4096;
 
         CHECK(section.name == ".text");
         CHECK(section.virtual_address == 0x1000);
         CHECK(section.virtual_size == 0x2000);
         CHECK(section.raw_data_offset == 0x400);
         CHECK(section.raw_data_size == 0x2000);
-        CHECK(has_flag(section.characteristics, pe_section_characteristics::CNT_CODE));
-        CHECK(has_flag(section.characteristics, pe_section_characteristics::MEM_EXECUTE));
-        CHECK(has_flag(section.characteristics, pe_section_characteristics::MEM_READ));
+        CHECK(section.is_code());
+        CHECK(section.is_executable());
+        CHECK(section.is_readable());
     }
 }

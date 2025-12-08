@@ -1,0 +1,126 @@
+/**
+ * PE Delay Import Directory Structures
+ *
+ * Defines structures for parsing PE delay import directory.
+ * Based on Microsoft PE/COFF specification, section 5.8.
+ * Data directory index: 13 (IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT)
+ *
+ * Delay imports allow DLLs to be loaded on first use rather than at process
+ * startup, improving load time and memory usage. The delay load helper function
+ * handles loading and binding when a delay-imported function is first called.
+ *
+ * Package: formats.pe.pe_delay_imports
+ */
+
+package formats.pe.pe_delay_imports;
+
+/**
+ * IMAGE_DELAYLOAD_DESCRIPTOR
+ *
+ * Delay import descriptor (32 bytes).
+ *
+ * The delay import directory is an array of these descriptors, terminated by
+ * a null descriptor (all fields zero).
+ *
+ * There are two versions:
+ * - Version 1 (Attributes = 0): All addresses are RVAs
+ * - Version 2 (Attributes = 1): Addresses are VAs and need rebasing
+ *
+ * Most modern executables use Version 1 (RVA-based).
+ */
+struct image_delayload_descriptor {
+    /**
+     * Attributes
+     *
+     * Delay load version:
+     * - 0 = Version 1 (RVA-based, recommended)
+     * - 1 = Version 2 (VA-based, deprecated)
+     *
+     * Version 1 should be used for new code as it's more relocatable.
+     */
+    uint32 attributes;
+
+    /**
+     * DllNameRVA
+     *
+     * RVA of the DLL name (null-terminated ASCII string).
+     * Example: "USER32.dll"
+     */
+    uint32 dll_name_rva;
+
+    /**
+     * ModuleHandleRVA
+     *
+     * RVA to the module handle (HMODULE*).
+     * The delay load helper stores the module handle here after loading the DLL.
+     */
+    uint32 module_handle_rva;
+
+    /**
+     * DelayImportAddressTable
+     *
+     * RVA to the delay import address table (IAT).
+     * Initially points to delay load helper stubs.
+     * Updated with actual function addresses when first called.
+     */
+    uint32 delay_import_address_table_rva;
+
+    /**
+     * DelayImportNameTable
+     *
+     * RVA to the delay import name table (INT).
+     * Array of RVAs to IMAGE_IMPORT_BY_NAME structures.
+     * Null-terminated array (last entry is zero).
+     */
+    uint32 delay_import_name_table_rva;
+
+    /**
+     * BoundDelayImportTable
+     *
+     * RVA to bound delay import table (optional).
+     * Used for optimization if the DLL is already loaded.
+     * Usually zero.
+     */
+    uint32 bound_delay_import_table_rva;
+
+    /**
+     * UnloadDelayImportTable
+     *
+     * RVA to unload delay import table (optional).
+     * Copy of original delay IAT for unloading.
+     * Usually zero.
+     */
+    uint32 unload_delay_import_table_rva;
+
+    /**
+     * TimeDateStamp
+     *
+     * Timestamp of the DLL (for binding).
+     * Zero if not bound.
+     */
+    uint32 time_date_stamp;
+};
+
+/**
+ * IMAGE_IMPORT_BY_NAME
+ *
+ * Function import by name (used by delay INT).
+ * Same structure as regular imports.
+ *
+ * Variable-length structure:
+ * - WORD Hint (index into export table)
+ * - CHAR Name[] (null-terminated function name)
+ */
+struct image_import_by_name_header {
+    /**
+     * Hint
+     *
+     * Index into the export name table.
+     * Helps the loader find the function faster.
+     * May be zero if not available.
+     *
+     * Note: The function name follows immediately after the hint (variable length).
+     * It is null-terminated and must be parsed manually.
+     */
+    uint16 hint;
+};

@@ -1,0 +1,178 @@
+/**
+ * PE Export Directory Structures
+ *
+ * Defines structures for parsing PE export tables.
+ * Based on Microsoft PE/COFF specification.
+ *
+ * Export tables are used by DLLs (and some EXEs) to expose functions
+ * that other modules can import. The export directory contains:
+ * - Function addresses (Export Address Table)
+ * - Function names (Name Pointer Table)
+ * - Ordinal mappings (Ordinal Table)
+ *
+ * Package: formats.pe.pe_exports
+ */
+
+package formats.pe.pe_exports;
+
+// PE is little-endian
+little;
+
+/**
+ * IMAGE_EXPORT_DIRECTORY
+ *
+ * Main export directory structure. Contains counts and RVAs to the three tables:
+ * - Export Address Table (EAT): Array of function RVAs
+ * - Name Pointer Table: Array of RVAs to function name strings
+ * - Ordinal Table: Array of ordinals corresponding to names
+ *
+ * Size: 40 bytes
+ *
+ * Export lookup process:
+ * 1. Search Name Pointer Table for function name
+ * 2. Get index in Name Pointer Table
+ * 3. Use same index in Ordinal Table to get ordinal
+ * 4. Use ordinal as index into Export Address Table to get function RVA
+ *
+ * Ordinal-only exports:
+ * - Not listed in Name Pointer Table
+ * - Accessed directly via ordinal number
+ * - Ordinal is offset from OrdinalBase
+ */
+struct image_export_directory {
+    /**
+     * Characteristics
+     *
+     * Reserved, must be 0.
+     */
+    uint32 characteristics;
+
+    /**
+     * Timestamp
+     *
+     * Time/date stamp indicating when this export data was created.
+     * Unix timestamp format (seconds since 1970-01-01).
+     */
+    uint32 time_date_stamp;
+
+    /**
+     * Major version
+     *
+     * Major version number (user-defined, not used by loader).
+     */
+    uint16 major_version;
+
+    /**
+     * Minor version
+     *
+     * Minor version number (user-defined, not used by loader).
+     */
+    uint16 minor_version;
+
+    /**
+     * Module name RVA
+     *
+     * RVA to null-terminated ASCII string with module/DLL name.
+     * Example: "KERNEL32.dll"
+     */
+    uint32 name;
+
+    /**
+     * Ordinal base
+     *
+     * Starting ordinal number for exports. Usually 1.
+     * To get actual ordinal for an export:
+     *   ordinal = ordinal_table[index] + ordinal_base
+     */
+    uint32 base;
+
+    /**
+     * Number of functions
+     *
+     * Number of entries in Export Address Table (EAT).
+     * This includes both named and ordinal-only exports.
+     */
+    uint32 number_of_functions;
+
+    /**
+     * Number of names
+     *
+     * Number of entries in Name Pointer Table and Ordinal Table.
+     * This is the count of named exports (excludes ordinal-only).
+     */
+    uint32 number_of_names;
+
+    /**
+     * Export Address Table RVA
+     *
+     * RVA to array of function addresses (Export Address Table).
+     * Array has 'number_of_functions' entries.
+     * Each entry is a uint32 RVA to function code (or forwarder string).
+     *
+     * Forwarder detection:
+     *   If RVA points within export section itself, it's a forwarder string
+     *   (e.g., "NTDLL.RtlAllocateHeap")
+     */
+    uint32 address_of_functions;
+
+    /**
+     * Name Pointer Table RVA
+     *
+     * RVA to array of name pointers (Name Pointer Table).
+     * Array has 'number_of_names' entries.
+     * Each entry is a uint32 RVA to null-terminated ASCII function name.
+     */
+    uint32 address_of_names;
+
+    /**
+     * Ordinal Table RVA
+     *
+     * RVA to array of ordinals (Ordinal Table).
+     * Array has 'number_of_names' entries.
+     * Each entry is a uint16 ordinal (offset, not actual ordinal).
+     * To get actual ordinal: actual_ordinal = ordinal_table[i] + base
+     */
+    uint32 address_of_name_ordinals;
+};
+
+/*
+ * EXPORT DIRECTORY USAGE:
+ *
+ * Parsing export directory:
+ *   1. Read IMAGE_EXPORT_DIRECTORY from data directory[0]
+ *   2. Read module name from 'name' RVA
+ *   3. Read Export Address Table (number_of_functions * 4 bytes)
+ *   4. Read Name Pointer Table (number_of_names * 4 bytes)
+ *   5. Read Ordinal Table (number_of_names * 2 bytes)
+ *   6. For each named export:
+ *      - Get name from Name Pointer Table[i]
+ *      - Get ordinal from Ordinal Table[i]
+ *      - Get RVA from Export Address Table[ordinal]
+ *      - Check if RVA is forwarder (points within export section)
+ *   7. For ordinal-only exports:
+ *      - Iterate Export Address Table
+ *      - Skip entries that have corresponding names
+ *      - Remaining entries are ordinal-only exports
+ *
+ * Forwarder detection:
+ *   - Export Address Table entry is RVA to function
+ *   - If RVA falls within export section itself, it's a forwarder
+ *   - RVA points to ASCII string like "NTDLL.RtlAllocateHeap"
+ *   - Loader redirects to specified DLL and function
+ *
+ * Example (KERNEL32.dll):
+ *   - Module: "KERNEL32.dll"
+ *   - OrdinalBase: 1
+ *   - NumberOfFunctions: 1500
+ *   - NumberOfNames: 1450
+ *   - Named exports: GetProcAddress, LoadLibraryA, etc.
+ *   - Ordinal-only: Internal functions without names
+ *   - Forwarders: HeapAlloc -> NTDLL.RtlAllocateHeap
+ *
+ * Binary search:
+ *   - Name Pointer Table is sorted alphabetically
+ *   - Can use binary search for fast lookups
+ *   - Get index in Name Pointer Table
+ *   - Use same index in Ordinal Table
+ *   - Use ordinal as index into Export Address Table
+ */

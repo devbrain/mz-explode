@@ -135,16 +135,13 @@ TEST_CASE("TCMDX32.EXE: 32-bit PE executable") {
 
         if (text_section) {
             // .text should have executable flag
-            CHECK(has_flag(text_section->characteristics,
-                          pe_section_characteristics::MEM_EXECUTE));
+            CHECK(text_section->is_executable());
 
             // Should have code flag
-            CHECK(has_flag(text_section->characteristics,
-                          pe_section_characteristics::CNT_CODE));
+            CHECK(text_section->is_code());
 
             // Should be readable
-            CHECK(has_flag(text_section->characteristics,
-                          pe_section_characteristics::MEM_READ));
+            CHECK(text_section->is_readable());
 
             // Should have some size
             CHECK(text_section->virtual_size > 0);

@@ -43,14 +43,17 @@ TEST_CASE("NE file parser: basic validation") {
 TEST_CASE("NE segment structure") {
     SUBCASE("Segment structure fields are accessible") {
         ne_segment segment;
-        segment.sector_offset = 0x0010;
-        segment.length = 0x2000;
-        segment.flags = ne_segment_flags::CODE;  // Code segment
-        segment.min_alloc = 0x2000;
+        segment.index = 1;
+        segment.type = section_type::CODE;
+        segment.file_offset = 0x0010 << 4;  // sector 0x10 with alignment shift 4 = 0x100
+        segment.file_size = 0x2000;
+        segment.flags = static_cast<uint16_t>(ne_segment_flags::CODE);  // Code segment
+        segment.min_alloc_size = 0x2000;
 
-        CHECK(segment.sector_offset == 0x0010);
-        CHECK(segment.length == 0x2000);
-        CHECK(!has_flag(segment.flags, ne_segment_flags::DATA));  // Code segment has no DATA flag
-        CHECK(segment.min_alloc == 0x2000);
+        CHECK(segment.index == 1);
+        CHECK(segment.file_offset == 0x100);
+        CHECK(segment.file_size == 0x2000);
+        CHECK(segment.is_code());  // Use helper method instead of has_flag
+        CHECK(segment.min_alloc_size == 0x2000);
     }
 }

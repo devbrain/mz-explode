@@ -1,0 +1,281 @@
+/**
+ * PE Load Configuration Directory Structures
+ *
+ * Defines structures for parsing PE load configuration directory.
+ * Based on Microsoft PE/COFF specification.
+ * Data directory index: 10 (IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG)
+ *
+ * Note: The load config structure has evolved significantly across Windows versions.
+ * Field availability depends on the Size field at offset 0.
+ *
+ * Package: formats.pe.pe_load_config
+ */
+
+package formats.pe.pe_load_config;
+
+/**
+ * IMAGE_LOAD_CONFIG_DIRECTORY32
+ *
+ * Load configuration directory for 32-bit PE files.
+ *
+ * The structure size varies by Windows version:
+ * - Windows XP: 64 bytes (up to ProcessHeapFlags)
+ * - Windows Vista/7: 72 bytes (up to EditList)
+ * - Windows 8: 92 bytes (up to GuardFlags)
+ * - Windows 8.1: 96 bytes (up to CodeIntegrity)
+ * - Windows 10: 148+ bytes (many additional fields)
+ *
+ * The parser must check the Size field and only read available fields.
+ */
+struct image_load_config_directory32 {
+    /**
+     * Size
+     *
+     * Size of this structure in bytes.
+     * Indicates which fields are present (varies by Windows version).
+     */
+    uint32 size;
+
+    /**
+     * TimeDateStamp
+     *
+     * Date and time stamp value.
+     */
+    uint32 time_date_stamp;
+
+    /**
+     * MajorVersion / MinorVersion
+     *
+     * Major/minor version numbers.
+     */
+    uint16 major_version;
+    uint16 minor_version;
+
+    /**
+     * GlobalFlagsClear / GlobalFlagsSet
+     *
+     * Global loader flags to clear/set.
+     */
+    uint32 global_flags_clear;
+    uint32 global_flags_set;
+
+    /**
+     * CriticalSectionDefaultTimeout
+     *
+     * Default timeout for critical section in milliseconds.
+     */
+    uint32 critical_section_default_timeout;
+
+    /**
+     * DeCommitFreeBlockThreshold
+     *
+     * Memory that must be freed before it's returned to the system (bytes).
+     */
+    uint32 de_commit_free_block_threshold;
+
+    /**
+     * DeCommitTotalFreeThreshold
+     *
+     * Total amount of free memory threshold (bytes).
+     */
+    uint32 de_commit_total_free_threshold;
+
+    /**
+     * LockPrefixTable
+     *
+     * VA of a list of addresses where LOCK prefix is used.
+     * For x86 compatibility.
+     */
+    uint32 lock_prefix_table;
+
+    /**
+     * MaximumAllocationSize
+     *
+     * Maximum allocation size (bytes).
+     */
+    uint32 maximum_allocation_size;
+
+    /**
+     * VirtualMemoryThreshold
+     *
+     * Maximum virtual memory size (bytes).
+     */
+    uint32 virtual_memory_threshold;
+
+    /**
+     * ProcessHeapFlags
+     *
+     * Process heap flags.
+     */
+    uint32 process_heap_flags;
+
+    /**
+     * ProcessAffinityMask
+     *
+     * Process affinity mask.
+     */
+    uint32 process_affinity_mask;
+
+    /**
+     * CSDVersion
+     *
+     * Service pack version number.
+     */
+    uint16 csd_version;
+
+    /**
+     * DependentLoadFlags
+     *
+     * Flags for dependent module loading.
+     */
+    uint16 dependent_load_flags;
+
+    /**
+     * EditList
+     *
+     * VA to list of edit operations.
+     * Reserved, must be 0.
+     */
+    uint32 edit_list;
+
+    /**
+     * SecurityCookie
+     *
+     * VA of security cookie for stack buffer overrun detection.
+     * Used by /GS compiler option.
+     */
+    uint32 security_cookie;
+
+    /**
+     * SEHandlerTable
+     *
+     * VA to sorted table of RVAs of each valid, unique SE handler.
+     * Used for SafeSEH (32-bit only).
+     */
+    uint32 se_handler_table;
+
+    /**
+     * SEHandlerCount
+     *
+     * Number of entries in SEHandlerTable.
+     */
+    uint32 se_handler_count;
+
+    /**
+     * GuardCFCheckFunctionPointer
+     *
+     * VA of Control Flow Guard (CFG) check function.
+     */
+    uint32 guard_cf_check_function_pointer;
+
+    /**
+     * GuardCFDispatchFunctionPointer
+     *
+     * VA of CFG dispatch function.
+     */
+    uint32 guard_cf_dispatch_function_pointer;
+
+    /**
+     * GuardCFFunctionTable
+     *
+     * VA to table of CFG-protected functions.
+     */
+    uint32 guard_cf_function_table;
+
+    /**
+     * GuardCFFunctionCount
+     *
+     * Number of entries in GuardCFFunctionTable.
+     */
+    uint32 guard_cf_function_count;
+
+    /**
+     * GuardFlags
+     *
+     * Control Flow Guard flags.
+     *
+     * Flags include:
+     * 0x00000100 - IMAGE_GUARD_CF_INSTRUMENTED
+     * 0x00000200 - IMAGE_GUARD_CFW_INSTRUMENTED
+     * 0x00000400 - IMAGE_GUARD_CF_FUNCTION_TABLE_PRESENT
+     * 0x00000800 - IMAGE_GUARD_SECURITY_COOKIE_UNUSED
+     * 0x00001000 - IMAGE_GUARD_PROTECT_DELAYLOAD_IAT
+     * 0x00010000 - IMAGE_GUARD_CF_LONGJUMP_TABLE_PRESENT
+     * 0x00800000 - IMAGE_GUARD_XFG_ENABLED
+     * 0x01000000 - IMAGE_GUARD_CASTGUARD_PRESENT
+     */
+    uint32 guard_flags;
+
+    /**
+     * CodeIntegrity structure (8 bytes)
+     *
+     * Code integrity information.
+     * Note: This is a nested structure in the actual PE format.
+     */
+    uint16 code_integrity_flags;
+    uint16 code_integrity_catalog;
+    uint32 code_integrity_catalog_offset;
+    uint32 code_integrity_reserved;
+};
+
+/**
+ * IMAGE_LOAD_CONFIG_DIRECTORY64
+ *
+ * Load configuration directory for 64-bit PE files.
+ *
+ * Similar to 32-bit version but with 64-bit pointers (VAs).
+ * The structure size also varies by Windows version (larger than 32-bit).
+ */
+struct image_load_config_directory64 {
+    /**
+     * Size
+     *
+     * Size of this structure in bytes.
+     */
+    uint32 size;
+
+    uint32 time_date_stamp;
+    uint16 major_version;
+    uint16 minor_version;
+    uint32 global_flags_clear;
+    uint32 global_flags_set;
+    uint32 critical_section_default_timeout;
+
+    /**
+     * 64-bit fields
+     *
+     * These are 64-bit VAs instead of 32-bit.
+     */
+    uint64 de_commit_free_block_threshold;
+    uint64 de_commit_total_free_threshold;
+    uint64 lock_prefix_table;
+    uint64 maximum_allocation_size;
+    uint64 virtual_memory_threshold;
+    uint64 process_affinity_mask;
+
+    uint32 process_heap_flags;
+    uint16 csd_version;
+    uint16 dependent_load_flags;
+
+    uint64 edit_list;
+    uint64 security_cookie;
+
+    /**
+     * Note: SEHandlerTable/SEHandlerCount are not used in 64-bit
+     * (64-bit uses table-based exception handling).
+     * These fields are present but typically zero.
+     */
+    uint64 se_handler_table;
+    uint64 se_handler_count;
+
+    uint64 guard_cf_check_function_pointer;
+    uint64 guard_cf_dispatch_function_pointer;
+    uint64 guard_cf_function_table;
+    uint64 guard_cf_function_count;
+    uint32 guard_flags;
+
+    uint16 code_integrity_flags;
+    uint16 code_integrity_catalog;
+    uint32 code_integrity_catalog_offset;
+    uint32 code_integrity_reserved;
+};

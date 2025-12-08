@@ -76,6 +76,22 @@ add_executable(libexe_unittest
         test_pe_parser.cpp
         test_ne_parser.cpp
         test_executable_factory.cpp
+        test_section_parsers.cpp        # Section parser comprehensive tests
+        test_import_parser.cpp          # Import directory parser tests
+        test_export_parser.cpp          # Export directory parser tests
+        test_relocation_parser.cpp      # Base relocation parser tests
+        test_tls_parser.cpp             # TLS directory parser tests
+        test_debug_parser.cpp           # Debug directory parser tests
+        test_load_config_parser.cpp     # Load config directory parser tests
+        test_exception_parser.cpp       # Exception directory parser tests
+        test_delay_import_parser.cpp    # Delay import directory parser tests
+        test_bound_import_parser.cpp    # Bound import directory parser tests
+        test_security_parser.cpp        # Security directory parser tests
+        test_com_descriptor_parser.cpp  # COM descriptor parser tests (.NET CLR)
+        test_iat_parser.cpp             # IAT (Import Address Table) parser tests
+        test_global_ptr_parser.cpp      # Global Pointer parser tests (IA64)
+        test_architecture_parser.cpp    # Architecture parser tests (reserved)
+        test_reserved_parser.cpp        # Reserved parser tests (must be zero)
         resources/test_pe_resources.cpp     # PE resource extraction tests
         resources/test_ne_resources.cpp     # NE resource extraction tests
         resources/test_icon_parsers.cpp     # Icon parser tests

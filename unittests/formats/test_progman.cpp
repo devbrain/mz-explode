@@ -86,8 +86,8 @@ TEST_CASE("PROGMAN.EXE: Windows 3.11 Program Manager") {
 
         // Check segment structure is populated
         for (const auto& segment : segments) {
-            // Valid segments should have some length (either min_alloc or length)
-            bool has_size = (segment.min_alloc > 0) || (segment.length > 0);
+            // Valid segments should have some size (either min_alloc_size or file_size)
+            bool has_size = (segment.min_alloc_size > 0) || (segment.file_size > 0);
             CHECK(has_size);
         }
     }
@@ -100,11 +100,11 @@ TEST_CASE("PROGMAN.EXE: Windows 3.11 Program Manager") {
         CHECK(code_seg.has_value());
 
         if (code_seg) {
-            // Code segment should not have DATA flag
-            CHECK_FALSE(has_flag(code_seg->flags, ne_segment_flags::DATA));
+            // Code segment should be classified as CODE type
+            CHECK(code_seg->is_code());
 
-            // Should have some length
-            CHECK(code_seg->length > 0);
+            // Should have some size
+            CHECK(code_seg->file_size > 0);
         }
 
         // code_section() should return non-empty span

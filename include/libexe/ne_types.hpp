@@ -32,13 +32,31 @@ namespace libexe {
     /// NE Segment Flags (segment table entry flags)
     /// Controls segment type, memory management, and relocation
     enum class ne_segment_flags : uint16_t {
-        TYPE_MASK = 0x0007, // Segment type field mask
-        CODE = 0x0000, // Code segment type
-        DATA = 0x0001, // Data segment type
-        MOVEABLE = 0x0010, // Segment is not fixed (can be moved)
-        PRELOAD = 0x0040, // Segment will be preloaded; read-only if data segment
-        RELOCINFO = 0x0100, // Set if segment has relocation records
-        DISCARD_MASK = 0xF000, // Discard priority bits (higher = more discardable)
+        // Segment type (bit 0)
+        DATA            = 0x0001,  // 0=code, 1=data
+
+        // Memory management
+        ALLOCATED       = 0x0002,  // Segment is allocated
+        LOADED          = 0x0004,  // Segment is loaded
+        MOVEABLE        = 0x0010,  // Segment is moveable (can relocate)
+        PURE            = 0x0020,  // Segment is pure/shareable (for code segments)
+        PRELOAD         = 0x0040,  // Segment should be preloaded
+        READ_ONLY       = 0x0080,  // Execute-only (code) or read-only (data)
+
+        // Relocation
+        RELOC_INFO      = 0x0100,  // Segment has relocation info
+
+        // Code segment attributes
+        CONFORMING      = 0x0200,  // Conforming segment (code only)
+        PRIVILEGE_MASK  = 0x0C00,  // Privilege level (ring 0-3) - mask
+
+        // Discarding
+        DISCARDABLE     = 0x1000,  // Segment is discardable
+        DISCARD_MASK    = 0xF000,  // Discard priority bits (higher = more discardable)
+
+        // Type mask (for compatibility)
+        TYPE_MASK       = 0x0007,  // Segment type field mask
+        CODE            = 0x0000,  // Code segment type (alias for !DATA)
     };
 
     // ============================================================================
