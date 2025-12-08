@@ -51,7 +51,7 @@ static std::vector<uint8_t> create_test_pe32_with_debug(bool with_codeview = tru
     std::memcpy(&data[pe_offset + 24 + 92], &num_rva_sizes, 4);
 
     // Data Directory - DEBUG (index 6)
-    uint32_t debug_rva = 0x3000;
+    uint32_t debug_rva = with_codeview ? 0x3000 : 0;  // No RVA if no debug data
     uint32_t debug_size = with_codeview ? 28 : 0;  // sizeof(IMAGE_DEBUG_DIRECTORY)
     std::memcpy(&data[pe_offset + 24 + 96 + 6 * 8], &debug_rva, 4);
     std::memcpy(&data[pe_offset + 24 + 96 + 6 * 8 + 4], &debug_size, 4);
