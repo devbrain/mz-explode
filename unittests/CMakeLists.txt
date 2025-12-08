@@ -102,6 +102,7 @@ add_executable(libexe_unittest
         resources/test_menu_parser.cpp      # Menu parser tests
         resources/test_bitmap_message_parsers.cpp  # Bitmap & Message Table parser tests
         test_corkami_corpus.cpp     # Integration tests using Corkami PE test corpus
+        test_corkami_validation.cpp # Field-level validation using Corkami corpus
         explode/test_pklite.cpp
         explode/test_lzexe.cpp
         explode/test_knowledge_dynamics.cpp
