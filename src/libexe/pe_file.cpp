@@ -342,13 +342,17 @@ bool pe_file::has_data_directory(directory_entry entry) const {
         return false;
     }
 
-    // Special case: Global Pointer directory size should always be 0
-    // The RVA field contains the actual GP value, not a pointer to data
-    if (entry == directory_entry::GLOBALPTR) {
-        return data_directories_[index].rva != 0;
-    }
+    // Most data directories only need RVA != 0 check
+    // Many PE files (especially Corkami test corpus) set size = 0 for variable-length
+    // structures like import/export tables that are null-terminated or block-based.
+    // The parsers will validate the actual data.
 
-    return data_directories_[index].rva != 0 && data_directories_[index].size != 0;
+    // Special cases where size MUST be checked:
+    // - Security: File offset-based, size is mandatory for certificate data
+    // - None currently, but keeping structure for future additions
+
+    // For all other directories: only check RVA != 0
+    return data_directories_[index].rva != 0;
 }
 
 std::shared_ptr<import_directory> pe_file::imports() const {

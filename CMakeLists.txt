@@ -36,6 +36,10 @@ add_subdirectory(src/libexe)
 # Tools (Command-line utilities)
 # =============================================================================
 
+if(BUILD_TOOLS)
+    add_subdirectory(tools)
+endif()
+
 # Tools disabled - legacy code uses old 'explode' library
 # TODO: Rewrite mzexplode/mzdump to use modern libexe API
 # if(BUILD_TOOLS)
