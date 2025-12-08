@@ -1,4 +1,5 @@
 #include <libexe/resources/parsers/icon_parser.hpp>
+#include "exe_format.hh"  // Generated DataScript parser
 #include <cstring>
 #include <algorithm>
 
@@ -53,31 +54,33 @@ std::optional<icon_image> icon_parser::parse(std::span<const uint8_t> data) {
         return std::nullopt;
     }
 
-    icon_image result;
-    const uint8_t* ptr = data.data();
+    try {
+        // Parse using generated DataScript parser
+        const uint8_t* ptr = data.data();
+        const uint8_t* end = data.data() + data.size();
+        auto ds_header = formats::exe_format_complete::BitmapInfoHeader::read(ptr, end);
 
-    // Parse BITMAPINFOHEADER
-    result.header.size = read_u32_le(ptr + 0);
-    result.header.width = read_i32_le(ptr + 4);
-    result.header.height = read_i32_le(ptr + 8);
-    result.header.planes = read_u16_le(ptr + 12);
-    result.header.bit_count = read_u16_le(ptr + 14);
-    result.header.compression = read_u32_le(ptr + 16);
-    result.header.size_image = read_u32_le(ptr + 20);
-    result.header.x_pels_per_meter = read_i32_le(ptr + 24);
-    result.header.y_pels_per_meter = read_i32_le(ptr + 28);
-    result.header.clr_used = read_u32_le(ptr + 32);
-    result.header.clr_important = read_u32_le(ptr + 36);
+        icon_image result;
 
-    // Validate header
-    if (result.header.size != 40) {
-        return std::nullopt;  // Only support BITMAPINFOHEADER
-    }
-    if (result.header.width <= 0 || result.header.height <= 0) {
-        return std::nullopt;  // Invalid dimensions
-    }
+        // Convert DataScript structure to our public API
+        result.header.size = ds_header.biSize;
+        result.header.width = ds_header.biWidth;
+        result.header.height = ds_header.biHeight;
+        result.header.planes = ds_header.biPlanes;
+        result.header.bit_count = ds_header.biBitCount;
+        result.header.compression = ds_header.biCompression;
+        result.header.size_image = ds_header.biSizeImage;
+        result.header.x_pels_per_meter = ds_header.biXPelsPerMeter;
+        result.header.y_pels_per_meter = ds_header.biYPelsPerMeter;
+        result.header.clr_used = ds_header.biClrUsed;
+        result.header.clr_important = ds_header.biClrImportant;
 
-    ptr += 40;  // Move past header
+        // Validate dimensions
+        if (result.header.width <= 0 || result.header.height <= 0) {
+            return std::nullopt;  // Invalid dimensions
+        }
+
+        ptr = data.data() + 40;  // Move past header
 
     // Parse color table (for <= 8bpp)
     uint32_t color_table_size = result.header.color_table_size();
@@ -123,7 +126,12 @@ std::optional<icon_image> icon_parser::parse(std::span<const uint8_t> data) {
 
     result.and_mask.assign(ptr, ptr + and_size);
 
-    return result;
+        return result;
+    }
+    catch (const std::exception&) {
+        // Parse error - return nullopt
+        return std::nullopt;
+    }
 }
 
 std::vector<uint8_t> icon_image::raw_dib_data() const {

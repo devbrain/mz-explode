@@ -1,0 +1,131 @@
+// Windows Dialog Resource Structures (RT_DIALOG)
+// Supports DLGTEMPLATE (standard) and DLGTEMPLATEEX (extended) formats
+package formats.resources.dialogs;
+
+// No imports needed - standalone file
+
+// Global endianness (Windows is little-endian)
+little;
+
+// DS_SETFONT flag - dialog has font information
+const uint32 DS_SETFONT = 0x00000040;
+
+// Resource name-or-ordinal identifier
+// Uses inline discriminator choice to detect 0xFFFF prefix
+choice resource_name_or_id : uint16 {
+    case 0xFFFF:
+        uint16 ordinal;
+    default:
+        little u16string name;
+};
+
+// Standard dialog template (DLGTEMPLATE)
+struct dialog_template {
+    uint32 style;
+    uint32 extended_style;
+    uint16 item_count;
+    int16 x;
+    int16 y;
+    int16 cx;
+    int16 cy;
+
+    align(4):
+    resource_name_or_id menu;
+
+    align(4):
+    resource_name_or_id window_class;
+
+    align(4):
+    little u16string title;
+
+    uint16 point_size optional (style & DS_SETFONT) != 0;
+    little u16string typeface optional (style & DS_SETFONT) != 0;
+
+    align(4):
+};
+
+// Dialog item (control) structure
+struct dialog_item {
+    uint32 style;
+    uint32 extended_style;
+    int16 x;
+    int16 y;
+    int16 cx;
+    int16 cy;
+    uint16 id;
+
+    align(4):
+    resource_name_or_id window_class;
+
+    align(4):
+    resource_name_or_id title;
+
+    align(4):
+    uint16 creation_data_size;
+    // Note: creation_data field requires manual C++ parsing (variable-length)
+
+    align(4):
+};
+
+// Extended dialog template (DLGTEMPLATEEX)
+struct dialog_template_ex {
+    uint16 version : version == 1;
+    uint16 signature : signature == 0xFFFF;
+    uint32 help_id;
+    uint32 extended_style;
+    uint32 style;
+    uint16 item_count;
+    int16 x;
+    int16 y;
+    int16 cx;
+    int16 cy;
+
+    align(4):
+    resource_name_or_id menu;
+
+    align(4):
+    resource_name_or_id window_class;
+
+    align(4):
+    little u16string title;
+
+    uint16 point_size optional (style & DS_SETFONT) != 0;
+    uint16 weight optional (style & DS_SETFONT) != 0;
+    uint8 italic optional (style & DS_SETFONT) != 0;
+    uint8 charset optional (style & DS_SETFONT) != 0;
+    little u16string typeface optional (style & DS_SETFONT) != 0;
+
+    align(4):
+};
+
+// Extended dialog item
+struct dialog_item_ex {
+    uint32 help_id;
+    uint32 extended_style;
+    uint32 style;
+    int16 x;
+    int16 y;
+    int16 cx;
+    int16 cy;
+    uint32 id;
+
+    align(4):
+    resource_name_or_id window_class;
+
+    align(4):
+    resource_name_or_id title;
+
+    align(4):
+    uint16 creation_data_size;
+    // Note: creation_data field requires manual C++ parsing (variable-length)
+
+    align(4):
+};
+
+// Top-level dialog choice (auto-detects standard vs extended)
+choice dialog : uint32 {
+    case 0xFFFF0001:
+        dialog_template_ex extended;
+    default:
+        dialog_template standard;
+};

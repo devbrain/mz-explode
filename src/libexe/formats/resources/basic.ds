@@ -1,0 +1,197 @@
+/**
+ * Basic Windows Resource Structures
+ *
+ * This module contains common resource types:
+ * - RT_ICON / RT_GROUP_ICON (icons)
+ * - RT_CURSOR / RT_GROUP_CURSOR (cursors)
+ * - RT_BITMAP (bitmaps)
+ *
+ * References:
+ * - resfmt.txt section 4.2 (Icons)
+ * - resfmt.txt section 4.5 (Cursors)
+ * - resfmt.txt section 4.6 (Bitmaps)
+ */
+package formats.resources.basic;
+
+import formats.common;
+
+// All Windows resource formats use little-endian byte order
+little;
+
+// =============================================================================
+// Icon and Cursor Resource Structures (RT_ICON, RT_CURSOR, RT_GROUP_ICON, RT_GROUP_CURSOR)
+// =============================================================================
+
+/**
+ * Icon directory entry in group resource
+ *
+ * Describes a single icon image within an icon group.
+ * The icon group resource (RT_GROUP_ICON) contains this directory,
+ * while actual icon data is stored in separate RT_ICON resources.
+ *
+ * Per resfmt.txt section 4.2 (lines 604-614)
+ */
+struct icon_dir_entry {
+    uint8  width;            // Image width in pixels (0 means 256)
+    uint8  height;           // Image height in pixels (0 means 256)
+    uint8  color_count;      // Number of colors (0 if >= 8bpp)
+    uint8  reserved;         // Reserved, must be 0
+    uint16 planes;           // Color planes (icon) or hotspot X (cursor)
+    uint16 bit_count;        // Bits per pixel (icon) or hotspot Y (cursor)
+    uint32 bytes_in_res;     // Size of image data in bytes
+    uint16 name_ordinal;     // Resource ID for this icon/cursor image
+    uint16 padding;          // DWORD alignment padding
+};
+
+/**
+ * Icon group resource header
+ *
+ * Contains metadata and directory of all icon images in the group.
+ * This is the RT_GROUP_ICON resource format.
+ *
+ * Per resfmt.txt section 4.2 (lines 595-600)
+ */
+struct icon_group {
+    uint16 reserved;         // Reserved, currently 0
+    uint16 type;             // Resource type: 1 for cursors, 2 for icons
+    uint16 count;            // Number of images in group
+    uint16 padding;          // DWORD alignment padding
+    icon_dir_entry entries[count];  // Array of directory entries
+};
+
+/**
+ * Cursor hotspot struct ure
+ *
+ * Precedes cursor bitmap data in RT_CURSOR resources.
+ * Specifies the "hot spot" (active pixel) of the cursor.
+ *
+ * Per resfmt.txt section 4.5 (lines 835-841)
+ */
+struct cursor_hotspot {
+    int16 x_hotspot;         // Horizontal hotspot coordinate
+    int16 y_hotspot;         // Vertical hotspot coordinate
+};
+
+// =============================================================================
+// Bitmap Resource Structures (RT_BITMAP)
+// =============================================================================
+
+/**
+ * RGB color quad (for bitmap color tables)
+ *
+ * Used in BITMAPINFOHEADER color table entries.
+ * Each entry is 4 bytes (BGRA format).
+ *
+ * Per resfmt.txt section 4.6 (lines 850-874)
+ */
+struct rgb_quad {
+    uint8 blue;              // Blue component (0-255)
+    uint8 green;             // Green component (0-255)
+    uint8 red;               // Red component (0-255)
+    uint8 reserved;          // Reserved (must be 0)
+};
+
+/**
+ * RGB triple (for OS/2 bitmap color tables)
+ *
+ * Used in BITMAPCOREHEADER color table entries.
+ * Each entry is 3 bytes (BGR format).
+ *
+ * Per resfmt.txt section 4.6
+ */
+struct rgb_triple {
+    uint8 blue;              // Blue component (0-255)
+    uint8 green;             // Green component (0-255)
+    uint8 red;               // Red component (0-255)
+};
+
+/**
+ * Bitmap information header (Windows 3.0+ format)
+ *
+ * This is the main header for Windows DIB (Device Independent Bitmap) format.
+ * Used for RT_BITMAP resources and icon/cursor image data.
+ *
+ * Per resfmt.txt section 4.6 (lines 859-862)
+ */
+struct bitmap_info_header {
+    uint32 size : size == 40;            // Structure size (must be 40)
+    int32  width;                        // Image width in pixels
+    int32  height;                       // Image height (positive = bottom-up, negative = top-down)
+    uint16 planes : planes == 1;         // Color planes (must be 1)
+    uint16 bit_count;                    // Bits per pixel (1, 4, 8, 16, 24, 32)
+    uint32 compression;                  // Compression type (0=BI_RGB, 1=BI_RLE8, 2=BI_RLE4, 3=BI_BITFIELDS)
+    uint32 size_image;                   // Image size in bytes (may be 0 for BI_RGB)
+    int32  x_pels_per_meter;             // Horizontal resolution (pixels per meter)
+    int32  y_pels_per_meter;             // Vertical resolution (pixels per meter)
+    uint32 clr_used;                     // Colors in palette (0 = use maximum for bit_count)
+    uint32 clr_important;                // Important colors (0 = all colors are important)
+};
+
+/**
+ * Bitmap core header (OS/2 1.x format)
+ *
+ * Older OS/2 bitmap format, distinguished by size field == 12.
+ * Still supported for backward compatibility.
+ *
+ * Per resfmt.txt section 4.6 (lines 856-862)
+ */
+struct bitmap_core_header {
+    uint32 size : size == 12;            // Structure size (must be 12)
+    uint16 width;                        // Image width in pixels
+    uint16 height;                       // Image height in pixels
+    uint16 planes : planes == 1;         // Color planes (must be 1)
+    uint16 bit_count;                    // Bits per pixel (1, 4, 8, 24)
+};
+
+/**
+ * Bitmap compression types
+ */
+enum uint32 bitmap_compression {
+    BI_RGB       = 0,  // Uncompressed RGB
+    BI_RLE8      = 1,  // 8-bit RLE compression
+    BI_RLE4      = 2,  // 4-bit RLE compression
+    BI_BITFIELDS = 3,  // Uncompressed RGB with color masks
+    BI_JPEG      = 4,  // JPEG compression (not supported in DIB)
+    BI_PNG       = 5   // PNG compression (not supported in DIB)
+};
+
+// =============================================================================
+// Usage Notes
+// =============================================================================
+
+/*
+ * ICON/CURSOR RESOURCE USAGE:
+ *
+ * Icons and cursors are stored in two parts:
+ *
+ * 1. RT_GROUP_ICON / RT_GROUP_CURSOR:
+ *    - Contains IconGroup struct ure
+ *    - Lists all available image sizes/formats
+ *    - Each IconDirEntry points to an RT_ICON/RT_CURSOR resource by ID
+ *
+ * 2. RT_ICON / RT_CURSOR:
+ *    - Contains actual image data
+ *    - Format: BitmapInfoHeader + color table + pixel data
+ *    - For cursors: CursorHotspot precedes BitmapInfoHeader
+ *
+ * Example workflow:
+ *   1. Load RT_GROUP_ICON resource
+ *   2. Parse IconGroup to get list of available sizes
+ *   3. Select desired size from IconDirEntry array
+ *   4. Load RT_ICON resource using name_ordinal field
+ *   5. Parse BitmapInfoHeader + image data
+ *
+ * BITMAP RESOURCE USAGE:
+ *
+ * RT_BITMAP resources contain:
+ *   - BitmapInfoHeader or BitmapCoreHeader (detect by size field)
+ *   - Color table (if bit_count <= 8)
+ *     - RgbQuad entries for BitmapInfoHeader
+ *     - RgbTriple entries for BitmapCoreHeader
+ *   - Pixel data (size depends on dimensions and bit depth)
+ *
+ * Notes:
+ *   - RT_BITMAP does NOT include BITMAPFILEHEADER (that's only in .BMP files)
+ *   - Height can be negative (indicates top-down scanline order)
+ *   - Color table size = clr_used (or 2^bit_count if clr_used == 0)
+ */

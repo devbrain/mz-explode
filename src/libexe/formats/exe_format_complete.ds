@@ -9,7 +9,7 @@
  * Based on Microsoft PE/COFF specification and actual Windows loader implementation.
  */
 
-package libexe.format;
+package formats.exe_format_complete;
 
 // All Windows executable formats use little-endian byte order (x86 architecture).
 little;
@@ -1292,6 +1292,68 @@ struct ImageLoadConfigDirectory64 {
     uint64 GuardCFFunctionTable;           // VA of CFG function table
     uint64 GuardCFFunctionCount;           // Count of CFG functions
     uint32 GuardFlags;                     // Control Flow Guard flags
+};
+
+// =============================================================================
+// Bitmap Resource Structures (RT_BITMAP)
+// =============================================================================
+
+/**
+ * RGB color quad (for bitmap color tables)
+ *
+ * Per resfmt.txt section 4.6 (lines 850-874)
+ * Used in BITMAPINFOHEADER color table
+ */
+struct RgbQuad {
+    uint8 rgbBlue;       // Blue component
+    uint8 rgbGreen;      // Green component
+    uint8 rgbRed;        // Red component
+    uint8 rgbReserved;   // Reserved (must be 0)
+};
+
+/**
+ * Bitmap Information Header (Windows 3.0+ format)
+ *
+ * Per resfmt.txt section 4.6 (lines 859-862)
+ * This is the main header for Windows DIB (Device Independent Bitmap) format
+ */
+struct BitmapInfoHeader {
+    uint32 biSize: biSize == 40;          // Structure size (must be 40)
+    int32  biWidth;                       // Image width in pixels
+    int32  biHeight;                      // Image height (positive = bottom-up, negative = top-down)
+    uint16 biPlanes: biPlanes == 1;       // Color planes (must be 1)
+    uint16 biBitCount;                    // Bits per pixel (1, 4, 8, 16, 24, 32)
+    uint32 biCompression;                 // Compression type (0=BI_RGB, 1=BI_RLE8, 2=BI_RLE4, 3=BI_BITFIELDS)
+    uint32 biSizeImage;                   // Image size (may be 0 for BI_RGB)
+    int32  biXPelsPerMeter;               // Horizontal resolution (pixels per meter)
+    int32  biYPelsPerMeter;               // Vertical resolution (pixels per meter)
+    uint32 biClrUsed;                     // Colors in palette (0 = use maximum for biBitCount)
+    uint32 biClrImportant;                // Important colors (0 = all colors are important)
+};
+
+/**
+ * Bitmap Core Header (OS/2 1.x format)
+ *
+ * Per resfmt.txt section 4.6 (lines 856-862)
+ * Older OS/2 bitmap format, distinguished by biSize == 12
+ */
+struct BitmapCoreHeader {
+    uint32 bcSize: bcSize == 12;          // Structure size (must be 12)
+    uint16 bcWidth;                       // Image width in pixels
+    uint16 bcHeight;                      // Image height in pixels
+    uint16 bcPlanes: bcPlanes == 1;       // Color planes (must be 1)
+    uint16 bcBitCount;                    // Bits per pixel (1, 4, 8, 24)
+};
+
+/**
+ * RGB triple (for OS/2 bitmap color tables)
+ *
+ * Used in BITMAPCOREHEADER color table (3 bytes per entry instead of 4)
+ */
+struct RgbTriple {
+    uint8 rgbtBlue;      // Blue component
+    uint8 rgbtGreen;     // Green component
+    uint8 rgbtRed;       // Red component
 };
 
 // =============================================================================

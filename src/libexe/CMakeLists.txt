@@ -49,7 +49,7 @@ function(add_datascript_parser SCHEMA_FILE OUTPUT_NAME)
     add_custom_command(
             OUTPUT ${GENERATED_HEADER}
             COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/generated
-            COMMAND ds ${CMAKE_CURRENT_SOURCE_DIR}/${SCHEMA_FILE} -t cpp -o ${CMAKE_BINARY_DIR}/generated/ --cpp-output-name=${OUTPUT_NAME_WE}
+            COMMAND ds ${CMAKE_CURRENT_SOURCE_DIR}/${SCHEMA_FILE} -t cpp -o ${CMAKE_BINARY_DIR}/generated/ --cpp-output-name=${OUTPUT_NAME_WE} -I ${CMAKE_CURRENT_SOURCE_DIR}/formats
             DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SCHEMA_FILE}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
             COMMENT "Generating C++ parser from ${SCHEMA_FILE}"
@@ -64,8 +64,30 @@ function(add_datascript_parser SCHEMA_FILE OUTPUT_NAME)
     set(GENERATED_PARSER_HEADER ${GENERATED_HEADER} PARENT_SCOPE)
 endfunction()
 
-# Generate parser from executable format specification
+# =============================================================================
+# Generate Parsers from Modular DataScript Files
+# =============================================================================
+
+# Generate parser from OLD monolithic specification (kept for compatibility during migration)
 add_datascript_parser(formats/exe_format_complete.ds exe_format.hh)
+
+# Generate parsers from NEW modular specifications
+# Common types (no dependencies, generate first)
+add_datascript_parser(formats/common.ds libexe_format_common.hh)
+
+# Resource format parsers (depend on common.ds)
+add_datascript_parser(formats/resources/dialogs.ds libexe_format_dialogs.hh)
+add_datascript_parser(formats/resources/version.ds libexe_format_version.hh)
+add_datascript_parser(formats/resources/basic.ds libexe_format_basic.hh)
+add_datascript_parser(formats/resources/tables.ds libexe_format_tables.hh)
+add_datascript_parser(formats/resources/fonts.ds libexe_format_fonts.hh)
+
+# Set up dependencies: resource parsers depend on common being generated first
+add_dependencies(generate_dialogs_parser generate_common_parser)
+add_dependencies(generate_version_parser generate_common_parser)
+add_dependencies(generate_basic_parser generate_common_parser)
+add_dependencies(generate_tables_parser generate_common_parser)
+add_dependencies(generate_fonts_parser generate_common_parser)
 
 # =============================================================================
 # Main Library
@@ -100,7 +122,16 @@ add_library(libexe
 )
 
 # Make library depend on parser generation
-add_dependencies(libexe generate_exe_format_complete_parser)
+add_dependencies(libexe
+    generate_exe_format_complete_parser  # Old monolithic parser
+    # New modular parsers
+    generate_common_parser
+    generate_dialogs_parser
+    generate_version_parser
+    generate_basic_parser
+    generate_tables_parser
+    generate_fonts_parser
+)
 
 # Generate portable export header
 generate_export_header(libexe

@@ -1,0 +1,204 @@
+/**
+ * Table-Based Windows Resource Structures
+ *
+ * This module contains resource types that are organized as tables:
+ * - RT_STRING (string tables)
+ * - RT_ACCELERATORS (accelerator tables)
+ * - RT_MESSAGETABLE (message tables)
+ *
+ * References:
+ * - resfmt.txt section 4.8 (String Tables)
+ * - resfmt.txt section 4.9 (Accelerator Tables)
+ * - resfmt.txt section 4.13 (Message Tables)
+ */
+package formats.resources.tables;
+
+import formats.common;
+
+// All Windows resource formats use little-endian byte order
+little;
+
+// =============================================================================
+// String Table Resources (RT_STRING)
+// =============================================================================
+
+/**
+ * String table entry (PE format)
+ *
+ * PE string tables use Pascal-style strings (length-prefixed UTF-16).
+ * Each string is: WORD length + WCHAR characters[length]
+ *
+ * String tables are organized in blocks of 16 strings per resource.
+ * Resource ID determines which block: ID = (string_id / 16) + 1
+ * String index within block: index = string_id % 16
+ *
+ * Empty slots have length = 0.
+ *
+ * Per resfmt.txt section 4.8 (lines 950-971)
+ */
+struct string_table_entry {
+    uint16 length;               // String length in characters (WCHARs)
+    uint16 chars[length];        // Unicode string characters (NOT null-terminated)
+};
+
+/**
+ * String table entry (NE format)
+ *
+ * NE (16-bit) string tables use byte-length prefix + ASCII characters.
+ * Format: BYTE length + CHAR characters[length]
+ *
+ * Simpler than PE format - no Unicode, byte length instead of word length.
+ */
+struct ne_string_table_entry {
+    uint8 length;                // String length in bytes
+    uint8 chars[length];         // ASCII/ANSI characters (NOT null-terminated)
+};
+
+// =============================================================================
+// Accelerator Table Resources (RT_ACCELERATORS)
+// =============================================================================
+
+/**
+ * Accelerator flags
+ *
+ * Per resfmt.txt section 4.9 (lines 990-995)
+ */
+enum uint16 accel_flags {
+    FVIRTKEY  = 0x0001,  // Virtual key code (vs. ASCII character)
+    FNOINVERT = 0x0002,  // No menu highlight inversion on activation
+    FSHIFT    = 0x0004,  // Shift key must be held down
+    FCONTROL  = 0x0008,  // Control key must be held down
+    FALT      = 0x0010,  // Alt key must be held down
+    FEND      = 0x0080   // Last entry in table (terminator)
+};
+
+/**
+ * Accelerator table entry
+ *
+ * Defines a keyboard accelerator (shortcut key).
+ * Table is an array of these entries, terminated by entry with FEND flag.
+ *
+ * Per resfmt.txt section 4.9 (lines 990-995)
+ */
+struct accel_table_entry {
+    uint16 flags;                // Accelerator flags (AccelFlags)
+    uint16 event;                // ASCII character code or virtual key code
+    uint16 id;                   // Accelerator identifier (command ID)
+    uint16 padding;              // DWORD alignment padding
+};
+
+// =============================================================================
+// Message Table Resources (RT_MESSAGETABLE)
+// =============================================================================
+
+/**
+ * Message resource flags
+ */
+enum uint16 message_resource_flags {
+    MESSAGE_RESOURCE_UNICODE = 0x0001  // Text is Unicode UTF-16, not ASCII
+};
+
+/**
+ * Message resource entry
+ *
+ * Contains a single message string.
+ * Variable-length struct ure: header + text data.
+ *
+ * Per resfmt.txt section 4.13 (lines 1126-1130)
+ */
+struct message_resource_entry {
+    uint16 length;               // Length of this entry (including text)
+    uint16 flags;                // MessageResourceFlags (Unicode vs ASCII)
+    // Followed by UCHAR text[] (variable length, not defined here)
+    // Text length = length - 4 bytes
+};
+
+/**
+ * Message resource block
+ *
+ * Defines a range of message IDs and points to their entries.
+ * Message tables are organized as arrays of blocks, where each
+ * block covers a contiguous range of message IDs.
+ *
+ * Per resfmt.txt section 4.13 (lines 1120-1124)
+ */
+struct message_resource_block {
+    uint32 low_id;               // First message ID in this block
+    uint32 high_id;              // Last message ID in this block
+    uint32 offset_to_entries;    // Offset to first MessageResourceEntry
+};
+
+/**
+ * Message resource data (top-level struct ure)
+ *
+ * The message table resource contains an array of blocks,
+ * each covering a range of message IDs.
+ *
+ * Per resfmt.txt section 4.13 (lines 1115-1118)
+ */
+struct message_resource_data {
+    uint32 number_of_blocks;                    // Number of blocks
+    message_resource_block blocks[number_of_blocks];  // Array of blocks
+};
+
+// =============================================================================
+// Usage Notes
+// =============================================================================
+
+/*
+ * STRING TABLE USAGE:
+ *
+ * Loading a string by ID:
+ *   1. Calculate resource ID: resource_id = (string_id / 16) + 1
+ *   2. Calculate string index: index = string_id % 16
+ *   3. Load RT_STRING resource with resource_id
+ *   4. Parse 16 StringTableEntry struct ures
+ *   5. Access string at position 'index'
+ *   6. If length == 0, string is not defined
+ *
+ * Example:
+ *   String ID 105:
+ *     Resource ID = (105 / 16) + 1 = 7
+ *     Index = 105 % 16 = 9
+ *     Load resource RT_STRING/7
+ *     Access entry [9]
+ *
+ * NE vs PE format:
+ *   - NE: Byte-length prefix, ASCII encoding
+ *   - PE: Word-length prefix, UTF-16 encoding
+ *   - Detection: Based on executable format (NE vs PE)
+ *
+ * ACCELERATOR TABLE USAGE:
+ *
+ * Accelerator tables are simple arrays terminated by FEND flag:
+ *
+ *   std::vector<AccelTableEntry> accelerators;
+ *   while (ptr < end) {
+ *       auto entry = read_AccelTableEntry(ptr);
+ *       accelerators.push_back(entry);
+ *       if (entry.flags & FEND) break;
+ *       ptr += sizeof(AccelTableEntry);
+ *   }
+ *
+ * Common accelerators:
+ *   - Ctrl+C, Ctrl+V, Ctrl+X (clipboard operations)
+ *   - Ctrl+S (save), Ctrl+O (open), Ctrl+N (new)
+ *   - F1 (help), F5 (refresh), etc.
+ *
+ * MESSAGE TABLE USAGE:
+ *
+ * Message tables organize messages in blocks for efficient lookup:
+ *
+ *   1. Load MessageResourceData (header + blocks array)
+ *   2. For a given message ID, find the block:
+ *      - Scan blocks array for low_id <= msg_id <= high_id
+ *   3. Calculate offset within block:
+ *      - offset = offset_to_entries + (msg_id - low_id) * entry_size
+ *   4. Read MessageResourceEntry at that offset
+ *   5. Extract text based on flags:
+ *      - If MESSAGE_RESOURCE_UNICODE: UTF-16 string
+ *      - Otherwise: ASCII string
+ *
+ * Note: Message entries are variable-length (text size varies),
+ *       so sequential parsing is required within each block.
+ */

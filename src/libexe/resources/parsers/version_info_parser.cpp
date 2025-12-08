@@ -160,7 +160,7 @@ std::optional<version_info> version_info_parser::parse(std::span<const uint8_t> 
             return std::nullopt;
         }
 
-        auto ds_fixed_info = libexe::format::VsFixedFileInfo::read(ptr, end);
+        auto ds_fixed_info = formats::exe_format_complete::VsFixedFileInfo::read(ptr, end);
 
         version_info result;
 

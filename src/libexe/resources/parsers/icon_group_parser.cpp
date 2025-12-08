@@ -13,7 +13,7 @@ std::optional<icon_group> icon_group_parser::parse(std::span<const uint8_t> data
         // Parse using generated DataScript parser
         const uint8_t* ptr = data.data();
         const uint8_t* end = data.data() + data.size();
-        auto ds_group = libexe::format::IconGroup::read(ptr, end);
+        auto ds_group = formats::exe_format_complete::IconGroup::read(ptr, end);
 
         // Convert to our public API structure
         icon_group result;

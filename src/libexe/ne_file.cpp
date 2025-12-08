@@ -45,7 +45,7 @@ ne_file ne_file::from_memory(std::span<const uint8_t> data) {
     try {
         file.parse_ne_headers();
         file.parse_segments();
-    } catch (const libexe::format::ConstraintViolation& e) {
+    } catch (const formats::exe_format_complete::ConstraintViolation& e) {
         throw std::runtime_error(std::string("Invalid NE file: ") + e.what());
     } catch (const std::runtime_error& e) {
         throw std::runtime_error(std::string("Error parsing NE file: ") + e.what());
@@ -59,9 +59,9 @@ void ne_file::parse_ne_headers() {
     const uint8_t* end = ptr + data_.size();
 
     // Parse DOS header to get e_lfanew (offset to NE header)
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
 
-    if (dos_header.e_magic != libexe::format::DOS_SIGNATURE) {
+    if (dos_header.e_magic != formats::exe_format_complete::DOS_SIGNATURE) {
         throw std::runtime_error("Not a valid DOS/NE file (invalid MZ signature)");
     }
 
@@ -73,7 +73,7 @@ void ne_file::parse_ne_headers() {
 
     // Parse NE header (DataScript will validate NE signature)
     ptr = data_.data() + ne_offset_;
-    auto ne_header = libexe::format::ImageNeHeader::read(ptr, end);
+    auto ne_header = formats::exe_format_complete::ImageNeHeader::read(ptr, end);
 
     // Extract header fields
     linker_ver_ = ne_header.ne_ver;
@@ -115,7 +115,7 @@ void ne_file::parse_segments() {
     for (uint16_t i = 0; i < segment_count_; i++) {
         if (ptr + 8 > end) break;  // Segment table entry is 8 bytes
 
-        auto seg_entry = libexe::format::NeSegmentTableEntry::read(ptr, end);
+        auto seg_entry = formats::exe_format_complete::NeSegmentTableEntry::read(ptr, end);
 
         ne_segment segment;
         segment.sector_offset = seg_entry.sector_offset;

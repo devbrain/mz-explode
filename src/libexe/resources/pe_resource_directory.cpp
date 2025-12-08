@@ -77,7 +77,7 @@ namespace libexe {
         const uint8_t* end = rsrc_data.data() + rsrc_data.size();
 
         // Parse directory header using DataScript
-        auto dir = libexe::format::ImageResourceDirectory::read(ptr, end);
+        auto dir = formats::exe_format_complete::ImageResourceDirectory::read(ptr, end);
 
         // Save timestamp from root directory
         if (level == 1) {
@@ -98,7 +98,7 @@ namespace libexe {
             const uint8_t* entry_ptr = rsrc_data.data() + entry_offset;
 
             // Parse directory entry using DataScript
-            auto entry = libexe::format::ImageResourceDirectoryEntry::read(entry_ptr, end);
+            auto entry = formats::exe_format_complete::ImageResourceDirectoryEntry::read(entry_ptr, end);
 
             // Extract name/ID from Name field
             bool is_named = (entry.Name & 0x80000000) != 0;
@@ -141,7 +141,7 @@ namespace libexe {
                     // Get codepage from data entry
                     if (offset + 16 <= rsrc_data.size()) {
                         const uint8_t* data_entry_ptr = rsrc_data.data() + offset;
-                        auto data_entry = libexe::format::ImageResourceDataEntry::read(data_entry_ptr, end);
+                        auto data_entry = formats::exe_format_complete::ImageResourceDataEntry::read(data_entry_ptr, end);
 
                         // Build resource entry
                         auto resource = resource_entry::create(
@@ -171,7 +171,7 @@ namespace libexe {
         const uint8_t* end = rsrc_data.data() + rsrc_data.size();
 
         try {
-            auto str = libexe::format::ImageResourceDirStringU::read(ptr, end);
+            auto str = formats::exe_format_complete::ImageResourceDirStringU::read(ptr, end);
 
             // Convert Unicode (UTF-16LE) to UTF-8 (simplified - just take low byte)
             std::string result;
@@ -202,7 +202,7 @@ namespace libexe {
         const uint8_t* end = rsrc_data.data() + rsrc_data.size();
 
         try {
-            auto data_entry = libexe::format::ImageResourceDataEntry::read(ptr, end);
+            auto data_entry = formats::exe_format_complete::ImageResourceDataEntry::read(ptr, end);
 
             // Convert RVA to offset within .rsrc section
             if (data_entry.OffsetToData < rsrc_rva) {

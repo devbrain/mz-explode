@@ -46,7 +46,7 @@ mz_file mz_file::from_memory(std::span<const uint8_t> data) {
         const uint8_t* end = ptr + file.data_.size();
 
         // Parse DOS header - will validate magic number automatically
-        auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+        auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
 
         // Calculate header size in bytes
         file.header_size_ = dos_header.e_cparhdr * 16;
@@ -57,7 +57,7 @@ mz_file mz_file::from_memory(std::span<const uint8_t> data) {
         // Detect compression type by examining code section
         file.compression_ = file.detect_compression();
 
-    } catch (const libexe::format::ConstraintViolation& e) {
+    } catch (const formats::exe_format_complete::ConstraintViolation& e) {
         throw std::runtime_error(std::string("Invalid MZ file: ") + e.what());
     } catch (const std::runtime_error& e) {
         throw std::runtime_error(std::string("Error parsing MZ file: ") + e.what());
@@ -99,7 +99,7 @@ uint16_t mz_file::initial_cs() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_cs;
 }
 
@@ -107,7 +107,7 @@ uint16_t mz_file::initial_ip() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_ip;
 }
 
@@ -115,7 +115,7 @@ uint16_t mz_file::initial_ss() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_ss;
 }
 
@@ -123,7 +123,7 @@ uint16_t mz_file::initial_sp() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_sp;
 }
 
@@ -131,7 +131,7 @@ uint16_t mz_file::min_extra_paragraphs() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_minalloc;
 }
 
@@ -139,7 +139,7 @@ uint16_t mz_file::max_extra_paragraphs() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_maxalloc;
 }
 
@@ -147,7 +147,7 @@ uint16_t mz_file::relocation_count() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_crlc;
 }
 
@@ -155,7 +155,7 @@ uint16_t mz_file::header_paragraphs() const {
     if (data_.size() < 28) return 0;
     const uint8_t* ptr = data_.data();
     const uint8_t* end = ptr + data_.size();
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
     return dos_header.e_cparhdr;
 }
 

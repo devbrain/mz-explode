@@ -46,7 +46,7 @@ pe_file pe_file::from_memory(std::span<const uint8_t> data) {
     try {
         file.parse_pe_headers();
         file.parse_sections();
-    } catch (const libexe::format::ConstraintViolation& e) {
+    } catch (const formats::exe_format_complete::ConstraintViolation& e) {
         throw std::runtime_error(std::string("Invalid PE file: ") + e.what());
     } catch (const std::runtime_error& e) {
         throw std::runtime_error(std::string("Error parsing PE file: ") + e.what());
@@ -60,9 +60,9 @@ void pe_file::parse_pe_headers() {
     const uint8_t* end = ptr + data_.size();
 
     // Parse DOS header to get e_lfanew (offset to PE header)
-    auto dos_header = libexe::format::ImageDosHeader::read(ptr, end);
+    auto dos_header = formats::exe_format_complete::ImageDosHeader::read(ptr, end);
 
-    if (dos_header.e_magic != libexe::format::DOS_SIGNATURE) {
+    if (dos_header.e_magic != formats::exe_format_complete::DOS_SIGNATURE) {
         throw std::runtime_error("Not a valid DOS/PE file (invalid MZ signature)");
     }
 
@@ -74,13 +74,13 @@ void pe_file::parse_pe_headers() {
 
     // Verify PE signature "PE\0\0"
     ptr = data_.data() + pe_offset_;
-    uint32_t pe_sig = libexe::format::read_uint32_le(ptr, end);
-    if (pe_sig != libexe::format::PE_SIGNATURE) {
+    uint32_t pe_sig = formats::exe_format_complete::read_uint32_le(ptr, end);
+    if (pe_sig != formats::exe_format_complete::PE_SIGNATURE) {
         throw std::runtime_error("Not a PE file (invalid PE signature)");
     }
 
     // Parse COFF File Header
-    auto coff_header = libexe::format::ImageFileHeader::read(ptr, end);
+    auto coff_header = formats::exe_format_complete::ImageFileHeader::read(ptr, end);
     machine_type_ = static_cast<uint16_t>(coff_header.Machine);
     section_count_ = coff_header.NumberOfSections;
     timestamp_ = coff_header.TimeDateStamp;
@@ -94,13 +94,13 @@ void pe_file::parse_pe_headers() {
         throw std::runtime_error("PE file truncated (no optional header magic)");
     }
 
-    uint16_t magic = libexe::format::read_uint16_le(ptr, end);
+    uint16_t magic = formats::exe_format_complete::read_uint16_le(ptr, end);
     ptr -= 2;  // Rewind for full header parse
 
-    if (magic == libexe::format::PE32_MAGIC) {
+    if (magic == formats::exe_format_complete::PE32_MAGIC) {
         // PE32 (32-bit)
         is_64bit_ = false;
-        auto opt_header = libexe::format::ImageOptionalHeader32::read(ptr, end);
+        auto opt_header = formats::exe_format_complete::ImageOptionalHeader32::read(ptr, end);
 
         image_base_ = opt_header.ImageBase;
         entry_point_rva_ = opt_header.AddressOfEntryPoint;
@@ -111,10 +111,10 @@ void pe_file::parse_pe_headers() {
         subsystem_ = static_cast<uint16_t>(opt_header.Subsystem);
         dll_characteristics_ = static_cast<uint16_t>(opt_header.DllCharacteristics);
 
-    } else if (magic == libexe::format::PE32PLUS_MAGIC) {
+    } else if (magic == formats::exe_format_complete::PE32PLUS_MAGIC) {
         // PE32+ (64-bit)
         is_64bit_ = true;
-        auto opt_header = libexe::format::ImageOptionalHeader64::read(ptr, end);
+        auto opt_header = formats::exe_format_complete::ImageOptionalHeader64::read(ptr, end);
 
         image_base_ = opt_header.ImageBase;
         entry_point_rva_ = opt_header.AddressOfEntryPoint;
@@ -137,7 +137,7 @@ void pe_file::parse_sections() {
     const uint8_t* end = data_.data() + data_.size();
 
     // Re-parse COFF header to get optional header size
-    auto coff_header = libexe::format::ImageFileHeader::read(ptr, end);
+    auto coff_header = formats::exe_format_complete::ImageFileHeader::read(ptr, end);
     uint16_t opt_hdr_size = coff_header.SizeOfOptionalHeader;
 
     // ptr is now at the start of the optional header, skip it
@@ -147,7 +147,7 @@ void pe_file::parse_sections() {
     for (uint16_t i = 0; i < section_count_; i++) {
         if (ptr + 40 > end) break;  // Section header is 40 bytes
 
-        auto section_header = libexe::format::ImageSectionHeader::read(ptr, end);
+        auto section_header = formats::exe_format_complete::ImageSectionHeader::read(ptr, end);
 
         pe_section section;
 

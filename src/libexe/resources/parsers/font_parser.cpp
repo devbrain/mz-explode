@@ -46,7 +46,7 @@ std::optional<font_data> font_parser::parse(std::span<const uint8_t> data) {
         // Parse using generated DataScript parser
         const uint8_t* ptr = data.data();
         const uint8_t* end = data.data() + data.size();
-        auto ds_font = libexe::format::FontHeader::read(ptr, end);
+        auto ds_font = formats::exe_format_complete::FontHeader::read(ptr, end);
 
         // Convert to our public API structure
         font_data result;

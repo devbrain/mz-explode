@@ -98,7 +98,7 @@ std::optional<accelerator_table> accelerator_parser::parse(std::span<const uint8
         // Parse entries until we hit the end flag or run out of data
         while (ptr + 8 <= end) {
             // Parse entry using DataScript
-            auto ds_entry = libexe::format::AccelTableEntry::read(ptr, end);
+            auto ds_entry = formats::exe_format_complete::AccelTableEntry::read(ptr, end);
 
             accelerator_entry entry;
             entry.flags = ds_entry.fFlags;
