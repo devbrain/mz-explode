@@ -16,30 +16,60 @@
 #include <libexe/delay_import_directory.hpp>
 #include <libexe/bound_import_directory.hpp>
 #include <libexe/load_config_directory.hpp>
-#include <filesystem>
-#include <fstream>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 using namespace libexe;
-namespace fs = std::filesystem;
+
+// External embedded test data
+namespace corkami_data {
+    extern size_t cfgbogus_len;
+    extern unsigned char cfgbogus[];
+    extern size_t compiled_len;
+    extern unsigned char compiled[];
+    extern size_t debug_len;
+    extern unsigned char debug[];
+    extern size_t delayimports_len;
+    extern unsigned char delayimports[];
+    extern size_t dll_len;
+    extern unsigned char dll[];
+    extern size_t dllbound_len;
+    extern unsigned char dllbound[];
+    extern size_t dllnoreloc_len;
+    extern unsigned char dllnoreloc[];
+    extern size_t dllord_len;
+    extern unsigned char dllord[];
+    extern size_t dotnet20_len;
+    extern unsigned char dotnet20[];
+    extern size_t ibreloc_len;
+    extern unsigned char ibreloc[];
+    extern size_t impbyord_len;
+    extern unsigned char impbyord[];
+    extern size_t imports_len;
+    extern unsigned char imports[];
+    extern size_t imports_mixed_len;
+    extern unsigned char imports_mixed[];
+    extern size_t signature_len;
+    extern unsigned char signature[];
+    extern size_t tinynet_len;
+    extern unsigned char tinynet[];
+    extern size_t tls_len;
+    extern unsigned char tls[];
+    extern size_t tls64_len;
+    extern unsigned char tls64[];
+    extern size_t tls_aoi_len;
+    extern unsigned char tls_aoi[];
+}
 
 namespace {
 
-std::vector<uint8_t> load_file(const fs::path& path) {
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) return {};
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-    std::vector<uint8_t> buffer(size);
-    if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) return {};
-    return buffer;
+// Helper: Load embedded test file
+std::vector<uint8_t> load_embedded(const unsigned char* data, size_t len) {
+    return std::vector<uint8_t>(data, data + len);
 }
 
-bool file_exists(const fs::path& path) {
-    return fs::exists(path) && fs::is_regular_file(path);
-}
-
+// Helper: Case-insensitive string comparison
 bool iequals(const std::string& a, const std::string& b) {
     if (a.size() != b.size()) return false;
     return std::equal(a.begin(), a.end(), b.begin(),
@@ -53,13 +83,7 @@ bool iequals(const std::string& a, const std::string& b) {
 
 
 TEST_CASE("Corkami Generated - imports.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "imports.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - imports.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::imports, corkami_data::imports_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -128,13 +152,7 @@ TEST_CASE("Corkami Generated - imports.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - imports_mixed.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "imports_mixed.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - imports_mixed.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::imports_mixed, corkami_data::imports_mixed_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -203,13 +221,7 @@ TEST_CASE("Corkami Generated - imports_mixed.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - impbyord.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "impbyord.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - impbyord.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::impbyord, corkami_data::impbyord_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -267,13 +279,7 @@ TEST_CASE("Corkami Generated - impbyord.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - tls.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "tls.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - tls.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::tls, corkami_data::tls_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -320,13 +326,7 @@ TEST_CASE("Corkami Generated - tls.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - tls.exe - TLS Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "tls.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - tls.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::tls, corkami_data::tls_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -355,13 +355,7 @@ TEST_CASE("Corkami Generated - tls.exe - TLS Directory") {
 }
 
 TEST_CASE("Corkami Generated - tls64.exe - TLS Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "tls64.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - tls64.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::tls64, corkami_data::tls64_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -382,13 +376,7 @@ TEST_CASE("Corkami Generated - tls64.exe - TLS Directory") {
 }
 
 TEST_CASE("Corkami Generated - tls_aoi.exe - TLS Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "tls_aoi.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - tls_aoi.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::tls_aoi, corkami_data::tls_aoi_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -409,13 +397,7 @@ TEST_CASE("Corkami Generated - tls_aoi.exe - TLS Directory") {
 }
 
 TEST_CASE("Corkami Generated - debug.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "debug.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - debug.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::debug, corkami_data::debug_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -472,13 +454,7 @@ TEST_CASE("Corkami Generated - debug.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - debug.exe - Debug Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "debug.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - debug.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::debug, corkami_data::debug_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -505,13 +481,7 @@ TEST_CASE("Corkami Generated - debug.exe - Debug Directory") {
 }
 
 TEST_CASE("Corkami Generated - signature.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "signature.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - signature.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::signature, corkami_data::signature_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -532,13 +502,7 @@ TEST_CASE("Corkami Generated - signature.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - signature.exe - Security Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "signature.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - signature.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::signature, corkami_data::signature_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -565,13 +529,7 @@ TEST_CASE("Corkami Generated - signature.exe - Security Directory") {
 }
 
 TEST_CASE("Corkami Generated - dll.dll - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "dll.dll";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - dll.dll not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::dll, corkami_data::dll_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -605,13 +563,7 @@ TEST_CASE("Corkami Generated - dll.dll - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - dotnet20.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "dotnet20.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - dotnet20.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::dotnet20, corkami_data::dotnet20_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -656,13 +608,7 @@ TEST_CASE("Corkami Generated - dotnet20.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - dotnet20.exe - COM Descriptor") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "dotnet20.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - dotnet20.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::dotnet20, corkami_data::dotnet20_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -696,13 +642,7 @@ TEST_CASE("Corkami Generated - dotnet20.exe - COM Descriptor") {
 }
 
 TEST_CASE("Corkami Generated - tinynet.exe - COM Descriptor") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "tinynet.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - tinynet.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::tinynet, corkami_data::tinynet_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -719,13 +659,7 @@ TEST_CASE("Corkami Generated - tinynet.exe - COM Descriptor") {
 }
 
 TEST_CASE("Corkami Generated - delayimports.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "delayimports.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - delayimports.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::delayimports, corkami_data::delayimports_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -792,13 +726,7 @@ TEST_CASE("Corkami Generated - delayimports.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - ibreloc.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "ibreloc.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - ibreloc.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::ibreloc, corkami_data::ibreloc_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -819,13 +747,7 @@ TEST_CASE("Corkami Generated - ibreloc.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - dllbound.dll - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "dllbound.dll";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - dllbound.dll not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::dllbound, corkami_data::dllbound_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -842,13 +764,7 @@ TEST_CASE("Corkami Generated - dllbound.dll - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - compiled.exe - Import Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "compiled.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - compiled.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::compiled, corkami_data::compiled_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -869,13 +785,7 @@ TEST_CASE("Corkami Generated - compiled.exe - Import Directory") {
 }
 
 TEST_CASE("Corkami Generated - compiled.exe - Debug Directory") {
-    fs::path file_path = fs::path("/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/") / "compiled.exe";
-    if (!file_exists(file_path)) {
-        MESSAGE("Skipping - compiled.exe not found");
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::compiled, corkami_data::compiled_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
