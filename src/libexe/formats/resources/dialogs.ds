@@ -1,16 +1,22 @@
 // Windows Dialog Resource Structures (RT_DIALOG)
-// Supports DLGTEMPLATE (standard) and DLGTEMPLATEEX (extended) formats
+// Supports NE (16-bit), PE DLGTEMPLATE, and PE DLGTEMPLATEEX formats
 package formats.resources.dialogs;
-
-// No imports needed - standalone file
 
 // Global endianness (Windows is little-endian)
 little;
 
+// =============================================================================
+// Common Constants
+// =============================================================================
+
 // DS_SETFONT flag - dialog has font information
 const uint32 DS_SETFONT = 0x00000040;
 
-// Resource name-or-ordinal identifier
+// =============================================================================
+// PE (32/64-bit Windows) Dialog Structures
+// =============================================================================
+
+// PE resource name-or-ordinal identifier
 // Uses inline discriminator choice to detect 0xFFFF prefix
 choice resource_name_or_id : uint16 {
     case 0xFFFF:
@@ -19,7 +25,7 @@ choice resource_name_or_id : uint16 {
         little u16string name;
 };
 
-// Standard dialog template (DLGTEMPLATE)
+// Standard PE dialog template (DLGTEMPLATE)
 struct dialog_template {
     uint32 style;
     uint32 extended_style;
@@ -44,7 +50,7 @@ struct dialog_template {
     align(4):
 };
 
-// Dialog item (control) structure
+// PE dialog item (control) structure
 struct dialog_item {
     uint32 style;
     uint32 extended_style;
@@ -62,12 +68,12 @@ struct dialog_item {
 
     align(4):
     uint16 creation_data_size;
-    // Note: creation_data field requires manual C++ parsing (variable-length)
+    uint8 creation_data[creation_data_size] optional creation_data_size > 0;
 
     align(4):
 };
 
-// Extended dialog template (DLGTEMPLATEEX)
+// Extended PE dialog template (DLGTEMPLATEEX)
 struct dialog_template_ex {
     uint16 version : version == 1;
     uint16 signature : signature == 0xFFFF;
@@ -98,7 +104,7 @@ struct dialog_template_ex {
     align(4):
 };
 
-// Extended dialog item
+// Extended PE dialog item
 struct dialog_item_ex {
     uint32 help_id;
     uint32 extended_style;
@@ -117,15 +123,150 @@ struct dialog_item_ex {
 
     align(4):
     uint16 creation_data_size;
-    // Note: creation_data field requires manual C++ parsing (variable-length)
+    uint8 creation_data[creation_data_size] optional creation_data_size > 0;
 
     align(4):
 };
 
-// Top-level dialog choice (auto-detects standard vs extended)
+// Top-level PE dialog choice (auto-detects standard vs extended)
 choice dialog : uint32 {
     case 0xFFFF0001:
         dialog_template_ex extended;
     default:
         dialog_template standard;
+};
+
+// =============================================================================
+// NE (16-bit Windows) Dialog Structures
+// =============================================================================
+
+/**
+ * Length-prefixed string (Pascal string) - NE format
+ *
+ * NE format uses Pascal-style strings: [uint8 length][char data[length]]
+ * These are NOT null-terminated!
+ *
+ * Example binary:
+ *   03 46 6F 6F     → length=3, chars="Foo"
+ *   00              → length=0, chars="" (empty string)
+ *
+ * Per ne.fmt specification (line 273): "String table follows (length-prefixed, NOT null-terminated)"
+ */
+struct ne_pstring {
+    uint8 length;               // String length in bytes (0-255)
+    uint8 chars[length];        // ASCII/ANSI characters (NOT null-terminated)
+};
+
+/**
+ * NE resource name-or-ID identifier
+ *
+ * Format (inline discriminator choice with anonymous structs):
+ *   - Peek at first byte
+ *   - If 0xFF: consume marker + read uint16 ordinal
+ *   - Otherwise: first byte IS the length, read it + chars
+ *
+ * Per LANGUAGE_GUIDE.md "Inline Discriminator Choices" (lines 399-442):
+ * DataScript peeks at the discriminator without consuming it, then each
+ * case consumes its own bytes.
+ *
+ * Using anonymous struct blocks (like union examples in Language Guide).
+ */
+choice ne_name_or_id : uint8 {
+    case 0xFF:
+        {
+            uint8 marker;              // Consume the 0xFF marker
+            uint16 ordinal;            // Read ordinal ID
+        } ordinal_value;
+    default:
+        {
+            uint8 length;              // Read length (was peeked, now consumed)
+            uint8 chars[length];       // Read chars (inline ne_pstring fields)
+        } string_value;
+};
+
+/**
+ * NE control class identifier
+ *
+ * Format (inline discriminator choice with anonymous structs):
+ *   - Peek at first byte
+ *   - If 0xFF: consume marker + read uint8 predefined class ID
+ *   - Otherwise: first byte IS the length, read it + chars
+ *
+ * Predefined class IDs (when 0xFF prefix):
+ *   0x80 = Button
+ *   0x81 = Edit
+ *   0x82 = Static
+ *   0x83 = List Box
+ *   0x84 = Scroll Bar
+ *   0x85 = Combo Box
+ *
+ * Using anonymous struct blocks (like union examples in Language Guide).
+ */
+choice ne_control_class : uint8 {
+    case 0xFF:
+        {
+            uint8 marker;              // Consume the 0xFF marker
+            uint8 class_id;            // Read predefined class ID
+        } ordinal_class;
+    default:
+        {
+            uint8 length;              // Read length (was peeked, now consumed)
+            uint8 chars[length];       // Read chars (inline ne_pstring fields)
+        } string_class;
+};
+
+/**
+ * NE Dialog Template (16-bit Windows DLGTEMPLATE)
+ *
+ * Used by Windows 1.x - 3.x applications.
+ * Key differences from PE:
+ *   - BYTE item count (not WORD)
+ *   - No DWORD alignment
+ *   - Length-prefixed strings (not UTF-16)
+ *   - Simpler structure
+ */
+struct ne_dialog_template {
+    uint32 style;
+    uint8 item_count;           // BYTE, not WORD like PE
+    int16 x;
+    int16 y;
+    int16 cx;
+    int16 cy;
+
+    // Menu name or ID (0xFF prefix for ordinal)
+    ne_name_or_id menu;
+
+    // Window class (usually empty, length=0)
+    ne_pstring window_class;
+
+    // Dialog caption
+    ne_pstring title;
+
+    // Font info (optional - only if DS_SETFONT is set)
+    uint16 point_size optional (style & DS_SETFONT) != 0;
+    ne_pstring typeface optional (style & DS_SETFONT) != 0;
+};
+
+/**
+ * NE Dialog Item (control) - 16-bit Windows
+ *
+ * No DWORD alignment required for NE format.
+ */
+struct ne_dialog_item {
+    int16 x;
+    int16 y;
+    int16 cx;
+    int16 cy;
+    uint16 id;
+    uint32 style;
+
+    // Control class (predefined or custom, 0xFF prefix for predefined)
+    ne_control_class window_class;
+
+    // Control text or resource ID (0xFF prefix for ordinal)
+    ne_name_or_id text;
+
+    // Creation data
+    uint8 creation_data_size;
+    uint8 creation_data[creation_data_size] optional creation_data_size > 0;
 };
