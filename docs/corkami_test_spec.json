@@ -1,0 +1,574 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Corkami PE Test Corpus Specification",
+  "description": "Machine-readable test specifications extracted from Corkami PE corpus ASM source files. Each entry defines expected values for automated test generation.",
+  "version": "1.0.0",
+  "corpus_path": "/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/",
+  "test_files": [
+    {
+      "binary_file": "imports.exe",
+      "asm_source": "imports.asm",
+      "description": "Standard DLL import - Tests basic import directory with multiple DLLs and functions",
+      "test_categories": ["import_directory", "basic"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 2,
+          "dlls": [
+            {
+              "name": "kernel32.dll",
+              "name_case_sensitive": false,
+              "function_count": 1,
+              "functions": [
+                {
+                  "name": "ExitProcess",
+                  "is_ordinal": false,
+                  "hint": 0
+                }
+              ]
+            },
+            {
+              "name": "msvcrt.dll",
+              "name_case_sensitive": false,
+              "function_count": 1,
+              "functions": [
+                {
+                  "name": "printf",
+                  "is_ordinal": false,
+                  "hint": 0
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "pe_header": {
+        "imagebase": "0x400000",
+        "section_alignment": "0x1000",
+        "file_alignment": "0x200",
+        "subsystem": "WINDOWS_CUI"
+      }
+    },
+    {
+      "binary_file": "imports_mixed.exe",
+      "asm_source": "imports_mixed.asm",
+      "description": "Mixed imports - Tests imports by both name and ordinal",
+      "test_categories": ["import_directory", "ordinal_imports"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 1,
+          "dlls": [
+            {
+              "name": "kernel32.dll",
+              "function_count": 3,
+              "functions": [
+                {
+                  "name": "ExitProcess",
+                  "is_ordinal": false
+                },
+                {
+                  "name": null,
+                  "is_ordinal": true,
+                  "ordinal": 1,
+                  "comment": "Import by ordinal only"
+                },
+                {
+                  "name": "GetProcAddress",
+                  "is_ordinal": false
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "binary_file": "impbyord.exe",
+      "asm_source": "impbyord.asm",
+      "description": "Import by ordinal - Tests ordinal-only imports",
+      "test_categories": ["import_directory", "ordinal_imports"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 1,
+          "dlls": [
+            {
+              "name": "kernel32.dll",
+              "function_count": 2,
+              "functions": [
+                {
+                  "name": null,
+                  "is_ordinal": true,
+                  "ordinal": 1,
+                  "comment": "ExitProcess by ordinal"
+                },
+                {
+                  "name": null,
+                  "is_ordinal": true,
+                  "ordinal": 2,
+                  "comment": "Another function by ordinal"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    {
+      "binary_file": "tls.exe",
+      "asm_source": "tls.asm",
+      "description": "Simple TLS - Tests Thread Local Storage with callbacks",
+      "test_categories": ["tls_directory", "basic"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 2,
+          "dlls": [
+            {"name": "kernel32.dll", "function_count": 1},
+            {"name": "msvcrt.dll", "function_count": 1}
+          ]
+        },
+        "TLS": {
+          "present": true,
+          "callback_count": 1,
+          "tls_index": "0x012345",
+          "address_of_index_nonzero": true,
+          "address_of_callbacks_nonzero": true,
+          "comment": "Displays twice under XP, once under W7"
+        }
+      }
+    },
+    {
+      "binary_file": "tls64.exe",
+      "asm_source": "tls64.asm",
+      "description": "TLS 64-bit - Tests TLS in PE32+ (64-bit)",
+      "test_categories": ["tls_directory", "pe32plus"],
+      "data_directories": {
+        "TLS": {
+          "present": true,
+          "callback_count": 1
+        }
+      },
+      "pe_header": {
+        "is_64bit": true,
+        "magic": "0x20B"
+      }
+    },
+    {
+      "binary_file": "tls_aoi.exe",
+      "asm_source": "tls_aoi.asm",
+      "description": "TLS AOI - Tests TLS with AddressOfIndex",
+      "test_categories": ["tls_directory", "edge_case"],
+      "data_directories": {
+        "TLS": {
+          "present": true,
+          "has_callbacks": true
+        }
+      }
+    },
+    {
+      "binary_file": "debug.exe",
+      "asm_source": "debug.asm",
+      "description": "Debug directory - Tests CodeView debug information",
+      "test_categories": ["debug_directory", "codeview"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 3,
+          "dlls": [
+            {"name": "kernel32.dll"},
+            {"name": "msvcrt.dll"},
+            {"name": "dbghelp.dll"}
+          ]
+        },
+        "DEBUG": {
+          "present": true,
+          "entry_count": 1,
+          "entries": [
+            {
+              "type": "CODEVIEW",
+              "type_value": 2,
+              "size_of_data": 40,
+              "codeview": {
+                "signature": "RSDS",
+                "guid": "00000000-0000-0000-0000-000000000000",
+                "age": 96,
+                "age_hex": "0x60",
+                "pdb_path": "nosymbols.pdb"
+              }
+            }
+          ]
+        }
+      },
+      "pe_header": {
+        "characteristics": {
+          "DEBUG_STRIPPED": true,
+          "flags": ["0x200", "0x0E"]
+        }
+      }
+    },
+    {
+      "binary_file": "signature.exe",
+      "asm_source": "signature.asm",
+      "description": "Authenticode signature - Tests security/certificate directory",
+      "test_categories": ["security_directory", "authenticode"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 2
+        },
+        "SECURITY": {
+          "present": true,
+          "certificate_count": 1,
+          "certificates": [
+            {
+              "revision": "REVISION_2_0",
+              "type": "PKCS_SIGNED_DATA",
+              "type_value": 2,
+              "data_size": 2168,
+              "is_authenticode": true,
+              "comment": "Intentionally invalid signature for parser testing"
+            }
+          ]
+        }
+      },
+      "pe_header": {
+        "linker_version": {
+          "major": 3,
+          "comment": "Required for signature compatibility"
+        }
+      }
+    },
+    {
+      "binary_file": "dll.dll",
+      "asm_source": "dll.asm",
+      "description": "DLL with exports - Tests export directory and DLL characteristics",
+      "test_categories": ["export_directory", "dll", "relocations"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 1,
+          "dlls": [
+            {"name": "msvcrt.dll", "function_count": 1}
+          ]
+        },
+        "EXPORT": {
+          "present": true,
+          "module_name": "dll.dll",
+          "export_count": 1,
+          "exports": [
+            {
+              "name": "export",
+              "ordinal": 1,
+              "has_name": true,
+              "is_forwarder": false
+            }
+          ]
+        },
+        "BASERELOC": {
+          "present": true,
+          "block_count": 1,
+          "total_relocations": 5,
+          "relocation_type": "HIGHLOW"
+        }
+      },
+      "pe_header": {
+        "is_dll": true,
+        "characteristics": {
+          "DLL": true
+        }
+      }
+    },
+    {
+      "binary_file": "dllord.dll",
+      "asm_source": "dllord.asm",
+      "description": "DLL with ordinal exports - Tests exports by ordinal only",
+      "test_categories": ["export_directory", "ordinal_exports"],
+      "data_directories": {
+        "EXPORT": {
+          "present": true,
+          "export_count": 1,
+          "exports": [
+            {
+              "name": null,
+              "ordinal": 1,
+              "has_name": false,
+              "comment": "Export by ordinal only"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "binary_file": "dotnet20.exe",
+      "asm_source": "dotnet20.asm",
+      "description": ".NET 2.0 assembly - Tests CLR/COM descriptor",
+      "test_categories": ["com_descriptor", "dotnet", "resources"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 1,
+          "dlls": [
+            {
+              "name": "mscoree.dll",
+              "function_count": 1,
+              "functions": [
+                {"name": "_CorExeMain"}
+              ]
+            }
+          ]
+        },
+        "COM_DESCRIPTOR": {
+          "present": true,
+          "is_valid": true,
+          "runtime_version": "2.5",
+          "major_version": 2,
+          "minor_version": 5,
+          "metadata_rva_nonzero": true,
+          "metadata_size_nonzero": true,
+          "flags": {
+            "ILONLY": true
+          },
+          "metadata": {
+            "signature": "BSJB",
+            "streams": ["#~", "#Strings", "#US", "#GUID", "#Blob"],
+            "assembly_name": "hw.exe",
+            "module_name": "hw.exe"
+          }
+        },
+        "RESOURCE": {
+          "present": true,
+          "comment": "Version information resources"
+        },
+        "BASERELOC": {
+          "present": true
+        }
+      },
+      "pe_header": {
+        "section_count": 3,
+        "sections": [".text", ".rsrc", ".reloc"],
+        "section_alignment": "0x2000",
+        "file_alignment": "0x200"
+      }
+    },
+    {
+      "binary_file": "tinynet.exe",
+      "asm_source": "tinynet.asm",
+      "description": "Tiny .NET - Tests minimal .NET PE structure",
+      "test_categories": ["com_descriptor", "dotnet", "minimal"],
+      "data_directories": {
+        "COM_DESCRIPTOR": {
+          "present": true,
+          "is_valid": true,
+          "comment": "Minimal .NET structure"
+        }
+      }
+    },
+    {
+      "binary_file": "delayimports.exe",
+      "asm_source": "delayimports.asm",
+      "description": "Delay imports - Tests delay-load DLL mechanism",
+      "test_categories": ["delay_import_directory"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 1,
+          "dlls": [
+            {
+              "name": "kernel32.dll",
+              "function_count": 3,
+              "functions": [
+                {"name": "ExitProcess"},
+                {"name": "LoadLibraryA"},
+                {"name": "GetProcAddress"}
+              ]
+            }
+          ]
+        },
+        "DELAY_IMPORT": {
+          "present": true,
+          "dll_count": 1,
+          "dlls": [
+            {
+              "name": "msvcrt.dll",
+              "function_count": 1,
+              "functions": [
+                {"name": "printf"}
+              ]
+            }
+          ],
+          "comment": "Delay-loaded DLLs use LoadLibraryA/GetProcAddress"
+        }
+      }
+    },
+    {
+      "binary_file": "ibreloc.exe",
+      "asm_source": "ibreloc.asm",
+      "description": "Image base relocations - Tests base relocation directory",
+      "test_categories": ["relocation_directory", "edge_case"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 2
+        },
+        "BASERELOC": {
+          "present": true,
+          "block_count": 2,
+          "blocks": [
+            {
+              "page_rva": "EntryPoint area",
+              "relocation_count": 3,
+              "type": "HIGHLOW"
+            },
+            {
+              "page_rva": "Optional header area",
+              "relocation_count": 3,
+              "type": "HIGHLOW",
+              "comment": "Relocations patch ImageBase field itself"
+            }
+          ]
+        }
+      },
+      "pe_header": {
+        "imagebase": "0xFFFF0000",
+        "imagebase_comment": "Unusual kernel-range address requires relocation",
+        "section_alignment": "0x800",
+        "file_alignment": "0x800",
+        "alignment_comment": "Low alignment makes headers writable"
+      }
+    },
+    {
+      "binary_file": "dllbound.dll",
+      "asm_source": "dllbound.asm",
+      "description": "Bound imports - Tests bound import directory",
+      "test_categories": ["bound_import_directory"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true
+        },
+        "BOUND_IMPORT": {
+          "present": true,
+          "descriptor_count": 1,
+          "comment": "Pre-resolved import addresses"
+        }
+      }
+    },
+    {
+      "binary_file": "dllnoreloc.dll",
+      "asm_source": "dllnoreloc.asm",
+      "description": "DLL without relocations - Tests DLL with no relocation table",
+      "test_categories": ["relocation_directory", "edge_case"],
+      "data_directories": {
+        "BASERELOC": {
+          "present": false,
+          "comment": "DLL built with /FIXED - no relocations"
+        }
+      },
+      "pe_header": {
+        "characteristics": {
+          "RELOCS_STRIPPED": true
+        }
+      }
+    },
+    {
+      "binary_file": "cfgbogus.exe",
+      "asm_source": "cfgbogus.asm",
+      "description": "Control Flow Guard - Tests load config with CFG settings",
+      "test_categories": ["load_config_directory", "cfg"],
+      "data_directories": {
+        "LOAD_CONFIG": {
+          "present": true,
+          "is_empty": false,
+          "has_security_cookie": true,
+          "has_cfg": true,
+          "comment": "Tests Control Flow Guard configuration"
+        }
+      }
+    },
+    {
+      "binary_file": "compiled.exe",
+      "asm_source": "compiled.asm",
+      "description": "Complex PE - Multi-parser integration test",
+      "test_categories": ["integration", "multiple_directories"],
+      "data_directories": {
+        "IMPORT": {"present": true, "dll_count": 2},
+        "EXPORT": {"present": false},
+        "BASERELOC": {"present": true},
+        "DEBUG": {"present": true},
+        "TLS": {"present": false},
+        "LOAD_CONFIG": {"present": true}
+      },
+      "pe_header": {
+        "section_count": 3,
+        "comment": "Complex PE with multiple data directories for integration testing"
+      }
+    }
+  ],
+  "test_categories_index": {
+    "import_directory": ["imports.exe", "imports_mixed.exe", "impbyord.exe"],
+    "export_directory": ["dll.dll", "dllord.dll"],
+    "tls_directory": ["tls.exe", "tls64.exe", "tls_aoi.exe"],
+    "debug_directory": ["debug.exe"],
+    "security_directory": ["signature.exe"],
+    "com_descriptor": ["dotnet20.exe", "tinynet.exe"],
+    "delay_import_directory": ["delayimports.exe"],
+    "relocation_directory": ["ibreloc.exe", "dll.dll", "dllnoreloc.dll"],
+    "bound_import_directory": ["dllbound.dll"],
+    "load_config_directory": ["cfgbogus.exe"],
+    "basic": ["imports.exe", "tls.exe"],
+    "edge_case": ["ibreloc.exe", "tls_aoi.exe", "dllnoreloc.dll"],
+    "ordinal_imports": ["imports_mixed.exe", "impbyord.exe"],
+    "ordinal_exports": ["dllord.dll"],
+    "dotnet": ["dotnet20.exe", "tinynet.exe"],
+    "pe32plus": ["tls64.exe"],
+    "dll": ["dll.dll"],
+    "integration": ["compiled.exe"]
+  },
+  "field_coverage": {
+    "import_directory": {
+      "dll_count": ["imports.exe", "debug.exe", "tls.exe"],
+      "dll_names": ["imports.exe", "imports_mixed.exe"],
+      "function_count": ["imports.exe"],
+      "function_names": ["imports.exe", "debug.exe"],
+      "ordinal_imports": ["imports_mixed.exe", "impbyord.exe"]
+    },
+    "export_directory": {
+      "module_name": ["dll.dll"],
+      "export_count": ["dll.dll", "dllord.dll"],
+      "export_names": ["dll.dll"],
+      "ordinal_exports": ["dllord.dll"]
+    },
+    "tls_directory": {
+      "callback_count": ["tls.exe", "tls64.exe"],
+      "tls_index": ["tls.exe"],
+      "address_fields": ["tls.exe", "tls_aoi.exe"]
+    },
+    "debug_directory": {
+      "entry_count": ["debug.exe"],
+      "entry_type": ["debug.exe"],
+      "codeview_signature": ["debug.exe"],
+      "codeview_guid": ["debug.exe"],
+      "codeview_age": ["debug.exe"],
+      "pdb_path": ["debug.exe"]
+    },
+    "security_directory": {
+      "certificate_count": ["signature.exe"],
+      "certificate_type": ["signature.exe"],
+      "certificate_size": ["signature.exe"],
+      "is_authenticode": ["signature.exe"]
+    },
+    "com_descriptor": {
+      "runtime_version": ["dotnet20.exe"],
+      "major_minor_version": ["dotnet20.exe"],
+      "metadata_rva": ["dotnet20.exe"],
+      "metadata_size": ["dotnet20.exe"],
+      "is_valid": ["dotnet20.exe", "tinynet.exe"]
+    },
+    "relocation_directory": {
+      "block_count": ["ibreloc.exe", "dll.dll"],
+      "relocation_count": ["dll.dll"],
+      "relocation_types": ["ibreloc.exe"]
+    }
+  }
+}
