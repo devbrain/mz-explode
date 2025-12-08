@@ -19,9 +19,12 @@ delay_import_directory delay_import_directory_parser::parse(
     delay_import_directory result;
 
     // Empty delay import directory
-    if (delay_import_rva == 0 || delay_import_size == 0) {
+    if (delay_import_rva == 0) {
         return result;
     }
+
+    // NOTE: Don't check delay_import_size == 0, many PE files set size=0
+    // for null-terminated arrays of descriptors.
 
     // Convert RVA to file offset
     size_t offset = rva_to_offset(sections, delay_import_rva);

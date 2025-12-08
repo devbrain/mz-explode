@@ -15,10 +15,15 @@ tls_directory tls_directory_parser::parse(
 ) {
     tls_directory result;
 
-    if (tls_dir_rva == 0 || tls_dir_size == 0) {
+    if (tls_dir_rva == 0) {
         // No TLS directory
         return result;
     }
+
+    // NOTE: Don't check tls_dir_size == 0, many PE files (especially Corkami corpus)
+    // set size=0. The TLS directory has a fixed size:
+    // - IMAGE_TLS_DIRECTORY32: 24 bytes
+    // - IMAGE_TLS_DIRECTORY64: 40 bytes
 
     // Convert RVA to file offset
     size_t tls_dir_offset = rva_to_offset(sections, tls_dir_rva);

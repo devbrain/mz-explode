@@ -13,10 +13,13 @@ base_relocation_directory base_relocation_parser::parse(
 ) {
     base_relocation_directory result;
 
-    if (reloc_dir_rva == 0 || reloc_dir_size == 0) {
+    if (reloc_dir_rva == 0) {
         // No relocations
         return result;
     }
+
+    // NOTE: Don't check reloc_dir_size == 0, many PE files set size=0.
+    // Relocation blocks have internal size fields.
 
     // Convert RVA to file offset
     size_t reloc_dir_offset = rva_to_offset(sections, reloc_dir_rva);
