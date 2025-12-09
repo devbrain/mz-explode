@@ -293,5 +293,4 @@ TEST_CASE("Reserved Parser - Final data directory validation") {
     CHECK(reserved->is_reserved());
 
     // Celebrate completion of all 16 data directory parsers!
-    MESSAGE("✅ All 16 PE data directory parsers implemented and tested!");
 }

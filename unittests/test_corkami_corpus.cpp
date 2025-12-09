@@ -75,7 +75,6 @@ TEST_CASE("Corkami - Import directory parsing") {
     SUBCASE("Standard imports") {
         fs::path file_path = corpus_path / "imports.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found: ", file_path.string());
             return;
         }
 
@@ -93,7 +92,6 @@ TEST_CASE("Corkami - Import directory parsing") {
     SUBCASE("Mixed imports (names and ordinals)") {
         fs::path file_path = corpus_path / "imports_mixed.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -114,7 +112,6 @@ TEST_CASE("Corkami - Import directory parsing") {
     SUBCASE("Imports by ordinal") {
         fs::path file_path = corpus_path / "impbyord.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -137,7 +134,6 @@ TEST_CASE("Corkami - Export directory parsing") {
     SUBCASE("Standard exports") {
         fs::path file_path = corpus_path / "dll.dll";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -154,7 +150,6 @@ TEST_CASE("Corkami - Export directory parsing") {
     SUBCASE("Exports with ordinals") {
         fs::path file_path = corpus_path / "dllord.dll";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -181,7 +176,6 @@ TEST_CASE("Corkami - TLS directory parsing") {
     SUBCASE("Standard TLS") {
         fs::path file_path = corpus_path / "tls.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -199,7 +193,6 @@ TEST_CASE("Corkami - TLS directory parsing") {
     SUBCASE("TLS with multiple callbacks") {
         fs::path file_path = corpus_path / "tls_aoi.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -216,7 +209,6 @@ TEST_CASE("Corkami - TLS directory parsing") {
     SUBCASE("TLS 64-bit") {
         fs::path file_path = corpus_path / "tls64.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -242,7 +234,6 @@ TEST_CASE("Corkami - Delay import directory parsing") {
     SUBCASE("Delay imports") {
         fs::path file_path = corpus_path / "delayimports.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -254,7 +245,6 @@ TEST_CASE("Corkami - Delay import directory parsing") {
             auto delay = pe.delay_imports();
             REQUIRE(delay != nullptr);
             CHECK(delay->dll_count() > 0);
-            MESSAGE("Delay import DLLs: ", delay->dll_count());
         }
     }
 }
@@ -269,7 +259,6 @@ TEST_CASE("Corkami - Bound import directory parsing") {
     SUBCASE("Bound imports") {
         fs::path file_path = corpus_path / "dllbound.dll";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -295,7 +284,6 @@ TEST_CASE("Corkami - Base relocation parsing") {
     SUBCASE("Standard relocations") {
         fs::path file_path = corpus_path / "ibreloc.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -306,7 +294,6 @@ TEST_CASE("Corkami - Base relocation parsing") {
                 auto relocs = pe.relocations();
                 REQUIRE(relocs != nullptr);
                 CHECK(relocs->block_count() > 0);
-                MESSAGE("Relocation blocks: ", relocs->block_count());
             }
         }
     }
@@ -314,7 +301,6 @@ TEST_CASE("Corkami - Base relocation parsing") {
     SUBCASE("No relocations") {
         fs::path file_path = corpus_path / "dllnoreloc.dll";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -338,7 +324,6 @@ TEST_CASE("Corkami - Debug directory parsing") {
     SUBCASE("Debug info") {
         fs::path file_path = corpus_path / "debug.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -350,7 +335,6 @@ TEST_CASE("Corkami - Debug directory parsing") {
             auto debug = pe.debug();
             REQUIRE(debug != nullptr);
             CHECK(debug->entries.size() > 0);
-            MESSAGE("Debug entries: ", debug->entries.size());
         }
     }
 }
@@ -365,7 +349,6 @@ TEST_CASE("Corkami - Security directory parsing") {
     SUBCASE("Authenticode signature") {
         fs::path file_path = corpus_path / "signature.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -377,7 +360,6 @@ TEST_CASE("Corkami - Security directory parsing") {
             auto security = pe.security();
             REQUIRE(security != nullptr);
             CHECK(security->certificate_count() > 0);
-            MESSAGE("Certificates: ", security->certificate_count());
 
             if (security->certificate_count() > 0) {
                 CHECK(security->has_authenticode());
@@ -396,7 +378,6 @@ TEST_CASE("Corkami - COM descriptor parsing") {
     SUBCASE(".NET 2.0 assembly") {
         fs::path file_path = corpus_path / "dotnet20.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -409,7 +390,6 @@ TEST_CASE("Corkami - COM descriptor parsing") {
         auto clr = pe.clr_header();
         REQUIRE(clr != nullptr);
         CHECK(clr->is_valid());
-        MESSAGE("CLR Runtime Version: ", clr->runtime_version());
         CHECK(clr->metadata_rva != 0);
         CHECK(clr->metadata_size > 0);
     }
@@ -417,7 +397,6 @@ TEST_CASE("Corkami - COM descriptor parsing") {
     SUBCASE("Tiny .NET") {
         fs::path file_path = corpus_path / "tinynet.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -428,7 +407,6 @@ TEST_CASE("Corkami - COM descriptor parsing") {
                 auto clr = pe.clr_header();
                 CHECK(clr != nullptr);
                 if (clr->is_valid()) {
-                    MESSAGE("Tiny .NET - Runtime: ", clr->runtime_version());
                 }
             }
         }
@@ -445,7 +423,6 @@ TEST_CASE("Corkami - Load config directory parsing") {
     SUBCASE("SEH/CFG config") {
         fs::path file_path = corpus_path / "cfgbogus.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -471,7 +448,6 @@ TEST_CASE("Corkami - Multi-parser integration") {
     SUBCASE("Complex PE with multiple directories") {
         fs::path file_path = corpus_path / "compiled.exe";
         if (!file_exists(file_path)) {
-            MESSAGE("Skipping test - file not found");
             return;
         }
 
@@ -480,8 +456,6 @@ TEST_CASE("Corkami - Multi-parser integration") {
 
         auto pe = pe_file::from_memory(data);
 
-        MESSAGE("PE format: ", pe.is_64bit() ? "PE32+" : "PE32");
-        MESSAGE("Sections: ", pe.section_count());
 
         // Check all parsers work together
         auto imports = pe.imports();
@@ -500,11 +474,9 @@ TEST_CASE("Corkami - Multi-parser integration") {
         CHECK(load_cfg != nullptr);
 
         if (pe.has_data_directory(directory_entry::IMPORT)) {
-            MESSAGE("Imported DLLs: ", imports->dll_count());
         }
 
         if (pe.has_data_directory(directory_entry::DEBUG)) {
-            MESSAGE("Debug entries: ", debug->entries.size());
         }
     }
 }
