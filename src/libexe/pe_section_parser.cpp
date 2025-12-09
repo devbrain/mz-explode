@@ -11,7 +11,8 @@ std::vector<pe_section> pe_section_parser::parse_sections(
     std::span<const uint8_t> file_data,
     uint32_t pe_offset,
     uint16_t num_sections,
-    uint16_t size_of_optional_header
+    uint16_t size_of_optional_header,
+    uint32_t file_alignment
 ) {
     std::vector<pe_section> sections;
 
@@ -50,16 +51,18 @@ std::vector<pe_section> pe_section_parser::parse_sections(
         // Properties
         section.characteristics = static_cast<uint32_t>(section_header.Characteristics);
         section.alignment = extract_alignment(static_cast<uint32_t>(section_header.Characteristics));
+        section.file_alignment = file_alignment;
 
         // Classify section type
         section.type = classify_section(section.name, section.characteristics);
 
-        // Extract section data from file
-        if (section.raw_data_offset > 0 &&
+        // Extract section data from file (use aligned offset)
+        uint32_t actual_offset = section.aligned_raw_offset();
+        if (actual_offset > 0 &&
             section.raw_data_size > 0 &&
-            section.raw_data_offset < file_data.size()) {
+            actual_offset < file_data.size()) {
 
-            const size_t data_start = section.raw_data_offset;
+            const size_t data_start = actual_offset;
             const size_t data_end = std::min(
                 data_start + section.raw_data_size,
                 file_data.size()

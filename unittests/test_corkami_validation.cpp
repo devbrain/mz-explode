@@ -1,6 +1,6 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
-// Field-level validation tests using Corkami PE test corpus
+// Field-level validation tests using Corkami PE test corpus (embedded data)
 //
 // These tests validate that parsed field values exactly match the expected
 // values from the Corkami ASM source files. This ensures our parsers extract
@@ -15,13 +15,10 @@
 #include <libexe/pe/directories/security.hpp>
 #include <libexe/pe/directories/com_descriptor.hpp>
 #include <libexe/pe/directories/relocation.hpp>
-#include <filesystem>
-#include <fstream>
 #include <vector>
 #include <algorithm>
 
 using namespace libexe;
-namespace fs = std::filesystem;
 
 // =============================================================================
 // Corkami Corpus Field-Level Validation Tests
@@ -32,37 +29,30 @@ namespace fs = std::filesystem;
 // Expected values are extracted from the .asm files in the corpus.
 // =============================================================================
 
+// External embedded test data
+namespace corkami_data {
+    extern size_t imports_len;
+    extern unsigned char imports[];
+    extern size_t tls_len;
+    extern unsigned char tls[];
+    extern size_t debug_len;
+    extern unsigned char debug[];
+    extern size_t signature_len;
+    extern unsigned char signature[];
+    extern size_t dotnet20_len;
+    extern unsigned char dotnet20[];
+    extern size_t dll_len;
+    extern unsigned char dll[];
+    extern size_t dllfwloop_len;
+    extern unsigned char dllfwloop[];
+}
+
 namespace {
 
-/**
- * Load file into memory
- */
-std::vector<uint8_t> load_file(const fs::path& path) {
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) {
-        return {};
-    }
-
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::vector<uint8_t> buffer(size);
-    if (!file.read(reinterpret_cast<char*>(buffer.data()), size)) {
-        return {};
-    }
-
-    return buffer;
+// Helper: Load embedded test file
+std::vector<uint8_t> load_embedded(const unsigned char* data, size_t len) {
+    return std::vector<uint8_t>(data, data + len);
 }
-
-/**
- * Check if file exists
- */
-bool file_exists(const fs::path& path) {
-    return fs::exists(path) && fs::is_regular_file(path);
-}
-
-// Path to Corkami corpus
-const char* CORKAMI_PATH = "/home/igor/proj/ares/mz-explode/1/pocs/PE/bin/";
 
 /**
  * Case-insensitive string comparison
@@ -85,12 +75,7 @@ bool iequals(const std::string& a, const std::string& b) {
 // =============================================================================
 
 TEST_CASE("Corkami Validation - imports.exe") {
-    fs::path file_path = fs::path(CORKAMI_PATH) / "imports.exe";
-    if (!file_exists(file_path)) {
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::imports, corkami_data::imports_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -181,12 +166,7 @@ TEST_CASE("Corkami Validation - imports.exe") {
 // =============================================================================
 
 TEST_CASE("Corkami Validation - tls.exe") {
-    fs::path file_path = fs::path(CORKAMI_PATH) / "tls.exe";
-    if (!file_exists(file_path)) {
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::tls, corkami_data::tls_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -220,12 +200,7 @@ TEST_CASE("Corkami Validation - tls.exe") {
 // =============================================================================
 
 TEST_CASE("Corkami Validation - debug.exe") {
-    fs::path file_path = fs::path(CORKAMI_PATH) / "debug.exe";
-    if (!file_exists(file_path)) {
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::debug, corkami_data::debug_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -273,12 +248,7 @@ TEST_CASE("Corkami Validation - debug.exe") {
 // =============================================================================
 
 TEST_CASE("Corkami Validation - signature.exe") {
-    fs::path file_path = fs::path(CORKAMI_PATH) / "signature.exe";
-    if (!file_exists(file_path)) {
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::signature, corkami_data::signature_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -314,12 +284,7 @@ TEST_CASE("Corkami Validation - signature.exe") {
 // =============================================================================
 
 TEST_CASE("Corkami Validation - dotnet20.exe") {
-    fs::path file_path = fs::path(CORKAMI_PATH) / "dotnet20.exe";
-    if (!file_exists(file_path)) {
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::dotnet20, corkami_data::dotnet20_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -360,12 +325,7 @@ TEST_CASE("Corkami Validation - dotnet20.exe") {
 // =============================================================================
 
 TEST_CASE("Corkami Validation - dll.dll") {
-    fs::path file_path = fs::path(CORKAMI_PATH) / "dll.dll";
-    if (!file_exists(file_path)) {
-        return;
-    }
-
-    auto data = load_file(file_path);
+    auto data = load_embedded(corkami_data::dll, corkami_data::dll_len);
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
@@ -392,6 +352,39 @@ TEST_CASE("Corkami Validation - dll.dll") {
         for (const auto& exp : exports->exports) {
             (void)exp;  // Validate iteration works
         }
+    }
+}
+
+// =============================================================================
+// Debug Diagnostics Test
+// =============================================================================
+
+TEST_CASE("Debug dllfwloop.dll diagnostics") {
+    auto data = load_embedded(corkami_data::dllfwloop, corkami_data::dllfwloop_len);
+    REQUIRE_FALSE(data.empty());
+
+    auto pe = pe_file::from_memory(data);
+
+    // Check exports
+    auto exports = pe.exports();
+    if (exports) {
+        MESSAGE("Export module name: ", exports->module_name);
+        MESSAGE("Export count: ", exports->export_count());
+        for (const auto& exp : exports->exports) {
+            if (exp.is_forwarder) {
+                MESSAGE("  Forwarder: ", exp.name, " -> ", exp.forwarder_name);
+            } else {
+                MESSAGE("  Export: ", exp.name, " @ 0x", std::hex, exp.rva);
+            }
+        }
+    } else {
+        MESSAGE("No exports");
+    }
+
+    // Print diagnostics count
+    MESSAGE("Diagnostic count: ", pe.diagnostics().count());
+    for (const auto& d : pe.diagnostics().all()) {
+        MESSAGE("  ", d.to_string());
     }
 }
 

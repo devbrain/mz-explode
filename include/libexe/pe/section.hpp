@@ -75,10 +75,11 @@ struct LIBEXE_EXPORT pe_section {
     section_type type;
     uint32_t virtual_address;
     uint32_t virtual_size;
-    uint32_t raw_data_offset;
+    uint32_t raw_data_offset;       // Declared offset (may need alignment rounding)
     uint32_t raw_data_size;
     uint32_t characteristics;
     uint32_t alignment;
+    uint32_t file_alignment = 0x200; // File alignment for offset rounding (default 0x200)
     std::span<const uint8_t> data;
 
     [[nodiscard]] bool is_code() const {
@@ -109,11 +110,23 @@ struct LIBEXE_EXPORT pe_section {
         return (characteristics & static_cast<uint32_t>(section_characteristics::MEM_SHARED)) != 0;
     }
 
+    /// Get aligned raw data offset (applies file alignment rounding)
+    [[nodiscard]] uint32_t aligned_raw_offset() const {
+        // Per PE/COFF spec: actual offset = (PointerToRawData / FileAlignment) * FileAlignment
+        // This is floor rounding to file alignment boundary
+        if (file_alignment > 0 && file_alignment <= 0x200) {
+            // Apply alignment rounding for low alignment mode
+            return (raw_data_offset / file_alignment) * file_alignment;
+        }
+        return raw_data_offset;
+    }
+
     [[nodiscard]] std::optional<size_t> rva_to_offset(uint32_t rva) const {
         if (rva >= virtual_address && rva < virtual_address + virtual_size) {
             uint32_t offset_in_section = rva - virtual_address;
             if (offset_in_section < raw_data_size) {
-                return raw_data_offset + offset_in_section;
+                // Use aligned offset for proper file position
+                return aligned_raw_offset() + offset_in_section;
             }
         }
         return std::nullopt;

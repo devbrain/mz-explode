@@ -56,6 +56,70 @@ struct le_name_entry {
     uint16_t ordinal;            // Entry ordinal
 };
 
+/// Entry table entry type
+enum class le_entry_type : uint8_t {
+    UNUSED    = 0x00,     // Empty/skip (used to skip ordinal numbers)
+    ENTRY_16  = 0x01,     // 16-bit entry point
+    GATE_286  = 0x02,     // 286 call gate entry
+    ENTRY_32  = 0x03,     // 32-bit entry point
+    FORWARDER = 0x04      // Forwarder entry (import)
+};
+
+/// Fixup source type
+enum class le_fixup_source_type : uint8_t {
+    BYTE           = 0x00,   // 8-bit byte
+    SELECTOR_16    = 0x02,   // 16-bit selector
+    POINTER_16_16  = 0x03,   // 16:16 far pointer
+    OFFSET_16      = 0x05,   // 16-bit offset
+    POINTER_16_32  = 0x06,   // 16:32 far pointer
+    OFFSET_32      = 0x07,   // 32-bit offset
+    RELATIVE_32    = 0x08    // 32-bit self-relative offset
+};
+
+/// Fixup target type
+enum class le_fixup_target_type : uint8_t {
+    INTERNAL        = 0x00,  // Internal reference (object + offset)
+    IMPORT_ORDINAL  = 0x01,  // Import by ordinal
+    IMPORT_NAME     = 0x02,  // Import by name
+    INTERNAL_ENTRY  = 0x03   // Internal entry table reference
+};
+
+/// Fixup record
+struct le_fixup {
+    uint32_t page_index;             // Page this fixup applies to (1-based)
+    uint16_t source_offset;          // Offset within page where fixup is applied
+    le_fixup_source_type source_type; // Type of fixup
+    le_fixup_target_type target_type; // Target type
+
+    // Target info (depends on target_type)
+    uint16_t target_object;          // Target object (INTERNAL)
+    uint32_t target_offset;          // Target offset (INTERNAL, or proc offset for IMPORT_NAME)
+    uint16_t module_ordinal;         // Import module ordinal (IMPORT_*)
+    uint32_t import_ordinal;         // Import ordinal (IMPORT_ORDINAL)
+
+    // Flags
+    bool is_alias;                   // Alias (16:16 pointer)
+    bool is_additive;                // Additive fixup (add value instead of replace)
+    int32_t additive_value;          // Additive value if is_additive
+};
+
+/// Entry point information
+struct le_entry {
+    uint16_t ordinal;            // Entry ordinal (1-based)
+    le_entry_type type;          // Entry type
+    uint16_t object;             // Object number containing entry (1-based)
+    uint32_t offset;             // Offset within object
+    uint8_t flags;               // Entry flags
+    uint16_t callgate;           // Call gate selector (286 gate only)
+    // Forwarder fields
+    uint16_t module_ordinal;     // Module ordinal for forwarder
+    uint32_t import_ordinal;     // Import ordinal or proc offset for forwarder
+
+    [[nodiscard]] bool is_exported() const { return (flags & 0x01) != 0; }
+    [[nodiscard]] bool is_shared_data() const { return (flags & 0x02) != 0; }
+    [[nodiscard]] uint8_t param_count() const { return (flags >> 3) & 0x1F; }
+};
+
 /// LE/LX (Linear Executable) file - DOS/4GW, DOS/32A, OS/2, VxD
 class LIBEXE_EXPORT le_file final : public executable_file {
 public:
@@ -172,6 +236,48 @@ public:
     [[nodiscard]] std::string module_name() const;
 
     // =========================================================================
+    // Entry Table
+    // =========================================================================
+
+    /// Get all entry points
+    [[nodiscard]] const std::vector<le_entry>& entries() const;
+
+    /// Get entry by ordinal (1-based)
+    [[nodiscard]] std::optional<le_entry> get_entry(uint16_t ordinal) const;
+
+    /// Get number of entry points
+    [[nodiscard]] size_t entry_count() const;
+
+    // =========================================================================
+    // Import Tables
+    // =========================================================================
+
+    /// Get imported module names
+    [[nodiscard]] const std::vector<std::string>& import_modules() const;
+
+    /// Get number of imported modules
+    [[nodiscard]] size_t import_module_count() const;
+
+    /// Get import module name by index (1-based)
+    [[nodiscard]] std::optional<std::string> get_import_module(uint16_t index) const;
+
+    // =========================================================================
+    // Fixup Tables
+    // =========================================================================
+
+    /// Get all fixup records
+    [[nodiscard]] const std::vector<le_fixup>& fixups() const;
+
+    /// Get fixups for a specific page (1-based page index)
+    [[nodiscard]] std::vector<le_fixup> get_page_fixups(uint32_t page_index) const;
+
+    /// Get number of fixup records
+    [[nodiscard]] size_t fixup_count() const;
+
+    /// Check if file has fixups
+    [[nodiscard]] bool has_fixups() const;
+
+    // =========================================================================
     // Debug information
     // =========================================================================
 
@@ -183,6 +289,21 @@ public:
 
     /// Debug info size
     [[nodiscard]] uint32_t debug_info_size() const;
+
+    // =========================================================================
+    // DOS Extender Stripping
+    // =========================================================================
+
+    /// Strip DOS extender stub and return raw LE/LX data
+    /// This removes the MZ stub and adjusts absolute file offsets.
+    /// Returns empty vector if not bound (no stub to strip).
+    [[nodiscard]] std::vector<uint8_t> strip_extender() const;
+
+    /// Get offset to LE/LX header (0 if raw, >0 if bound)
+    [[nodiscard]] uint32_t le_header_offset() const;
+
+    /// Get the size of the DOS extender stub (0 if not bound)
+    [[nodiscard]] uint32_t stub_size() const;
 
     // =========================================================================
     // Diagnostics
@@ -200,11 +321,17 @@ private:
     void parse_le_headers();
     void parse_objects();
     void parse_page_table();
+    void parse_entry_table();
+    void parse_import_module_table();
+    void parse_fixup_tables();
     void detect_extender_type();
 
     std::vector<uint8_t> data_;
     std::vector<le_object> objects_;
     std::vector<le_page_entry> page_table_;
+    std::vector<le_entry> entries_;
+    std::vector<std::string> import_modules_;
+    std::vector<le_fixup> fixups_;
 
     // Format identification
     bool is_lx_ = false;
@@ -233,6 +360,11 @@ private:
     uint32_t page_table_offset_ = 0;
     uint32_t resident_name_table_offset_ = 0;
     uint32_t entry_table_offset_ = 0;
+    uint32_t import_module_table_offset_ = 0;
+    uint32_t import_module_count_ = 0;
+    uint32_t import_proc_table_offset_ = 0;
+    uint32_t fixup_page_table_offset_ = 0;
+    uint32_t fixup_record_table_offset_ = 0;
 
     // Absolute file offsets
     uint32_t data_pages_offset_ = 0;

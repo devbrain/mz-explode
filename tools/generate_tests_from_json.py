@@ -122,17 +122,18 @@ def generate_file_header(spec: Dict[str, Any]) -> str:
 // To regenerate: python3 tools/generate_tests_from_json.py
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/import_directory.hpp>
-#include <libexe/export_directory.hpp>
-#include <libexe/tls_directory.hpp>
-#include <libexe/debug_directory.hpp>
-#include <libexe/security_directory.hpp>
-#include <libexe/com_descriptor.hpp>
-#include <libexe/base_relocation.hpp>
-#include <libexe/delay_import_directory.hpp>
-#include <libexe/bound_import_directory.hpp>
-#include <libexe/load_config_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/import.hpp>
+#include <libexe/pe/directories/export.hpp>
+#include <libexe/pe/directories/tls.hpp>
+#include <libexe/pe/directories/debug.hpp>
+#include <libexe/pe/directories/security.hpp>
+#include <libexe/pe/directories/com_descriptor.hpp>
+#include <libexe/pe/directories/relocation.hpp>
+#include <libexe/pe/directories/delay_import.hpp>
+#include <libexe/pe/directories/bound_import.hpp>
+#include <libexe/pe/directories/load_config.hpp>
+#include <libexe/core/diagnostic.hpp>
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -170,7 +171,8 @@ def generate_import_test(test_file: Dict[str, Any]) -> str:
     binary_file = test_file['binary_file']
     var_name = sanitize_name(binary_file)
     description = test_file['description']
-    import_spec = test_file['data_directories'].get('IMPORT', {})
+    data_dirs = test_file.get('data_directories', {})
+    import_spec = data_dirs.get('IMPORT', {})
 
     if not import_spec.get('present', False):
         return ''
@@ -251,7 +253,8 @@ def generate_tls_test(test_file: Dict[str, Any]) -> str:
     """Generate test case for TLS directory"""
     binary_file = test_file['binary_file']
     var_name = sanitize_name(binary_file)
-    tls_spec = test_file['data_directories'].get('TLS', {})
+    data_dirs = test_file.get('data_directories', {})
+    tls_spec = data_dirs.get('TLS', {})
 
     if not tls_spec.get('present', False):
         return ''
@@ -310,7 +313,8 @@ def generate_debug_test(test_file: Dict[str, Any]) -> str:
     """Generate test case for debug directory"""
     binary_file = test_file['binary_file']
     var_name = sanitize_name(binary_file)
-    debug_spec = test_file['data_directories'].get('DEBUG', {})
+    data_dirs = test_file.get('data_directories', {})
+    debug_spec = data_dirs.get('DEBUG', {})
 
     if not debug_spec.get('present', False):
         return ''
@@ -363,7 +367,8 @@ def generate_security_test(test_file: Dict[str, Any]) -> str:
     """Generate test case for security directory"""
     binary_file = test_file['binary_file']
     var_name = sanitize_name(binary_file)
-    security_spec = test_file['data_directories'].get('SECURITY', {})
+    data_dirs = test_file.get('data_directories', {})
+    security_spec = data_dirs.get('SECURITY', {})
 
     if not security_spec.get('present', False):
         return ''
@@ -416,7 +421,8 @@ def generate_com_descriptor_test(test_file: Dict[str, Any]) -> str:
     """Generate test case for COM descriptor (.NET)"""
     binary_file = test_file['binary_file']
     var_name = sanitize_name(binary_file)
-    com_spec = test_file['data_directories'].get('COM_DESCRIPTOR', {})
+    data_dirs = test_file.get('data_directories', {})
+    com_spec = data_dirs.get('COM_DESCRIPTOR', {})
 
     if not com_spec.get('present', False):
         return ''
@@ -476,6 +482,75 @@ TEST_CASE("Corkami Generated - {binary_file} - COM Descriptor") {{
     test_code += '}\n'
     return test_code
 
+
+def generate_diagnostics_test(test_file: Dict[str, Any]) -> str:
+    """Generate test case for expected diagnostics"""
+    binary_file = test_file['binary_file']
+    var_name = sanitize_name(binary_file)
+    diag_spec = test_file.get('expected_diagnostics', {})
+
+    # Skip if no diagnostics expected or only has comment
+    if not diag_spec or (len(diag_spec) == 1 and 'comment' in diag_spec):
+        return ''
+
+    # Determine which lazy-loaded directories need to be triggered
+    # based on the diagnostic codes expected
+    needs_exports = False
+    needs_imports = False
+    needs_relocations = False
+
+    for diag_code in diag_spec.keys():
+        if diag_code.startswith('EXP_'):
+            needs_exports = True
+        elif diag_code.startswith('IMP_'):
+            needs_imports = True
+        elif diag_code.startswith('RELOC_'):
+            needs_relocations = True
+
+    test_code = f'''
+TEST_CASE("Corkami Generated - {binary_file} - Diagnostics") {{
+    auto data = load_embedded(corkami_data::{var_name}, corkami_data::{var_name}_len);
+    REQUIRE_FALSE(data.empty());
+
+    auto pe = pe_file::from_memory(data);
+'''
+
+    # Add lazy parsing triggers for directories needed by diagnostics
+    if needs_exports:
+        test_code += '''
+    // Trigger lazy parsing of exports to generate diagnostics
+    auto exports = pe.exports();
+    REQUIRE(exports != nullptr);
+'''
+    if needs_imports:
+        test_code += '''
+    // Trigger lazy parsing of imports to generate diagnostics
+    auto imports = pe.imports();
+    REQUIRE(imports != nullptr);
+'''
+    if needs_relocations:
+        test_code += '''
+    // Trigger lazy parsing of relocations to generate diagnostics
+    auto relocations = pe.relocations();
+    REQUIRE(relocations != nullptr);
+'''
+
+    for diag_code, diag_info in diag_spec.items():
+        if diag_code == 'comment':
+            continue
+
+        if isinstance(diag_info, dict) and diag_info.get('expected', False):
+            comment = diag_info.get('comment', '')
+            test_code += f'''
+    SUBCASE("{diag_code}") {{
+        // {comment}
+        CHECK(pe.has_diagnostic(diagnostic_code::{diag_code}));
+    }}
+'''
+
+    test_code += '}\n'
+    return test_code
+
 def generate_tests(spec: Dict[str, Any]) -> str:
     """Generate all test cases from specification"""
     output = generate_file_header(spec)
@@ -487,6 +562,7 @@ def generate_tests(spec: Dict[str, Any]) -> str:
         output += generate_debug_test(test_file)
         output += generate_security_test(test_file)
         output += generate_com_descriptor_test(test_file)
+        output += generate_diagnostics_test(test_file)
 
     return output
 

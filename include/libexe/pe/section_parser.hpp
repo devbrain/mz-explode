@@ -31,7 +31,8 @@ public:
         std::span<const uint8_t> file_data,
         uint32_t pe_offset,
         uint16_t num_sections,
-        uint16_t size_of_optional_header
+        uint16_t size_of_optional_header,
+        uint32_t file_alignment = 0x200
     );
 
     /**

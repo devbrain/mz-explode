@@ -22,9 +22,9 @@ package formats.le.le_header;
 // All LE/LX formats use little-endian byte order
 little;
 
-// LE/LX signature constants
-const uint16 LE_SIGNATURE = 0x454C;  // "LE" - Linear Executable
-const uint16 LX_SIGNATURE = 0x584C;  // "LX" - Linear eXecutable extended
+// LE/LX signature values (for documentation):
+// - LE_SIGNATURE = 0x454C ("LE" - Linear Executable)
+// - LX_SIGNATURE = 0x584C ("LX" - Linear eXecutable extended)
 
 // =============================================================================
 // LE/LX Header Enums

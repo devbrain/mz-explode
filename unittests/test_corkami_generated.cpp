@@ -16,6 +16,7 @@
 #include <libexe/pe/directories/delay_import.hpp>
 #include <libexe/pe/directories/bound_import.hpp>
 #include <libexe/pe/directories/load_config.hpp>
+#include <libexe/core/diagnostic.hpp>
 #include <vector>
 #include <algorithm>
 #include <string>
@@ -24,6 +25,8 @@ using namespace libexe;
 
 // External embedded test data
 namespace corkami_data {
+    extern size_t _65535sects_len;
+    extern unsigned char _65535sects[];
     extern size_t cfgbogus_len;
     extern unsigned char cfgbogus[];
     extern size_t compiled_len;
@@ -36,12 +39,16 @@ namespace corkami_data {
     extern unsigned char dll[];
     extern size_t dllbound_len;
     extern unsigned char dllbound[];
+    extern size_t dllfwloop_len;
+    extern unsigned char dllfwloop[];
     extern size_t dllnoreloc_len;
     extern unsigned char dllnoreloc[];
     extern size_t dllord_len;
     extern unsigned char dllord[];
     extern size_t dotnet20_len;
     extern unsigned char dotnet20[];
+    extern size_t fakerelocs_len;
+    extern unsigned char fakerelocs[];
     extern size_t ibreloc_len;
     extern unsigned char ibreloc[];
     extern size_t impbyord_len;
@@ -50,6 +57,8 @@ namespace corkami_data {
     extern unsigned char imports[];
     extern size_t imports_mixed_len;
     extern unsigned char imports_mixed[];
+    extern size_t maxsec_lowaligw7_len;
+    extern unsigned char maxsec_lowaligw7[];
     extern size_t signature_len;
     extern unsigned char signature[];
     extern size_t tinynet_len;
@@ -94,6 +103,7 @@ TEST_CASE("Corkami Generated - imports.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("imports.exe: Import directory not parsed");
         return;
     }
 
@@ -162,6 +172,7 @@ TEST_CASE("Corkami Generated - imports_mixed.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("imports_mixed.exe: Import directory not parsed");
         return;
     }
 
@@ -230,6 +241,7 @@ TEST_CASE("Corkami Generated - impbyord.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("impbyord.exe: Import directory not parsed");
         return;
     }
 
@@ -287,6 +299,7 @@ TEST_CASE("Corkami Generated - tls.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("tls.exe: Import directory not parsed");
         return;
     }
 
@@ -333,6 +346,7 @@ TEST_CASE("Corkami Generated - tls.exe - TLS Directory") {
 
     auto tls = pe.tls();
     if (!tls) {
+        MESSAGE("tls.exe: TLS directory not parsed");
         return;
     }
 
@@ -361,6 +375,7 @@ TEST_CASE("Corkami Generated - tls64.exe - TLS Directory") {
 
     auto tls = pe.tls();
     if (!tls) {
+        MESSAGE("tls64.exe: TLS directory not parsed");
         return;
     }
 
@@ -381,6 +396,7 @@ TEST_CASE("Corkami Generated - tls_aoi.exe - TLS Directory") {
 
     auto tls = pe.tls();
     if (!tls) {
+        MESSAGE("tls_aoi.exe: TLS directory not parsed");
         return;
     }
 
@@ -401,6 +417,7 @@ TEST_CASE("Corkami Generated - debug.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("debug.exe: Import directory not parsed");
         return;
     }
 
@@ -453,6 +470,7 @@ TEST_CASE("Corkami Generated - debug.exe - Debug Directory") {
 
     auto debug = pe.debug();
     if (!debug) {
+        MESSAGE("debug.exe: Debug directory not parsed");
         return;
     }
 
@@ -483,6 +501,7 @@ TEST_CASE("Corkami Generated - signature.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("signature.exe: Import directory not parsed");
         return;
     }
 
@@ -499,6 +518,7 @@ TEST_CASE("Corkami Generated - signature.exe - Security Directory") {
 
     auto security = pe.security();
     if (!security) {
+        MESSAGE("signature.exe: Security directory not parsed");
         return;
     }
 
@@ -529,6 +549,7 @@ TEST_CASE("Corkami Generated - dll.dll - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("dll.dll: Import directory not parsed");
         return;
     }
 
@@ -562,6 +583,7 @@ TEST_CASE("Corkami Generated - dotnet20.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("dotnet20.exe: Import directory not parsed");
         return;
     }
 
@@ -602,6 +624,7 @@ TEST_CASE("Corkami Generated - dotnet20.exe - COM Descriptor") {
 
     auto clr = pe.clr_header();
     if (!clr) {
+        MESSAGE("dotnet20.exe: COM descriptor not parsed");
         return;
     }
 
@@ -635,6 +658,7 @@ TEST_CASE("Corkami Generated - tinynet.exe - COM Descriptor") {
 
     auto clr = pe.clr_header();
     if (!clr) {
+        MESSAGE("tinynet.exe: COM descriptor not parsed");
         return;
     }
 
@@ -655,6 +679,7 @@ TEST_CASE("Corkami Generated - delayimports.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("delayimports.exe: Import directory not parsed");
         return;
     }
 
@@ -721,6 +746,7 @@ TEST_CASE("Corkami Generated - ibreloc.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("ibreloc.exe: Import directory not parsed");
         return;
     }
 
@@ -741,6 +767,7 @@ TEST_CASE("Corkami Generated - dllbound.dll - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("dllbound.dll: Import directory not parsed");
         return;
     }
 }
@@ -757,6 +784,7 @@ TEST_CASE("Corkami Generated - compiled.exe - Import Directory") {
 
     auto imports = pe.imports();
     if (!imports) {
+        MESSAGE("compiled.exe: Import directory not parsed");
         return;
     }
 
@@ -773,6 +801,70 @@ TEST_CASE("Corkami Generated - compiled.exe - Debug Directory") {
 
     auto debug = pe.debug();
     if (!debug) {
+        MESSAGE("compiled.exe: Debug directory not parsed");
         return;
+    }
+}
+
+TEST_CASE("Corkami Generated - 65535sects.exe - Diagnostics") {
+    auto data = load_embedded(corkami_data::_65535sects, corkami_data::_65535sects_len);
+    REQUIRE_FALSE(data.empty());
+
+    auto pe = pe_file::from_memory(data);
+    const auto& diags = pe.diagnostics();
+
+    SUBCASE("COFF_EXCESSIVE_SECTIONS") {
+        // NumberOfSections > 96 triggers this diagnostic
+        CHECK(pe.has_diagnostic(diagnostic_code::COFF_EXCESSIVE_SECTIONS));
+    }
+}
+
+TEST_CASE("Corkami Generated - maxsec_lowaligW7.exe - Diagnostics") {
+    auto data = load_embedded(corkami_data::maxsec_lowaligw7, corkami_data::maxsec_lowaligw7_len);
+    REQUIRE_FALSE(data.empty());
+
+    auto pe = pe_file::from_memory(data);
+    const auto& diags = pe.diagnostics();
+
+    SUBCASE("OPT_LOW_ALIGNMENT") {
+        // FileAlignment == SectionAlignment <= 0x200 (actual: 0x4)
+        CHECK(pe.has_diagnostic(diagnostic_code::OPT_LOW_ALIGNMENT));
+    }
+}
+
+TEST_CASE("Corkami Generated - dllfwloop.dll - Diagnostics") {
+    auto data = load_embedded(corkami_data::dllfwloop, corkami_data::dllfwloop_len);
+    REQUIRE_FALSE(data.empty());
+
+    auto pe = pe_file::from_memory(data);
+
+    // Trigger lazy parsing of exports to generate diagnostics
+    auto exports = pe.exports();
+    REQUIRE(exports != nullptr);
+
+    SUBCASE("EXP_FORWARDER_LOOP") {
+        // Export forwards to same module
+        CHECK(pe.has_diagnostic(diagnostic_code::EXP_FORWARDER_LOOP));
+    }
+}
+
+TEST_CASE("Corkami Generated - impbyord.exe - Import Directory") {
+    auto data = load_embedded(corkami_data::impbyord, corkami_data::impbyord_len);
+    REQUIRE_FALSE(data.empty());
+
+    auto pe = pe_file::from_memory(data);
+
+    SUBCASE("Import directory present") {
+        CHECK(pe.has_data_directory(directory_entry::IMPORT));
+    }
+
+    auto imports = pe.imports();
+    if (!imports) {
+        MESSAGE("impbyord.exe: Import directory not parsed");
+        return;
+    }
+
+    SUBCASE("DLL count") {
+        CHECK(imports->dll_count() == 2);
     }
 }

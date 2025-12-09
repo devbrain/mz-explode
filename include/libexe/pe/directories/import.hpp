@@ -100,6 +100,7 @@ struct LIBEXE_EXPORT import_dll {
  */
 struct LIBEXE_EXPORT import_directory {
     std::vector<import_dll> dlls;  // All imported DLLs
+    bool truncated = false;        // True if import directory was truncated (missing null terminator)
 
     /**
      * Get number of imported DLLs

@@ -109,152 +109,267 @@ struct rich_terminator {
 
 ## Product IDs
 
-The `product_id` field identifies which Microsoft build tool or library component was used. Common values include:
+The `product_id` field identifies which Microsoft build tool or library component was used.
 
-### Visual Studio Versions
+**Source:** The comprehensive compiler ID database below is derived from [richprint's comp_id.txt](https://github.com/dishather/richprint/blob/master/comp_id.txt).
 
-| Product ID | Tool | Description |
+### Component Type Markers
+
+The following markers identify the type of object file or tool output:
+
+| Marker | Description |
+|--------|-------------|
+| `[ C ]` | Object file produced by C compiler |
+| `[C++]` / `[CPP]` | Object file produced by C++ compiler |
+| `[ASM]` | Object file produced by assembler (MASM) |
+| `[RES]` | Object file produced by CVTRES converter |
+| `[LNK]` | Linker output |
+| `[EXP]` | DLL export record in library file |
+| `[IMP]` | DLL import record in library file |
+| `[OMF]` | Object file produced by CVTOMF converter |
+| `[LTC]` | LTCG C (link-time code generation) |
+| `[LT+]` | LTCG C++ |
+| `[LTM]` | LTCG MSIL |
+| `[PGO]` | Profile-guided optimization, profiling phase, C |
+| `[PG+]` | Profile-guided optimization, profiling phase, C++ |
+| `[POC]` | Profile-guided optimization, optimized build, C |
+| `[PO+]` | Profile-guided optimization, optimized build, C++ |
+| `[CIL]` | CVTCIL C (MSIL conversion) |
+| `[CI+]` | CVTCIL C++ |
+| `[PGD]` | CVTPGD (PGO database) |
+| `[AOb]` | AliasObj |
+| `[BSC]` | Basic compiler |
+
+### Visual Studio 2015+ (Modern Unified IDs)
+
+Starting with VS 2015, product IDs are unified across versions. The build number distinguishes releases.
+
+| Product ID | Type | Description |
 |------------|------|-------------|
-| 0x0001 | Import0 | Imported symbols (pre-VS 2002) |
-| 0x0002 | Linker510 | Visual Studio 97 Linker |
-| 0x0004 | Cvtomf510 | OMF to COFF converter |
-| 0x0005 | Linker600 | Visual Studio 6.0 Linker |
-| 0x0006 | Cvtomf600 | VS 6.0 OMF converter |
-| 0x0007 | Cvtres500 | VS 5.0 Resource compiler |
-| 0x0008 | Utc11_Basic | VS 5.0 C compiler |
-| 0x0009 | Utc11_C | VS 5.0 C compiler |
-| 0x000A | Utc11_CPP | VS 5.0 C++ compiler |
-| 0x000B | AliasObj60 | VS 6.0 Alias object |
-| 0x000C | VisualBasic60 | Visual Basic 6.0 |
-| 0x000D | Masm613 | MASM 6.13 |
-| 0x000E | Masm710 | MASM 7.10 |
-| 0x000F | Linker511 | Visual Studio 97 SP3 Linker |
-| 0x0010 | Cvtomf511 | VS 97 SP3 OMF converter |
-| 0x0011 | Masm614 | MASM 6.14 |
-| 0x0013 | Linker512 | Visual Studio 6.0 SP5 Linker |
-| 0x0014 | Cvtomf512 | VS 6.0 SP5 OMF converter |
-| 0x0015 | Utc12_Basic | VS 6.0 Basic compiler |
-| 0x0016 | Utc12_C | VS 6.0 C compiler |
-| 0x0017 | Utc12_CPP | VS 6.0 C++ compiler |
-| 0x0018 | AliasObj70 | VS 2002 Alias object |
-| 0x0019 | Linker610 | Visual Studio 2002 Linker |
-| 0x001A | Cvtomf610 | VS 2002 OMF converter |
-| 0x001B | Linker601 | VS 2002 SP1 Linker |
-| 0x001C | Cvtomf601 | VS 2002 SP1 OMF converter |
-| 0x001D | Utc12_1_Basic | VS 2002 Basic compiler |
-| 0x001E | Utc12_1_C | VS 2002 C compiler |
-| 0x001F | Utc12_1_CPP | VS 2002 C++ compiler |
-| 0x0020 | AliasObj71 | VS 2003 Alias object |
-| 0x0021 | Linker620 | Visual Studio 2003 Linker |
-| 0x0022 | Cvtomf620 | VS 2003 OMF converter |
-| 0x0023 | Linker621 | VS 2003 SP1 Linker |
-| 0x0024 | Cvtomf621 | VS 2003 SP1 OMF converter |
-| 0x0025 | Utc13_Basic | VS 2003 Basic compiler |
-| 0x0026 | Utc13_C | VS 2003 C compiler |
-| 0x0027 | Utc13_CPP | VS 2003 C++ compiler |
-| 0x005A | Cvtres700 | VS 2003 Resource compiler |
-| 0x005B | Cvtres710p | VS 2005 Beta Resource compiler |
-| 0x005C | Linker710p | VS 2005 Beta Linker |
-| 0x005D | Cvtomf710p | VS 2005 Beta OMF converter |
-| 0x005E | Export710p | VS 2005 Beta Export |
-| 0x005F | Implib710p | VS 2005 Beta Import library |
-| 0x0060 | Utc13_C | VS 2005 Beta C compiler |
-| 0x0061 | Utc13_CPP | VS 2005 Beta C++ compiler |
-| 0x0062 | Utc13_CVTCIL_C | VS 2005 Beta MSIL C compiler |
-| 0x0063 | Utc13_CVTCIL_CPP | VS 2005 Beta MSIL C++ compiler |
-| 0x0064 | Utc13_LTCG_C | VS 2005 Beta LTCG C compiler |
-| 0x0065 | Utc13_LTCG_CPP | VS 2005 Beta LTCG C++ compiler |
-| 0x0066 | Utc13_PGOGTC_C | VS 2005 Beta PGO C compiler |
-| 0x0067 | Utc13_PGOGTC_CPP | VS 2005 Beta PGO C++ compiler |
-| 0x0078 | Cvtres800 | VS 2005 Resource compiler |
-| 0x0079 | Cvtres810 | VS 2005 SP1 Resource compiler |
-| 0x007A | Linker800 | Visual Studio 2005 Linker |
-| 0x007B | Cvtomf800 | VS 2005 OMF converter |
-| 0x007C | Export800 | VS 2005 Export |
-| 0x007D | Implib800 | VS 2005 Import library |
-| 0x007E | Utc14_C | VS 2005 C compiler |
-| 0x007F | Utc14_CPP | VS 2005 C++ compiler |
-| 0x0080 | Utc14_CVTCIL_C | VS 2005 MSIL C compiler |
-| 0x0081 | Utc14_CVTCIL_CPP | VS 2005 MSIL C++ compiler |
-| 0x0082 | Utc14_LTCG_C | VS 2005 LTCG C compiler |
-| 0x0083 | Utc14_LTCG_CPP | VS 2005 LTCG C++ compiler |
-| 0x0084 | Utc14_PGOGTC_C | VS 2005 PGO C compiler |
-| 0x0085 | Utc14_PGOGTC_CPP | VS 2005 PGO C++ compiler |
-| 0x0091 | Linker900 | Visual Studio 2008 Linker |
-| 0x0092 | Cvtomf900 | VS 2008 OMF converter |
-| 0x0093 | Export900 | VS 2008 Export |
-| 0x0094 | Implib900 | VS 2008 Import library |
-| 0x0095 | Utc15_C | VS 2008 C compiler |
-| 0x0096 | Utc15_CPP | VS 2008 C++ compiler |
-| 0x0097 | Utc15_CVTCIL_C | VS 2008 MSIL C compiler |
-| 0x0098 | Utc15_CVTCIL_CPP | VS 2008 MSIL C++ compiler |
-| 0x0099 | Utc15_LTCG_C | VS 2008 LTCG C compiler |
-| 0x009A | Utc15_LTCG_CPP | VS 2008 LTCG C++ compiler |
-| 0x009B | Utc15_PGOGTC_C | VS 2008 PGO C compiler |
-| 0x009C | Utc15_PGOGTC_CPP | VS 2008 PGO C++ compiler |
-| 0x009D | Cvtres900 | VS 2008 Resource compiler |
-| 0x00AA | Cvtres1000 | VS 2010 Resource compiler |
-| 0x00AB | Export1000 | VS 2010 Export |
-| 0x00AC | Implib1000 | VS 2010 Import library |
-| 0x00AD | Linker1000 | Visual Studio 2010 Linker |
-| 0x00AE | Cvtomf1000 | VS 2010 OMF converter |
-| 0x00DB | Utc16_C | VS 2010 C compiler |
-| 0x00DC | Utc16_CPP | VS 2010 C++ compiler |
-| 0x00DD | Utc16_CVTCIL_C | VS 2010 MSIL C compiler |
-| 0x00DE | Utc16_CVTCIL_CPP | VS 2010 MSIL C++ compiler |
-| 0x00DF | Utc16_LTCG_C | VS 2010 LTCG C compiler |
-| 0x00E0 | Utc16_LTCG_CPP | VS 2010 LTCG C++ compiler |
-| 0x00E1 | Utc16_PGOGTC_C | VS 2010 PGO C compiler |
-| 0x00E2 | Utc16_PGOGTC_CPP | VS 2010 PGO C++ compiler |
+| 0x00FD | `[AOb]` | VS2015+ AliasObj |
+| 0x00FE | `[PGD]` | VS2015+ CVTPGD |
+| 0x00FF | `[RES]` | VS2015+ Resource compiler (CVTRES) |
+| 0x0100 | `[EXP]` | VS2015+ Export |
+| 0x0101 | `[IMP]` | VS2015+ Import library |
+| 0x0102 | `[LNK]` | VS2015+ Linker |
+| 0x0103 | `[ASM]` | VS2015+ MASM |
+| 0x0104 | `[ C ]` | VS2015+ C compiler |
+| 0x0105 | `[C++]` | VS2015+ C++ compiler |
+| 0x0106 | `[CIL]` | VS2015+ CVTCIL C |
+| 0x0107 | `[CI+]` | VS2015+ CVTCIL C++ |
+| 0x0108 | `[LTC]` | VS2015+ LTCG C |
+| 0x0109 | `[LT+]` | VS2015+ LTCG C++ |
+| 0x010A | `[LTM]` | VS2015+ LTCG MSIL |
+| 0x010B | `[PGO]` | VS2015+ POGO I C |
+| 0x010C | `[PG+]` | VS2015+ POGO I C++ |
+| 0x010D | `[POC]` | VS2015+ POGO O C |
+| 0x010E | `[PO+]` | VS2015+ POGO O C++ |
 
-### Visual Studio 2012+
+### Visual Studio 2013 (12.x)
 
-| Product ID | Tool | Description |
+| Product ID | Type | Description |
 |------------|------|-------------|
-| 0x00F0 | Utc17_Basic | VS 2012 Basic compiler |
-| 0x00F1 | Utc17_C | VS 2012 C compiler |
-| 0x00F2 | Utc17_CPP | VS 2012 C++ compiler |
-| 0x00F3 | Utc17_CVTCIL_C | VS 2012 MSIL C compiler |
-| 0x00F4 | Utc17_CVTCIL_CPP | VS 2012 MSIL C++ compiler |
-| 0x00F5 | Utc17_LTCG_C | VS 2012 LTCG C compiler |
-| 0x00F6 | Utc17_LTCG_CPP | VS 2012 LTCG C++ compiler |
-| 0x00F7 | Utc17_PGOGTC_C | VS 2012 PGO C compiler |
-| 0x00F8 | Utc17_PGOGTC_CPP | VS 2012 PGO C++ compiler |
-| 0x00FF | Cvtres1100 | VS 2012 Resource compiler |
-| 0x0100 | Export1100 | VS 2012 Export |
-| 0x0101 | Implib1100 | VS 2012 Import library |
-| 0x0102 | Linker1100 | Visual Studio 2012 Linker |
-| 0x0103 | Cvtomf1100 | VS 2012 OMF converter |
-| 0x010D | Utc18_Basic | VS 2013 Basic compiler |
-| 0x010E | Utc18_C | VS 2013 C compiler |
-| 0x010F | Utc18_CPP | VS 2013 C++ compiler |
-| 0x0110 | Utc18_CVTCIL_C | VS 2013 MSIL C compiler |
-| 0x0111 | Utc18_CVTCIL_CPP | VS 2013 MSIL C++ compiler |
-| 0x0112 | Utc18_LTCG_C | VS 2013 LTCG C compiler |
-| 0x0113 | Utc18_LTCG_CPP | VS 2013 LTCG C++ compiler |
-| 0x0114 | Utc18_PGOGTC_C | VS 2013 PGO C compiler |
-| 0x0115 | Utc18_PGOGTC_CPP | VS 2013 PGO C++ compiler |
-| 0x011C | Cvtres1200 | VS 2013 Resource compiler |
-| 0x011D | Export1200 | VS 2013 Export |
-| 0x011E | Implib1200 | VS 2013 Import library |
-| 0x011F | Linker1200 | Visual Studio 2013 Linker |
-| 0x0120 | Cvtomf1200 | VS 2013 OMF converter |
-| 0x013B | Utc19_Basic | VS 2015 Basic compiler |
-| 0x013C | Utc19_C | VS 2015 C compiler |
-| 0x013D | Utc19_CPP | VS 2015 C++ compiler |
-| 0x013E | Utc19_CVTCIL_C | VS 2015 MSIL C compiler |
-| 0x013F | Utc19_CVTCIL_CPP | VS 2015 MSIL C++ compiler |
-| 0x0140 | Utc19_LTCG_C | VS 2015 LTCG C compiler |
-| 0x0141 | Utc19_LTCG_CPP | VS 2015 LTCG C++ compiler |
-| 0x0142 | Utc19_PGOGTC_C | VS 2015 PGO C compiler |
-| 0x0143 | Utc19_PGOGTC_CPP | VS 2015 PGO C++ compiler |
-| 0x0147 | Cvtres1400 | VS 2015 Resource compiler |
-| 0x0148 | Export1400 | VS 2015 Export |
-| 0x0149 | Implib1400 | VS 2015 Import library |
-| 0x014A | Linker1400 | Visual Studio 2015 Linker |
-| 0x014B | Cvtomf1400 | VS 2015 OMF converter |
+| 0x00D9 | `[AOb]` | VS2013 AliasObj |
+| 0x00DA | `[PGD]` | VS2013 CVTPGD |
+| 0x00DB | `[RES]` | VS2013 Resource compiler |
+| 0x00DC | `[EXP]` | VS2013 Export |
+| 0x00DD | `[IMP]` | VS2013 Import library |
+| 0x00DE | `[LNK]` | VS2013 Linker |
+| 0x00DF | `[ASM]` | VS2013 MASM |
+| 0x00E0 | `[ C ]` | VS2013 C compiler |
+| 0x00E1 | `[C++]` | VS2013 C++ compiler |
+| 0x00E2 | `[CIL]` | VS2013 CVTCIL C |
+| 0x00E3 | `[CI+]` | VS2013 CVTCIL C++ |
+| 0x00E4 | `[LTC]` | VS2013 LTCG C |
+| 0x00E5 | `[LT+]` | VS2013 LTCG C++ |
+| 0x00E6 | `[LTM]` | VS2013 LTCG MSIL |
+| 0x00E7 | `[PGO]` | VS2013 POGO I C |
+| 0x00E8 | `[PG+]` | VS2013 POGO I C++ |
+| 0x00E9 | `[POC]` | VS2013 POGO O C |
+| 0x00EA | `[PO+]` | VS2013 POGO O C++ |
 
-**Note:** This is not exhaustive. Microsoft adds new product IDs with each Visual Studio release.
+### Visual Studio 2012 (11.0)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x00C7 | `[AOb]` | VS2012 AliasObj |
+| 0x00C8 | `[PGD]` | VS2012 CVTPGD |
+| 0x00C9 | `[RES]` | VS2012 Resource compiler |
+| 0x00CA | `[EXP]` | VS2012 Export |
+| 0x00CB | `[IMP]` | VS2012 Import library |
+| 0x00CC | `[LNK]` | VS2012 Linker |
+| 0x00CD | `[ASM]` | VS2012 MASM |
+| 0x00CE | `[ C ]` | VS2012 C compiler |
+| 0x00CF | `[C++]` | VS2012 C++ compiler |
+| 0x00D0 | `[CIL]` | VS2012 CVTCIL C |
+| 0x00D1 | `[CI+]` | VS2012 CVTCIL C++ |
+| 0x00D2 | `[LTC]` | VS2012 LTCG C |
+| 0x00D3 | `[LT+]` | VS2012 LTCG C++ |
+| 0x00D4 | `[LTM]` | VS2012 LTCG MSIL |
+| 0x00D5 | `[PGO]` | VS2012 POGO I C |
+| 0x00D6 | `[PG+]` | VS2012 POGO I C++ |
+| 0x00D7 | `[POC]` | VS2012 POGO O C |
+| 0x00D8 | `[PO+]` | VS2012 POGO O C++ |
+
+### Visual Studio 2010 (10.0)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x0098 | `[AOb]` | VS2010 AliasObj |
+| 0x0099 | `[PGD]` | VS2010 CVTPGD |
+| 0x009A | `[RES]` | VS2010 Resource compiler |
+| 0x009B | `[EXP]` | VS2010 Export |
+| 0x009C | `[IMP]` | VS2010 Import library |
+| 0x009D | `[LNK]` | VS2010 Linker |
+| 0x009E | `[ASM]` | VS2010 MASM |
+| 0x00AA | `[ C ]` | VS2010 C compiler |
+| 0x00AB | `[C++]` | VS2010 C++ compiler |
+| 0x00AC | `[CIL]` | VS2010 CVTCIL C |
+| 0x00AD | `[CI+]` | VS2010 CVTCIL C++ |
+| 0x00AE | `[LTC]` | VS2010 LTCG C |
+| 0x00AF | `[LT+]` | VS2010 LTCG C++ |
+| 0x00B0 | `[LTM]` | VS2010 LTCG MSIL |
+| 0x00B1 | `[PGO]` | VS2010 POGO I C |
+| 0x00B2 | `[PG+]` | VS2010 POGO I C++ |
+| 0x00B3 | `[POC]` | VS2010 POGO O C |
+| 0x00B4 | `[PO+]` | VS2010 POGO O C++ |
+
+### Visual Studio 2008 (9.0)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x0083 | `[ C ]` | VS2008 C compiler |
+| 0x0084 | `[C++]` | VS2008 C++ compiler |
+| 0x0087 | `[CIL]` | VS2008 CVTCIL C |
+| 0x0088 | `[CI+]` | VS2008 CVTCIL C++ |
+| 0x0089 | `[LTC]` | VS2008 LTCG C |
+| 0x008A | `[LT+]` | VS2008 LTCG C++ |
+| 0x008B | `[LTM]` | VS2008 LTCG MSIL |
+| 0x008C | `[PGO]` | VS2008 POGO I C |
+| 0x008D | `[PG+]` | VS2008 POGO I C++ |
+| 0x008E | `[POC]` | VS2008 POGO O C |
+| 0x008F | `[PO+]` | VS2008 POGO O C++ |
+| 0x0090 | `[PGD]` | VS2008 CVTPGD |
+| 0x0091 | `[LNK]` | VS2008 Linker |
+| 0x0092 | `[EXP]` | VS2008 Export |
+| 0x0093 | `[IMP]` | VS2008 Import library |
+| 0x0094 | `[RES]` | VS2008 Resource compiler |
+| 0x0095 | `[ASM]` | VS2008 MASM |
+| 0x0096 | `[AOb]` | VS2008 AliasObj |
+
+### Visual Studio 2005 (8.0)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x006D | `[ C ]` | VS2005 C compiler |
+| 0x006E | `[C++]` | VS2005 C++ compiler |
+| 0x0071 | `[LTC]` | VS2005 LTCG C |
+| 0x0072 | `[LT+]` | VS2005 LTCG C++ |
+| 0x0073 | `[PGO]` | VS2005 POGO I C |
+| 0x0074 | `[PG+]` | VS2005 POGO I C++ |
+| 0x0075 | `[POC]` | VS2005 POGO O C |
+| 0x0076 | `[PO+]` | VS2005 POGO O C++ |
+| 0x0077 | `[PGD]` | VS2005 CVTPGD |
+| 0x0078 | `[LNK]` | VS2005 Linker |
+| 0x0079 | `[OMF]` | VS2005 CVTOMF |
+| 0x007A | `[EXP]` | VS2005 Export |
+| 0x007B | `[IMP]` | VS2005 Import library |
+| 0x007C | `[RES]` | VS2005 Resource compiler |
+| 0x007D | `[ASM]` | VS2005 MASM |
+| 0x007E | `[AOb]` | VS2005 AliasObj |
+| 0x0080 | `[CIL]` | VS2005 CVTCIL C |
+| 0x0081 | `[CI+]` | VS2005 CVTCIL C++ |
+| 0x0082 | `[LTM]` | VS2005 LTCG MSIL |
+
+### Visual Studio 2003 (7.10)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x005A | `[LNK]` | VS2003 Linker |
+| 0x005B | `[OMF]` | VS2003 CVTOMF |
+| 0x005C | `[EXP]` | VS2003 Export |
+| 0x005D | `[IMP]` | VS2003 Import library |
+| 0x005E | `[RES]` | VS2003 Resource compiler |
+| 0x005F | `[ C ]` | VS2003 C compiler |
+| 0x0060 | `[C++]` | VS2003 C++ compiler |
+| 0x0063 | `[LTC]` | VS2003 LTCG C |
+| 0x0064 | `[LT+]` | VS2003 LTCG C++ |
+| 0x0065 | `[PGO]` | VS2003 POGO I C |
+| 0x0066 | `[PG+]` | VS2003 POGO I C++ |
+| 0x0067 | `[POC]` | VS2003 POGO O C |
+| 0x0068 | `[PO+]` | VS2003 POGO O C++ |
+| 0x0069 | `[AOb]` | VS2003 AliasObj |
+| 0x006B | `[PGD]` | VS2003 CVTPGD |
+
+### Visual Studio 2002 (7.0)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x0019 | `[IMP]` | VS2002 Import library |
+| 0x001C | `[ C ]` | VS2002 C compiler |
+| 0x001D | `[C++]` | VS2002 C++ compiler |
+| 0x003D | `[LNK]` | VS2002 Linker |
+| 0x003F | `[EXP]` | VS2002 Export |
+| 0x0040 | `[ASM]` | VS2002 MASM |
+| 0x0045 | `[RES]` | VS2002 Resource compiler |
+
+### Visual Studio 98 / 6.0 (6.x)
+
+| Product ID | Type | Description |
+|------------|------|-------------|
+| 0x0001 | `[IMP]` | Unmarked imports |
+| 0x0002 | `[LNK]` | VS97 (5.10) Linker |
+| 0x0004 | `[OMF]` | VS97 (5.10) CVTOMF |
+| 0x0006 | `[LNK]` | VS98 (6.00) Linker |
+| 0x0007 | `[OMF]` | VS98 (6.00) CVTOMF |
+| 0x0009 | `[IMP]` | VS98 (6.00) Import library |
+| 0x000A | `[RES]` | VS98 (6.00) Resource compiler |
+| 0x000B | `[EXP]` | VS98 (6.00) Export |
+| 0x000C | `[ASM]` | VS98 (6.11) MASM |
+| 0x000D | `[ASM]` | VS98 (6.13) MASM |
+| 0x000E | `[ASM]` | VS98 (6.14) MASM |
+| 0x000F | `[LNK]` | VS97 SP3 (5.11) Linker |
+| 0x0010 | `[OMF]` | VS97 SP3 (5.11) CVTOMF |
+| 0x0012 | `[LNK]` | VS98 SP6 (6.12) Linker |
+| 0x0013 | `[OMF]` | VS98 SP6 (6.12) CVTOMF |
+| 0x0015 | `[ C ]` | VS98 (6.00) C compiler |
+| 0x0016 | `[C++]` | VS98 (6.00) C++ compiler |
+
+### Build Number Reference
+
+The build number (low 16 bits of comp.id) corresponds to specific Visual Studio releases:
+
+| Build Range | Visual Studio Version |
+|-------------|----------------------|
+| 35109-35719 | VS2026 (18.x) Insiders |
+| 30159-35221 | VS2022 (17.x) |
+| 27508-29110 | VS2019 (16.x) |
+| 25017-27030 | VS2017 (15.x) |
+| 23026-24215 | VS2015 Update 3 |
+| 23506-23918 | VS2015 Update 2 |
+| 23026-23506 | VS2015 Update 1 |
+| 23026 | VS2015 RTM |
+| 21005-21114 | VS2013 Update 5 |
+| 60610-61030 | VS2012 Update 4 |
+| 50727 | VS2012 RTM / VS2005 RTM |
+| 40219 | VS2010 SP1 |
+| 30319 | VS2010 RTM |
+| 30729 | VS2008 SP1 |
+| 21022 | VS2008 RTM |
+| 6030 | VS2003 SP1 |
+| 3077 | VS2003 RTM |
+| 9466 | VS2002 RTM |
+
+### Special Values
+
+| Comp.ID | Description |
+|---------|-------------|
+| 0x00010000 | Unmarked objects (modern) |
+| 0x00000000 | Unmarked objects (legacy) |
+| 0x00970000 | Resource |
+| 0x00FE0000 | CVTPGD |
+
+**Note:** For the complete and up-to-date database, see [richprint's comp_id.txt](https://github.com/dishather/richprint/blob/master/comp_id.txt).
 
 ## XOR Mask Calculation
 
@@ -582,7 +697,9 @@ if (auto rich = pe.rich()) {
 - **PE-bear** - Displays Rich header in GUI
 - **pestudio** - Shows Rich header analysis
 - **CFF Explorer** - Rich header viewer
-- **richprint** - Command-line Rich header dumper
+- **richprint** - Command-line Rich header dumper with comprehensive comp_id database
+  - https://github.com/dishather/richprint
+  - Maintains the most complete known @comp.id mapping
 - **LIEF** - Python library with Rich header support
 
 ### Research Papers
@@ -661,13 +778,17 @@ Export Rich header to JSON for:
    https://ntcore.com/files/richsign.htm
    Primary source for Rich header format and structure
 
-2. **Microsoft Visual Studio Build Numbers**
+2. **richprint - @comp.id Database**
+   https://github.com/dishather/richprint
+   Comprehensive and actively maintained compiler ID database
+
+3. **Microsoft Visual Studio Build Numbers**
    Track VS releases to map build numbers to dates
 
-3. **PE Format Specification**
+4. **PE Format Specification**
    Microsoft PE/COFF documentation (Rich header not included)
 
-4. **@comp.id Symbol Analysis**
+5. **@comp.id Symbol Analysis**
    Study COFF object file symbols to understand product IDs
 
 ## Conclusion

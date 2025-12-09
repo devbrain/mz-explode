@@ -507,27 +507,112 @@
         "section_count": 3,
         "comment": "Complex PE with multiple data directories for integration testing"
       }
+    },
+    {
+      "binary_file": "65535sects.exe",
+      "asm_source": "65535sects.asm",
+      "description": "Maximum sections - Tests excessive section count diagnostic",
+      "test_categories": ["diagnostics", "edge_case", "sections"],
+      "expected_diagnostics": {
+        "COFF_EXCESSIVE_SECTIONS": {
+          "expected": true,
+          "severity": "WARNING",
+          "comment": "NumberOfSections > 96 triggers this diagnostic"
+        }
+      },
+      "pe_header": {
+        "section_count": 65535,
+        "section_count_comment": "Maximum possible uint16 value"
+      }
+    },
+    {
+      "binary_file": "maxsec_lowaligW7.exe",
+      "asm_source": "maxsec_lowaligW7.asm",
+      "description": "Low alignment mode - Tests low alignment detection",
+      "test_categories": ["diagnostics", "edge_case", "alignment"],
+      "expected_diagnostics": {
+        "OPT_LOW_ALIGNMENT": {
+          "expected": true,
+          "severity": "WARNING",
+          "comment": "FileAlignment == SectionAlignment <= 0x200 (actual: 0x4)"
+        }
+      },
+      "pe_header": {
+        "section_alignment": "0x4",
+        "file_alignment": "0x4",
+        "is_low_alignment": true
+      }
+    },
+    {
+      "binary_file": "fakerelocs.exe",
+      "asm_source": "fakerelocs.asm",
+      "description": "Fake relocations - Tests relocation parsing edge cases",
+      "test_categories": ["diagnostics", "edge_case", "relocations"],
+      "data_directories": {
+        "BASERELOC": {
+          "present": true,
+          "comment": "Contains unusual relocation types for testing"
+        }
+      },
+      "expected_diagnostics": {
+        "comment": "May trigger RELOC_UNUSUAL_TYPE depending on reloc types present"
+      }
+    },
+    {
+      "binary_file": "dllfwloop.dll",
+      "asm_source": "dllfwloop.asm",
+      "description": "Forwarder loop DLL - Tests export forwarder loop detection",
+      "test_categories": ["diagnostics", "edge_case", "exports"],
+      "data_directories": {
+        "EXPORT": {
+          "present": true,
+          "has_forwarders": true,
+          "comment": "Contains self-forwarding exports"
+        }
+      },
+      "expected_diagnostics": {
+        "EXP_FORWARDER_LOOP": {
+          "expected": true,
+          "severity": "WARNING",
+          "comment": "Export forwards to same module"
+        }
+      }
+    },
+    {
+      "binary_file": "impbyord.exe",
+      "asm_source": "impbyord.asm",
+      "description": "Self-import by ordinal - Tests ordinal imports (self-import detection requires module name in exports)",
+      "test_categories": ["edge_case", "imports", "self_import"],
+      "data_directories": {
+        "IMPORT": {
+          "present": true,
+          "dll_count": 2,
+          "comment": "Imports from itself by ordinal - but export module name is empty so IMP_SELF_IMPORT won't trigger"
+        }
+      }
     }
   ],
   "test_categories_index": {
     "import_directory": ["imports.exe", "imports_mixed.exe", "impbyord.exe"],
-    "export_directory": ["dll.dll", "dllord.dll"],
+    "export_directory": ["dll.dll", "dllord.dll", "dllfwloop.dll"],
     "tls_directory": ["tls.exe", "tls64.exe", "tls_aoi.exe"],
     "debug_directory": ["debug.exe"],
     "security_directory": ["signature.exe"],
     "com_descriptor": ["dotnet20.exe", "tinynet.exe"],
     "delay_import_directory": ["delayimports.exe"],
-    "relocation_directory": ["ibreloc.exe", "dll.dll", "dllnoreloc.dll"],
+    "relocation_directory": ["ibreloc.exe", "dll.dll", "dllnoreloc.dll", "fakerelocs.exe"],
     "bound_import_directory": ["dllbound.dll"],
     "load_config_directory": ["cfgbogus.exe"],
     "basic": ["imports.exe", "tls.exe"],
-    "edge_case": ["ibreloc.exe", "tls_aoi.exe", "dllnoreloc.dll"],
+    "edge_case": ["ibreloc.exe", "tls_aoi.exe", "dllnoreloc.dll", "65535sects.exe", "maxsec_lowaligW7.exe", "fakerelocs.exe", "dllfwloop.dll"],
     "ordinal_imports": ["imports_mixed.exe", "impbyord.exe"],
     "ordinal_exports": ["dllord.dll"],
     "dotnet": ["dotnet20.exe", "tinynet.exe"],
     "pe32plus": ["tls64.exe"],
     "dll": ["dll.dll"],
-    "integration": ["compiled.exe"]
+    "integration": ["compiled.exe"],
+    "diagnostics": ["65535sects.exe", "maxsec_lowaligW7.exe", "ibreloc.exe", "fakerelocs.exe", "dllfwloop.dll", "impbyord.exe"],
+    "self_import": ["impbyord.exe"]
   },
   "field_coverage": {
     "import_directory": {

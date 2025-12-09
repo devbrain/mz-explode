@@ -30,10 +30,13 @@ import_directory import_directory_parser::parse(
     // Parse array of IMAGE_IMPORT_DESCRIPTOR structures
     // Array is terminated by a null entry (all zeros)
     uint32_t descriptor_rva = import_dir_rva;
+    bool found_null_terminator = false;
 
     while (true) {
         // Check if we can read another descriptor
         if (ptr + 20 > end) {
+            // Hit end of file before finding null terminator
+            result.truncated = true;
             break;
         }
 
@@ -47,6 +50,7 @@ import_directory import_directory_parser::parse(
             descriptor.name == 0 &&
             descriptor.first_thunk == 0) {
             // End of import directory
+            found_null_terminator = true;
             break;
         }
 
@@ -59,6 +63,8 @@ import_directory import_directory_parser::parse(
 
         // Safety check: if size is known, don't exceed it
         if (import_dir_size > 0 && (descriptor_rva - import_dir_rva) >= import_dir_size) {
+            // Size limit reached without null terminator
+            result.truncated = !found_null_terminator;
             break;
         }
     }

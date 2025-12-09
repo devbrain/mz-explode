@@ -47,6 +47,9 @@ le_file le_file::from_memory(std::span<const uint8_t> data) {
         file.parse_le_headers();
         file.parse_objects();
         file.parse_page_table();
+        file.parse_entry_table();
+        file.parse_import_module_table();
+        file.parse_fixup_tables();
     } catch (const formats::le::le_header::ConstraintViolation& e) {
         throw std::runtime_error(std::string("Invalid LE/LX file: ") + e.what());
     } catch (const std::runtime_error& e) {
@@ -74,8 +77,38 @@ void le_file::parse_le_headers() {
         auto dos_header = formats::mz::image_dos_header::read(ptr, end);
         le_header_offset_ = dos_header.e_lfanew;
 
-        if (le_header_offset_ == 0 || le_header_offset_ >= data_.size() - 4) {
-            throw std::runtime_error("Invalid e_lfanew offset in MZ header");
+        // Validate e_lfanew and check if it points to LE/LX
+        bool valid_lfanew = (le_header_offset_ != 0 &&
+                            le_header_offset_ < data_.size() - 4);
+
+        if (valid_lfanew) {
+            // Check if e_lfanew actually points to LE/LX signature
+            uint16_t sig_at_lfanew = static_cast<uint16_t>(data_[le_header_offset_]) |
+                                    (static_cast<uint16_t>(data_[le_header_offset_ + 1]) << 8);
+            if (sig_at_lfanew != 0x454C && sig_at_lfanew != 0x584C) {
+                valid_lfanew = false;
+            }
+        }
+
+        if (!valid_lfanew) {
+            // e_lfanew is invalid or doesn't point to LE/LX
+            // DOS/4GW bound executables often have garbage in e_lfanew
+            // Search for LE/LX signature in the file
+            le_header_offset_ = 0;
+            for (size_t i = 0x40; i < data_.size() - 4; i++) {
+                uint16_t sig = static_cast<uint16_t>(data_[i]) |
+                              (static_cast<uint16_t>(data_[i + 1]) << 8);
+                // Check for 'LE' or 'LX' followed by 00 00 (byte/word order)
+                if ((sig == 0x454C || sig == 0x584C) &&
+                    data_[i + 2] == 0x00 && data_[i + 3] == 0x00) {
+                    le_header_offset_ = static_cast<uint32_t>(i);
+                    break;
+                }
+            }
+
+            if (le_header_offset_ == 0) {
+                throw std::runtime_error("Cannot find LE/LX header in bound executable");
+            }
         }
 
         is_bound_ = true;
@@ -119,6 +152,11 @@ void le_file::parse_le_headers() {
     page_table_offset_ = le_header.object_page_table_offset;
     resident_name_table_offset_ = le_header.resident_name_table_offset;
     entry_table_offset_ = le_header.entry_table_offset;
+    import_module_table_offset_ = le_header.import_module_table_offset;
+    import_module_count_ = le_header.import_module_count;
+    import_proc_table_offset_ = le_header.import_proc_table_offset;
+    fixup_page_table_offset_ = le_header.fixup_page_table_offset;
+    fixup_record_table_offset_ = le_header.fixup_record_table_offset;
 
     // Absolute file offsets
     data_pages_offset_ = le_header.data_pages_offset;
@@ -271,6 +309,433 @@ void le_file::parse_page_table() {
         }
 
         page_table_.push_back(page);
+    }
+}
+
+void le_file::parse_entry_table() {
+    if (entry_table_offset_ == 0) {
+        return;
+    }
+
+    const uint8_t* ptr = data_.data() + le_header_offset_ + entry_table_offset_;
+    const uint8_t* end = data_.data() + data_.size();
+
+    uint16_t current_ordinal = 1;  // Ordinals are 1-based
+
+    while (ptr < end) {
+        // Read bundle header (2 bytes)
+        if (ptr + 2 > end) {
+            diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                "Entry table truncated at bundle header");
+            break;
+        }
+
+        uint8_t count = *ptr++;
+        uint8_t type = *ptr++;
+
+        // count == 0 terminates the entry table
+        if (count == 0) {
+            break;
+        }
+
+        // type == 0 means skip (unused entries)
+        if (type == 0) {
+            current_ordinal += count;
+            continue;
+        }
+
+        // Read object number for this bundle
+        uint16_t object_num = 0;
+        if (type == 0x01 || type == 0x02) {
+            // 16-bit and 286 gate: 1-byte object number
+            if (ptr + 1 > end) {
+                diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                    "Entry table truncated at object number");
+                break;
+            }
+            object_num = *ptr++;
+        } else if (type == 0x03) {
+            // 32-bit: 2-byte object number
+            if (ptr + 2 > end) {
+                diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                    "Entry table truncated at object number");
+                break;
+            }
+            object_num = static_cast<uint16_t>(ptr[0]) |
+                        (static_cast<uint16_t>(ptr[1]) << 8);
+            ptr += 2;
+        } else if (type == 0x04) {
+            // Forwarder: 2-byte reserved (must be 0)
+            if (ptr + 2 > end) {
+                diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                    "Entry table truncated at forwarder reserved");
+                break;
+            }
+            ptr += 2;  // Skip reserved bytes
+        }
+
+        // Parse entries in bundle
+        for (uint8_t i = 0; i < count; ++i) {
+            le_entry entry{};
+            entry.ordinal = current_ordinal++;
+            entry.type = static_cast<le_entry_type>(type);
+            entry.object = object_num;
+            entry.callgate = 0;
+            entry.module_ordinal = 0;
+            entry.import_ordinal = 0;
+
+            switch (type) {
+                case 0x01: {  // 16-bit entry (3 bytes)
+                    if (ptr + 3 > end) {
+                        diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                            "Entry table truncated at 16-bit entry");
+                        return;
+                    }
+                    entry.flags = *ptr++;
+                    entry.offset = static_cast<uint32_t>(ptr[0]) |
+                                  (static_cast<uint32_t>(ptr[1]) << 8);
+                    ptr += 2;
+                    break;
+                }
+
+                case 0x02: {  // 286 call gate (5 bytes)
+                    if (ptr + 5 > end) {
+                        diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                            "Entry table truncated at 286 gate entry");
+                        return;
+                    }
+                    entry.flags = *ptr++;
+                    entry.offset = static_cast<uint32_t>(ptr[0]) |
+                                  (static_cast<uint32_t>(ptr[1]) << 8);
+                    ptr += 2;
+                    entry.callgate = static_cast<uint16_t>(ptr[0]) |
+                                    (static_cast<uint16_t>(ptr[1]) << 8);
+                    ptr += 2;
+                    break;
+                }
+
+                case 0x03: {  // 32-bit entry (5 bytes)
+                    if (ptr + 5 > end) {
+                        diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                            "Entry table truncated at 32-bit entry");
+                        return;
+                    }
+                    entry.flags = *ptr++;
+                    entry.offset = static_cast<uint32_t>(ptr[0]) |
+                                  (static_cast<uint32_t>(ptr[1]) << 8) |
+                                  (static_cast<uint32_t>(ptr[2]) << 16) |
+                                  (static_cast<uint32_t>(ptr[3]) << 24);
+                    ptr += 4;
+                    break;
+                }
+
+                case 0x04: {  // Forwarder entry (7 bytes)
+                    if (ptr + 7 > end) {
+                        diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                            "Entry table truncated at forwarder entry");
+                        return;
+                    }
+                    entry.flags = *ptr++;
+                    entry.module_ordinal = static_cast<uint16_t>(ptr[0]) |
+                                          (static_cast<uint16_t>(ptr[1]) << 8);
+                    ptr += 2;
+                    entry.import_ordinal = static_cast<uint32_t>(ptr[0]) |
+                                          (static_cast<uint32_t>(ptr[1]) << 8) |
+                                          (static_cast<uint32_t>(ptr[2]) << 16) |
+                                          (static_cast<uint32_t>(ptr[3]) << 24);
+                    ptr += 4;
+                    break;
+                }
+
+                default:
+                    diagnostics_.warning(diagnostic_code::LE_ENTRY_INVALID,
+                                        "Unknown entry bundle type");
+                    return;
+            }
+
+            entries_.push_back(entry);
+        }
+    }
+}
+
+void le_file::parse_import_module_table() {
+    if (import_module_table_offset_ == 0 || import_module_count_ == 0) {
+        return;
+    }
+
+    const uint8_t* ptr = data_.data() + le_header_offset_ + import_module_table_offset_;
+    const uint8_t* end = data_.data() + data_.size();
+
+    import_modules_.reserve(import_module_count_);
+
+    for (uint32_t i = 0; i < import_module_count_; ++i) {
+        if (ptr >= end) {
+            diagnostics_.warning(diagnostic_code::LE_IMPORT_UNRESOLVED,
+                                "Import module table truncated");
+            break;
+        }
+
+        uint8_t len = *ptr++;
+        if (len == 0) {
+            // Empty name - add empty string
+            import_modules_.emplace_back("");
+            continue;
+        }
+
+        if (ptr + len > end) {
+            diagnostics_.warning(diagnostic_code::LE_IMPORT_UNRESOLVED,
+                                "Import module name truncated");
+            break;
+        }
+
+        import_modules_.emplace_back(reinterpret_cast<const char*>(ptr), len);
+        ptr += len;
+    }
+}
+
+void le_file::parse_fixup_tables() {
+    // Fixup parsing is complex. The structure is:
+    // 1. Fixup Page Table: array of uint32_t offsets into fixup record table
+    //    - One entry per page + 1 (to calculate size of last page's fixups)
+    // 2. Fixup Record Table: variable-length fixup records
+
+    if (fixup_page_table_offset_ == 0 || fixup_record_table_offset_ == 0) {
+        return;
+    }
+
+    if (page_count_ == 0) {
+        return;
+    }
+
+    const uint8_t* base = data_.data() + le_header_offset_;
+    const uint8_t* end = data_.data() + data_.size();
+
+    // Read fixup page table (one uint32_t per page + 1)
+    const uint8_t* page_table_ptr = base + fixup_page_table_offset_;
+    const uint8_t* record_table_ptr = base + fixup_record_table_offset_;
+
+    if (page_table_ptr + (page_count_ + 1) * 4 > end) {
+        diagnostics_.warning(diagnostic_code::LE_FIXUP_OVERFLOW,
+                            "Fixup page table extends beyond file");
+        return;
+    }
+
+    // Helper to read little-endian values
+    auto read_u16 = [](const uint8_t* p) -> uint16_t {
+        return static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1]) << 8);
+    };
+    auto read_u32 = [](const uint8_t* p) -> uint32_t {
+        return static_cast<uint32_t>(p[0]) |
+               (static_cast<uint32_t>(p[1]) << 8) |
+               (static_cast<uint32_t>(p[2]) << 16) |
+               (static_cast<uint32_t>(p[3]) << 24);
+    };
+
+    // Process each page's fixups
+    for (uint32_t page = 0; page < page_count_; ++page) {
+        uint32_t fixup_start = read_u32(page_table_ptr + page * 4);
+        uint32_t fixup_end = read_u32(page_table_ptr + (page + 1) * 4);
+
+        if (fixup_start >= fixup_end) {
+            continue;  // No fixups for this page
+        }
+
+        const uint8_t* ptr = record_table_ptr + fixup_start;
+        const uint8_t* page_fixup_end = record_table_ptr + fixup_end;
+
+        if (page_fixup_end > end) {
+            diagnostics_.warning(diagnostic_code::LE_FIXUP_OVERFLOW,
+                                "Fixup records extend beyond file");
+            break;
+        }
+
+        // Parse fixup records for this page
+        while (ptr < page_fixup_end) {
+            if (ptr + 2 > page_fixup_end) {
+                break;
+            }
+
+            // Read fixup header (2 bytes)
+            uint8_t source_byte = *ptr++;
+            uint8_t target_byte = *ptr++;
+
+            // Parse source flags
+            uint8_t source_type = source_byte & 0x0F;
+            bool is_alias = (source_byte & 0x10) != 0;
+            bool source_list = (source_byte & 0x20) != 0;
+
+            // Parse target flags
+            uint8_t target_type = target_byte & 0x03;
+            bool additive = (target_byte & 0x04) != 0;
+            // bool chaining = (target_byte & 0x08) != 0;  // LX internal chaining
+            bool target_32bit = (target_byte & 0x10) != 0;
+            bool additive_32bit = (target_byte & 0x20) != 0;
+            bool ordinal_16bit = (target_byte & 0x40) != 0;
+            bool ordinal_8bit = (target_byte & 0x80) != 0;
+
+            // Read source offset(s)
+            uint8_t source_count = 1;
+            std::vector<uint16_t> source_offsets;
+
+            if (source_list) {
+                if (ptr >= page_fixup_end) break;
+                source_count = *ptr++;
+            }
+
+            for (uint8_t i = 0; i < source_count; ++i) {
+                if (ptr + 2 > page_fixup_end) break;
+                source_offsets.push_back(read_u16(ptr));
+                ptr += 2;
+            }
+
+            if (source_offsets.empty()) {
+                continue;
+            }
+
+            // Read target info based on target type
+            le_fixup fixup{};
+            fixup.page_index = page + 1;  // 1-based
+            fixup.source_type = static_cast<le_fixup_source_type>(source_type);
+            fixup.target_type = static_cast<le_fixup_target_type>(target_type);
+            fixup.is_alias = is_alias;
+            fixup.is_additive = additive;
+            fixup.target_object = 0;
+            fixup.target_offset = 0;
+            fixup.module_ordinal = 0;
+            fixup.import_ordinal = 0;
+            fixup.additive_value = 0;
+
+            switch (target_type) {
+                case 0x00: {  // INTERNAL
+                    // Object number
+                    if (ordinal_16bit) {
+                        if (ptr + 2 > page_fixup_end) goto done_page;
+                        fixup.target_object = read_u16(ptr);
+                        ptr += 2;
+                    } else if (ordinal_8bit) {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.target_object = *ptr++;
+                    } else {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.target_object = *ptr++;
+                    }
+
+                    // Target offset (if source type needs it)
+                    if (source_type != 0x02) {  // Not selector-only
+                        if (target_32bit) {
+                            if (ptr + 4 > page_fixup_end) goto done_page;
+                            fixup.target_offset = read_u32(ptr);
+                            ptr += 4;
+                        } else {
+                            if (ptr + 2 > page_fixup_end) goto done_page;
+                            fixup.target_offset = read_u16(ptr);
+                            ptr += 2;
+                        }
+                    }
+                    break;
+                }
+
+                case 0x01: {  // IMPORT_ORDINAL
+                    // Module ordinal
+                    if (ordinal_16bit) {
+                        if (ptr + 2 > page_fixup_end) goto done_page;
+                        fixup.module_ordinal = read_u16(ptr);
+                        ptr += 2;
+                    } else if (ordinal_8bit) {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.module_ordinal = *ptr++;
+                    } else {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.module_ordinal = *ptr++;
+                    }
+
+                    // Import ordinal
+                    if (ordinal_16bit) {
+                        if (ptr + 2 > page_fixup_end) goto done_page;
+                        fixup.import_ordinal = read_u16(ptr);
+                        ptr += 2;
+                    } else if (ordinal_8bit) {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.import_ordinal = *ptr++;
+                    } else {
+                        if (target_32bit) {
+                            if (ptr + 4 > page_fixup_end) goto done_page;
+                            fixup.import_ordinal = read_u32(ptr);
+                            ptr += 4;
+                        } else {
+                            if (ptr + 2 > page_fixup_end) goto done_page;
+                            fixup.import_ordinal = read_u16(ptr);
+                            ptr += 2;
+                        }
+                    }
+                    break;
+                }
+
+                case 0x02: {  // IMPORT_NAME
+                    // Module ordinal
+                    if (ordinal_16bit) {
+                        if (ptr + 2 > page_fixup_end) goto done_page;
+                        fixup.module_ordinal = read_u16(ptr);
+                        ptr += 2;
+                    } else if (ordinal_8bit) {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.module_ordinal = *ptr++;
+                    } else {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.module_ordinal = *ptr++;
+                    }
+
+                    // Procedure name table offset
+                    if (target_32bit) {
+                        if (ptr + 4 > page_fixup_end) goto done_page;
+                        fixup.target_offset = read_u32(ptr);  // Offset into import proc table
+                        ptr += 4;
+                    } else {
+                        if (ptr + 2 > page_fixup_end) goto done_page;
+                        fixup.target_offset = read_u16(ptr);
+                        ptr += 2;
+                    }
+                    break;
+                }
+
+                case 0x03: {  // INTERNAL_ENTRY
+                    // Entry ordinal
+                    if (ordinal_16bit) {
+                        if (ptr + 2 > page_fixup_end) goto done_page;
+                        fixup.import_ordinal = read_u16(ptr);  // Entry ordinal
+                        ptr += 2;
+                    } else if (ordinal_8bit) {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.import_ordinal = *ptr++;
+                    } else {
+                        if (ptr >= page_fixup_end) goto done_page;
+                        fixup.import_ordinal = *ptr++;
+                    }
+                    break;
+                }
+            }
+
+            // Read additive value if present
+            if (additive) {
+                if (additive_32bit) {
+                    if (ptr + 4 > page_fixup_end) goto done_page;
+                    fixup.additive_value = static_cast<int32_t>(read_u32(ptr));
+                    ptr += 4;
+                } else {
+                    if (ptr + 2 > page_fixup_end) goto done_page;
+                    fixup.additive_value = static_cast<int16_t>(read_u16(ptr));
+                    ptr += 2;
+                }
+            }
+
+            // Add a fixup entry for each source offset
+            for (uint16_t offset : source_offsets) {
+                le_fixup f = fixup;
+                f.source_offset = offset;
+                fixups_.push_back(f);
+            }
+        }
+        done_page:;
     }
 }
 
@@ -527,6 +992,49 @@ std::string le_file::module_name() const {
     return "";
 }
 
+// Entry table
+const std::vector<le_entry>& le_file::entries() const { return entries_; }
+
+std::optional<le_entry> le_file::get_entry(uint16_t ordinal) const {
+    for (const auto& entry : entries_) {
+        if (entry.ordinal == ordinal) {
+            return entry;
+        }
+    }
+    return std::nullopt;
+}
+
+size_t le_file::entry_count() const { return entries_.size(); }
+
+// Import tables
+const std::vector<std::string>& le_file::import_modules() const { return import_modules_; }
+
+size_t le_file::import_module_count() const { return import_modules_.size(); }
+
+std::optional<std::string> le_file::get_import_module(uint16_t index) const {
+    if (index == 0 || index > import_modules_.size()) {
+        return std::nullopt;
+    }
+    return import_modules_[index - 1];  // Convert to 0-based
+}
+
+// Fixup tables
+const std::vector<le_fixup>& le_file::fixups() const { return fixups_; }
+
+std::vector<le_fixup> le_file::get_page_fixups(uint32_t page_index) const {
+    std::vector<le_fixup> result;
+    for (const auto& fixup : fixups_) {
+        if (fixup.page_index == page_index) {
+            result.push_back(fixup);
+        }
+    }
+    return result;
+}
+
+size_t le_file::fixup_count() const { return fixups_.size(); }
+
+bool le_file::has_fixups() const { return !fixups_.empty(); }
+
 // Debug information
 bool le_file::has_debug_info() const {
     return debug_info_offset_ != 0 && debug_info_size_ != 0;
@@ -534,6 +1042,74 @@ bool le_file::has_debug_info() const {
 
 uint32_t le_file::debug_info_offset() const { return debug_info_offset_; }
 uint32_t le_file::debug_info_size() const { return debug_info_size_; }
+
+// DOS Extender Stripping
+uint32_t le_file::le_header_offset() const { return le_header_offset_; }
+uint32_t le_file::stub_size() const { return le_header_offset_; }
+
+std::vector<uint8_t> le_file::strip_extender() const {
+    // If not bound, return empty - no stripping needed
+    if (!is_bound_ || le_header_offset_ == 0) {
+        return {};
+    }
+
+    // Calculate output size
+    if (le_header_offset_ >= data_.size()) {
+        return {};
+    }
+    size_t output_size = data_.size() - le_header_offset_;
+
+    // Copy from LE header to end
+    std::vector<uint8_t> output(data_.begin() + le_header_offset_, data_.end());
+
+    // Helper functions to read/write little-endian 32-bit values
+    auto read_u32 = [](const std::vector<uint8_t>& data, size_t offset) -> uint32_t {
+        if (offset + 4 > data.size()) return 0;
+        return static_cast<uint32_t>(data[offset]) |
+               (static_cast<uint32_t>(data[offset + 1]) << 8) |
+               (static_cast<uint32_t>(data[offset + 2]) << 16) |
+               (static_cast<uint32_t>(data[offset + 3]) << 24);
+    };
+
+    auto write_u32 = [](std::vector<uint8_t>& data, size_t offset, uint32_t value) {
+        if (offset + 4 > data.size()) return;
+        data[offset] = static_cast<uint8_t>(value & 0xFF);
+        data[offset + 1] = static_cast<uint8_t>((value >> 8) & 0xFF);
+        data[offset + 2] = static_cast<uint8_t>((value >> 16) & 0xFF);
+        data[offset + 3] = static_cast<uint8_t>((value >> 24) & 0xFF);
+    };
+
+    // Verify this is LE or LX format (not LC which has different semantics)
+    uint16_t magic = static_cast<uint16_t>(output[0]) |
+                     (static_cast<uint16_t>(output[1]) << 8);
+
+    if (magic == 0x454C || magic == 0x584C) {  // LE or LX
+        // Adjust absolute file offsets:
+        // Offset 0x80: DataPagesOffsetFromTopOfFile (always adjust)
+        uint32_t data_pages = read_u32(output, 0x80);
+        if (data_pages >= le_header_offset_) {
+            data_pages -= le_header_offset_;
+            write_u32(output, 0x80, data_pages);
+        }
+
+        // Offset 0x88: NonResidentNamesTableOffset (adjust if non-zero)
+        uint32_t nonres = read_u32(output, 0x88);
+        if (nonres != 0 && nonres >= le_header_offset_) {
+            nonres -= le_header_offset_;
+            write_u32(output, 0x88, nonres);
+        }
+
+        // Offset 0x98: DebugInformationOffset (adjust if non-zero)
+        uint32_t debug = read_u32(output, 0x98);
+        if (debug != 0 && debug >= le_header_offset_) {
+            debug -= le_header_offset_;
+            write_u32(output, 0x98, debug);
+        }
+    }
+    // LC format doesn't need offset adjustment (uses different semantics)
+
+    return output;
+}
 
 // Diagnostics
 const diagnostic_collector& le_file::diagnostics() const { return diagnostics_; }

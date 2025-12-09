@@ -40,6 +40,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
+#include <set>
 
 namespace libexe {
 
@@ -219,6 +220,149 @@ void pe_file::parse_pe_headers() {
     } else {
         throw std::runtime_error("Invalid PE optional header magic: " + std::to_string(magic));
     }
+
+    // =========================================================================
+    // Generate diagnostics for detected anomalies
+    // =========================================================================
+
+    // Check for zero sections (Vista+ allows this)
+    if (section_count_ == 0) {
+        diagnostics_.anomaly(diagnostic_code::COFF_ZERO_SECTIONS,
+            "NumberOfSections is zero - section-less PE file",
+            pe_offset_ + 6);
+    }
+
+    // Check for excessive sections (spec says 96 max, but Windows allows more)
+    if (section_count_ > 96) {
+        diagnostics_.warning(diagnostic_code::COFF_EXCESSIVE_SECTIONS,
+            "NumberOfSections exceeds PE/COFF spec limit of 96: " + std::to_string(section_count_),
+            pe_offset_ + 6);
+    }
+
+    // Check for low alignment mode (writable header)
+    if (file_alignment_ == section_alignment_ && file_alignment_ <= 0x200) {
+        diagnostics_.warning(diagnostic_code::OPT_LOW_ALIGNMENT,
+            "Low alignment mode - FileAlignment == SectionAlignment <= 0x200 (header is writable)",
+            optional_header_offset_);
+    }
+
+    // Check for non-power-of-2 alignment values
+    auto is_power_of_2 = [](uint32_t n) { return n > 0 && (n & (n - 1)) == 0; };
+    if (file_alignment_ != 0 && !is_power_of_2(file_alignment_)) {
+        diagnostics_.warning(diagnostic_code::OPT_NON_POWER2_ALIGNMENT,
+            "FileAlignment (0x" + std::to_string(file_alignment_) +
+            ") is not a power of 2 - may cause loading issues",
+            optional_header_offset_);
+    }
+    if (section_alignment_ != 0 && !is_power_of_2(section_alignment_)) {
+        diagnostics_.warning(diagnostic_code::OPT_NON_POWER2_ALIGNMENT,
+            "SectionAlignment (0x" + std::to_string(section_alignment_) +
+            ") is not a power of 2 - may cause loading issues",
+            optional_header_offset_);
+    }
+
+    // Check for zero entry point
+    if (entry_point_rva_ == 0) {
+        diagnostics_.info(diagnostic_code::OPT_ZERO_ENTRY_POINT,
+            "AddressOfEntryPoint is zero - execution starts at DOS header (MZ signature)",
+            optional_header_offset_ + (is_64bit_ ? 16 : 16));  // EP offset in opt header
+    }
+
+    // Check for entry point outside image
+    if (entry_point_rva_ != 0 && entry_point_rva_ >= size_of_image_) {
+        diagnostics_.anomaly(diagnostic_code::OPT_EP_OUTSIDE_IMAGE,
+            "AddressOfEntryPoint (0x" + std::to_string(entry_point_rva_) +
+            ") is beyond SizeOfImage (0x" + std::to_string(size_of_image_) + ")",
+            optional_header_offset_ + (is_64bit_ ? 16 : 16));
+    }
+
+    // Check for entry point in header
+    if (entry_point_rva_ != 0 && entry_point_rva_ < size_of_headers_) {
+        diagnostics_.warning(diagnostic_code::OPT_EP_IN_HEADER,
+            "AddressOfEntryPoint (0x" + std::to_string(entry_point_rva_) +
+            ") is within header region (SizeOfHeaders: 0x" + std::to_string(size_of_headers_) + ")",
+            optional_header_offset_ + (is_64bit_ ? 16 : 16));
+    }
+
+    // Check for invalid ImageBase (zero or kernel space)
+    if (image_base_ == 0) {
+        diagnostics_.warning(diagnostic_code::OPT_INVALID_IMAGEBASE,
+            "ImageBase is zero - file will be relocated to 0x10000",
+            optional_header_offset_ + (is_64bit_ ? 24 : 28));
+    } else if (image_base_ >= 0x80000000 && !is_64bit_) {
+        // For 32-bit, >= 0x80000000 is kernel space
+        diagnostics_.warning(diagnostic_code::OPT_INVALID_IMAGEBASE,
+            "ImageBase is in kernel space (0x" + std::to_string(image_base_) +
+            ") - file will be relocated",
+            optional_header_offset_ + 28);
+    }
+
+    // Check for unaligned ImageBase (must be 64KB aligned)
+    if ((image_base_ % 0x10000) != 0) {
+        diagnostics_.warning(diagnostic_code::OPT_UNALIGNED_IMAGEBASE,
+            "ImageBase (0x" + std::to_string(image_base_) +
+            ") is not 64KB aligned - file will be relocated",
+            optional_header_offset_ + (is_64bit_ ? 24 : 28));
+    }
+
+    // Check if PE header is in overlay (beyond mapped region)
+    if (pe_offset_ >= size_of_headers_) {
+        diagnostics_.anomaly(diagnostic_code::PE_HEADER_IN_OVERLAY,
+            "PE header is in overlay region (e_lfanew: 0x" + std::to_string(pe_offset_) +
+            " >= SizeOfHeaders: 0x" + std::to_string(size_of_headers_) + ")",
+            0x3C);  // e_lfanew offset in DOS header
+    }
+
+    // Check for writable header in low alignment mode
+    if (file_alignment_ == section_alignment_ && file_alignment_ <= 0x200) {
+        diagnostics_.warning(diagnostic_code::PE_WRITABLE_HEADER,
+            "PE header is writable due to low alignment mode (can be modified by relocations)",
+            optional_header_offset_);
+    }
+
+    // Check for dual PE header (PE header spans section boundary)
+    // This happens when e_lfanew + header_size > SizeOfHeaders
+    {
+        // Calculate header size: PE signature (4) + COFF header (20) + optional header size
+        size_t pe_header_total_size = 4 + 20 + opt_hdr_size + section_count_ * 40;
+        if (pe_offset_ + pe_header_total_size > size_of_headers_) {
+            diagnostics_.anomaly(diagnostic_code::PE_DUAL_HEADER,
+                "PE header extends beyond SizeOfHeaders - different header on disk vs memory",
+                pe_offset_);
+        }
+    }
+
+    // Check for oversized optional header
+    {
+        size_t expected_size = is_64bit_ ? 112 : 96;  // Base size without data dirs
+        expected_size += 16 * 8;  // Add 16 data directories (8 bytes each)
+        if (opt_hdr_size > expected_size) {
+            diagnostics_.warning(diagnostic_code::OPT_OVERSIZED_OPTIONAL_HDR,
+                "SizeOfOptionalHeader (" + std::to_string(opt_hdr_size) +
+                ") exceeds expected size (" + std::to_string(expected_size) +
+                ") - section table at unusual location",
+                pe_offset_ + 20);  // SizeOfOptionalHeader offset in COFF header
+        }
+    }
+
+    // Check for RELOCS_STRIPPED contradiction (flag set but relocs present)
+    {
+        bool relocs_stripped = (characteristics_ & 0x0001) != 0;  // IMAGE_FILE_RELOCS_STRIPPED
+        bool has_relocs = has_data_directory(directory_entry::BASERELOC) &&
+                          data_directory_rva(directory_entry::BASERELOC) != 0 &&
+                          data_directory_size(directory_entry::BASERELOC) != 0;
+        if (relocs_stripped && has_relocs) {
+            diagnostics_.warning(diagnostic_code::COFF_RELOCS_STRIPPED_IGNORED,
+                "IMAGE_FILE_RELOCS_STRIPPED flag is set but relocation directory exists - flag ignored by loader",
+                pe_offset_ + 22);  // Characteristics offset in COFF header
+        }
+    }
+
+    // Check for overlapping data directories
+    detect_overlapping_directories();
+
+    // Check for data directories in header region
+    detect_directories_in_header();
 }
 
 void pe_file::parse_sections() {
@@ -230,12 +374,373 @@ void pe_file::parse_sections() {
     uint16_t opt_hdr_size = coff_header.SizeOfOptionalHeader;
 
     // Use pe_section_parser for consistent section parsing
+    // Pass file_alignment for proper offset rounding
     sections_ = pe_section_parser::parse_sections(
         data_,
         pe_offset_,
         section_count_,
-        opt_hdr_size
+        opt_hdr_size,
+        file_alignment_
     );
+}
+
+void pe_file::detect_overlapping_directories() {
+    // Check if any two data directories point to overlapping regions
+    // This is a common obfuscation technique
+
+    struct dir_region {
+        directory_entry entry;
+        uint32_t rva;
+        uint32_t size;
+    };
+
+    std::vector<dir_region> regions;
+
+    // Collect all non-empty directories
+    for (int i = 0; i < 16; i++) {
+        auto entry = static_cast<directory_entry>(i);
+        if (has_data_directory(entry)) {
+            uint32_t rva = data_directory_rva(entry);
+            uint32_t size = data_directory_size(entry);
+            if (rva != 0 && size != 0) {
+                regions.push_back({entry, rva, size});
+            }
+        }
+    }
+
+    // Check for overlaps
+    for (size_t i = 0; i < regions.size(); i++) {
+        for (size_t j = i + 1; j < regions.size(); j++) {
+            uint32_t start1 = regions[i].rva;
+            uint32_t end1 = start1 + regions[i].size;
+            uint32_t start2 = regions[j].rva;
+            uint32_t end2 = start2 + regions[j].size;
+
+            // Check if ranges overlap
+            if (start1 < end2 && start2 < end1) {
+                diagnostics_.warning(diagnostic_code::OVERLAPPING_DIRECTORIES,
+                    "Data directories overlap: " +
+                    std::to_string(static_cast<int>(regions[i].entry)) + " and " +
+                    std::to_string(static_cast<int>(regions[j].entry)),
+                    optional_header_offset_);
+            }
+        }
+    }
+}
+
+void pe_file::detect_directories_in_header() {
+    // Check if any data directory is within the header region
+    // This is valid but unusual, especially for zero-section files
+
+    for (int i = 0; i < 16; i++) {
+        auto entry = static_cast<directory_entry>(i);
+        if (has_data_directory(entry)) {
+            uint32_t rva = data_directory_rva(entry);
+            uint32_t size = data_directory_size(entry);
+
+            // Skip security directory - its "RVA" is actually a file offset
+            if (entry == directory_entry::SECURITY) {
+                continue;
+            }
+
+            if (rva != 0 && size != 0 && rva < size_of_headers_) {
+                diagnostics_.info(diagnostic_code::DIRECTORY_IN_HEADER,
+                    "Data directory " + std::to_string(i) + " is within header region (RVA: 0x" +
+                    std::to_string(rva) + ", SizeOfHeaders: 0x" + std::to_string(size_of_headers_) + ")",
+                    optional_header_offset_ + (is_64bit_ ? 112 : 96) + i * 8);
+            }
+        }
+    }
+}
+
+void pe_file::check_relocation_anomalies(const base_relocation_directory& relocs) const {
+    // Check for unusual relocation types (potential obfuscation)
+    // Types 1,2,4,5,9 are rare on x86/x64 and may indicate obfuscation
+
+    bool has_unusual_types = false;
+    bool has_invalid_types = false;
+    bool has_header_targets = false;
+    size_t header_reloc_count = 0;
+
+    for (const auto& block : relocs.blocks) {
+        for (const auto& entry : block.entries) {
+            uint8_t type = static_cast<uint8_t>(entry.type);
+
+            // Check for invalid type (8 or >10)
+            if (type == 8 || type > 10) {
+                has_invalid_types = true;
+            }
+
+            // Check for unusual types (1, 2, 4, 5, 9) on x86/x64
+            // These are rarely used legitimately on Intel platforms
+            if (type == 1 || type == 2 || type == 4 || type == 5 || type == 9) {
+                // Only flag as unusual for x86/x64 machines
+                if (machine_type_ == static_cast<uint16_t>(pe_machine_type::I386) ||
+                    machine_type_ == static_cast<uint16_t>(pe_machine_type::AMD64)) {
+                    has_unusual_types = true;
+                }
+            }
+
+            // Check for relocations targeting header region
+            if (entry.rva < size_of_headers_ && entry.type != relocation_type::ABSOLUTE) {
+                has_header_targets = true;
+                header_reloc_count++;
+            }
+        }
+    }
+
+    if (has_invalid_types) {
+        diagnostics_.anomaly(diagnostic_code::RELOC_INVALID_TYPE,
+            "Relocation directory contains invalid type (type 8 or >10)",
+            data_directory_rva(directory_entry::BASERELOC));
+    }
+
+    if (has_unusual_types) {
+        diagnostics_.warning(diagnostic_code::RELOC_UNUSUAL_TYPE,
+            "Relocation directory contains unusual types (1, 2, 4, 5, or 9) - potential obfuscation",
+            data_directory_rva(directory_entry::BASERELOC));
+    }
+
+    if (has_header_targets) {
+        diagnostics_.warning(diagnostic_code::RELOC_HEADER_TARGET,
+            std::to_string(header_reloc_count) + " relocation(s) target header region - may modify PE header at runtime",
+            data_directory_rva(directory_entry::BASERELOC));
+    }
+
+    // Check for virtual code pattern: Invalid ImageBase + high relocation count
+    // This technique uses relocations to construct code from zeroed sections
+    if ((image_base_ == 0 || image_base_ >= 0x80000000) && relocs.active_relocations() > 100) {
+        diagnostics_.warning(diagnostic_code::RELOC_VIRTUAL_CODE,
+            "Potential virtual code technique: invalid ImageBase (0x" +
+            std::to_string(image_base_) + ") with " +
+            std::to_string(relocs.active_relocations()) + " active relocations",
+            data_directory_rva(directory_entry::BASERELOC));
+    }
+
+    // Check for high relocation density (many relocs per section)
+    // This could indicate virtual code or obfuscation
+    for (const auto& section : sections_) {
+        size_t section_relocs = 0;
+        for (const auto& block : relocs.blocks) {
+            if (block.page_rva >= section.virtual_address &&
+                block.page_rva < section.virtual_address + section.virtual_size) {
+                section_relocs += block.active_relocation_count();
+            }
+        }
+
+        // If section has many relocations relative to its size, flag it
+        // Threshold: more than 1 relocation per 4 bytes on average
+        if (section.raw_data_size > 0 && section_relocs > section.raw_data_size / 4) {
+            diagnostics_.info(diagnostic_code::RELOC_HIGH_DENSITY,
+                "Section '" + section.name + "' has high relocation density: " +
+                std::to_string(section_relocs) + " relocations in " +
+                std::to_string(section.raw_data_size) + " bytes",
+                section.virtual_address);
+        }
+    }
+}
+
+void pe_file::check_import_anomalies(const import_directory& imports, const std::string& module_name) const {
+    // Check for truncated import directory
+    if (imports.truncated) {
+        diagnostics_.warning(diagnostic_code::IMP_TRUNCATED,
+            "Import directory is truncated - missing null terminator",
+            data_directory_rva(directory_entry::IMPORT));
+    }
+
+    // Helper to check if a string contains non-printable characters
+    auto has_binary_chars = [](const std::string& s) {
+        for (unsigned char c : s) {
+            if (c < 32 || c >= 127) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Helper for case-insensitive comparison
+    auto iequals = [](const std::string& a, const std::string& b) {
+        if (a.size() != b.size()) return false;
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (tolower(static_cast<unsigned char>(a[i])) !=
+                tolower(static_cast<unsigned char>(b[i]))) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Normalize module name for self-import detection
+    std::string normalized_module = module_name;
+    // Remove .dll extension if present
+    if (normalized_module.size() > 4) {
+        std::string ext = normalized_module.substr(normalized_module.size() - 4);
+        for (auto& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+        if (ext == ".dll") {
+            normalized_module = normalized_module.substr(0, normalized_module.size() - 4);
+        }
+    }
+
+    for (const auto& dll : imports.dlls) {
+        // Check for empty IAT (no functions imported from DLL)
+        if (dll.functions.empty()) {
+            diagnostics_.warning(diagnostic_code::IMP_EMPTY_IAT,
+                "DLL '" + dll.name + "' has empty IAT - DLL will not be loaded",
+                dll.iat_rva);
+        }
+
+        // Check for binary characters in DLL name
+        if (has_binary_chars(dll.name)) {
+            diagnostics_.warning(diagnostic_code::IMP_BINARY_NAME,
+                "DLL name contains non-printable characters",
+                dll.name_rva);
+        }
+
+        // Check for self-import (module imports from itself)
+        if (!normalized_module.empty()) {
+            std::string normalized_dll = dll.name;
+            // Remove .dll extension if present
+            if (normalized_dll.size() > 4) {
+                std::string ext = normalized_dll.substr(normalized_dll.size() - 4);
+                for (auto& c : ext) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+                if (ext == ".dll") {
+                    normalized_dll = normalized_dll.substr(0, normalized_dll.size() - 4);
+                }
+            }
+            if (iequals(normalized_module, normalized_dll)) {
+                diagnostics_.warning(diagnostic_code::IMP_SELF_IMPORT,
+                    "Module imports from itself: '" + dll.name + "'",
+                    dll.name_rva);
+            }
+        }
+
+        // Check for function names with binary characters
+        for (const auto& func : dll.functions) {
+            if (!func.is_ordinal && has_binary_chars(func.name)) {
+                diagnostics_.warning(diagnostic_code::IMP_BINARY_NAME,
+                    "Import name contains non-printable characters in DLL '" + dll.name + "'",
+                    static_cast<uint32_t>(func.iat_rva));
+            }
+        }
+    }
+}
+
+void pe_file::check_export_anomalies(const export_directory& exports) const {
+    // Helper to check if a string contains non-printable characters
+    auto has_binary_chars = [](const std::string& s) {
+        for (unsigned char c : s) {
+            if (c < 32 || c >= 127) {
+                return true;
+            }
+        }
+        return false;
+    };
+
+    // Helper for case-insensitive comparison
+    auto iequals = [](const std::string& a, const std::string& b) {
+        if (a.size() != b.size()) return false;
+        for (size_t i = 0; i < a.size(); ++i) {
+            if (tolower(static_cast<unsigned char>(a[i])) !=
+                tolower(static_cast<unsigned char>(b[i]))) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    // Build set of export names for self-forwarding detection
+    std::set<std::string> export_names;
+    for (const auto& e : exports.exports) {
+        if (e.has_name && !e.name.empty()) {
+            std::string name_lower = e.name;
+            for (auto& c : name_lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+            export_names.insert(name_lower);
+        }
+    }
+
+    // Check for forwarder loops (simplified - check for self-forwarding)
+    for (const auto& exp : exports.exports) {
+        if (exp.is_forwarder) {
+            // Check for binary characters in export name
+            if (exp.has_name && has_binary_chars(exp.name)) {
+                diagnostics_.warning(diagnostic_code::EXP_BINARY_NAME,
+                    "Export name contains non-printable characters: ordinal " +
+                    std::to_string(exp.ordinal),
+                    exp.rva);
+            }
+
+            // Check if forwarder points to same module (potential loop)
+            // Forwarder format is "MODULE.Function" or "MODULE.#ordinal"
+            size_t dot_pos = exp.forwarder_name.find('.');
+            if (dot_pos != std::string::npos) {
+                std::string fwd_module = exp.forwarder_name.substr(0, dot_pos);
+                std::string fwd_function = exp.forwarder_name.substr(dot_pos + 1);
+
+                // Normalize for comparison
+                std::string fwd_module_lower = fwd_module;
+                for (auto& c : fwd_module_lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+                std::string fwd_function_lower = fwd_function;
+                for (auto& c : fwd_function_lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+                bool is_self_forward = false;
+
+                // Method 1: Compare against module name if available
+                if (!exports.module_name.empty()) {
+                    std::string module_lower = exports.module_name;
+                    for (auto& c : module_lower) c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
+
+                    // Remove .dll extension if present
+                    if (module_lower.size() > 4 &&
+                        module_lower.substr(module_lower.size() - 4) == ".dll") {
+                        module_lower = module_lower.substr(0, module_lower.size() - 4);
+                    }
+
+                    is_self_forward = (module_lower == fwd_module_lower);
+                }
+
+                // Method 2: If module name is empty, check if target function exists in our exports
+                if (!is_self_forward && exports.module_name.empty()) {
+                    // Check if the forwarder target function is one of our exports
+                    is_self_forward = (export_names.count(fwd_function_lower) > 0);
+                }
+
+                if (is_self_forward) {
+                    diagnostics_.warning(diagnostic_code::EXP_FORWARDER_LOOP,
+                        "Export '" + exp.name + "' forwards to same module: " +
+                        exp.forwarder_name + " - potential infinite loop",
+                        exp.rva);
+                }
+            }
+        } else {
+            // Check for binary characters in non-forwarder export names
+            if (exp.has_name && has_binary_chars(exp.name)) {
+                diagnostics_.warning(diagnostic_code::EXP_BINARY_NAME,
+                    "Export name contains non-printable characters: ordinal " +
+                    std::to_string(exp.ordinal),
+                    exp.rva);
+            }
+        }
+    }
+
+    // Check for large ordinal gaps
+    if (exports.exports.size() >= 2) {
+        uint16_t min_ordinal = 0xFFFF;
+        uint16_t max_ordinal = 0;
+        for (const auto& exp : exports.exports) {
+            if (exp.ordinal < min_ordinal) min_ordinal = exp.ordinal;
+            if (exp.ordinal > max_ordinal) max_ordinal = exp.ordinal;
+        }
+
+        uint32_t range = max_ordinal - min_ordinal + 1;
+        if (range > exports.exports.size() * 2 && range > 100) {
+            diagnostics_.info(diagnostic_code::EXP_ORDINAL_GAP,
+                "Large gap in export ordinals: range " + std::to_string(min_ordinal) +
+                "-" + std::to_string(max_ordinal) + " with only " +
+                std::to_string(exports.exports.size()) + " exports",
+                data_directory_rva(directory_entry::EXPORT));
+        }
+    }
 }
 
 // Interface implementation
@@ -306,6 +811,44 @@ pe_subsystem pe_file::subsystem() const {
 
 pe_dll_characteristics pe_file::dll_characteristics() const {
     return static_cast<pe_dll_characteristics>(dll_characteristics_);
+}
+
+// =============================================================================
+// Edge Case Detection Methods
+// =============================================================================
+
+bool pe_file::is_low_alignment() const {
+    // Low alignment mode: FileAlignment == SectionAlignment and both <= 0x200
+    // In this mode, raw addresses equal virtual addresses and the header is writable
+    return file_alignment_ == section_alignment_ && file_alignment_ <= 0x200;
+}
+
+uint64_t pe_file::effective_image_base() const {
+    // If ImageBase is invalid (0 or kernel space for 32-bit), file will be relocated
+    // The loader typically uses 0x10000 as the fallback base address
+
+    if (image_base_ == 0) {
+        return 0x10000;
+    }
+
+    // For 32-bit executables, kernel space (>= 0x80000000) is invalid for user mode
+    if (!is_64bit_ && image_base_ >= 0x80000000) {
+        return 0x10000;
+    }
+
+    // For 64-bit, high values like 0xFFFE0000 are used for "virtual code" technique
+    // These also cause relocation to 0x10000
+    if (is_64bit_ && image_base_ >= 0xFFFF000000000000ULL) {
+        return 0x10000;
+    }
+
+    // ImageBase must be 64KB aligned; if not, relocation will occur
+    if ((image_base_ % 0x10000) != 0) {
+        // Loader will round down to nearest 64KB boundary or use 0x10000
+        return 0x10000;
+    }
+
+    return image_base_;
 }
 
 const std::vector<pe_section>& pe_file::sections() const {
@@ -429,6 +972,20 @@ std::shared_ptr<import_directory> pe_file::imports() const {
             is_64bit_
         );
         imports_ = std::make_shared<import_directory>(std::move(parsed));
+
+        // Check for import anomalies
+        // Get module name from exports if available (for self-import detection)
+        std::string module_name;
+        if (exports_) {
+            module_name = exports_->module_name;
+        } else if (has_data_directory(directory_entry::EXPORT)) {
+            // Try to get module name from exports without triggering full parse
+            auto exp = exports();
+            if (exp) {
+                module_name = exp->module_name;
+            }
+        }
+        check_import_anomalies(*imports_, module_name);
     } catch (const std::exception& e) {
         // If parsing fails, return empty import directory
         // (allows graceful handling of malformed imports)
@@ -464,6 +1021,9 @@ std::shared_ptr<export_directory> pe_file::exports() const {
             export_size
         );
         exports_ = std::make_shared<export_directory>(std::move(parsed));
+
+        // Check for export anomalies
+        check_export_anomalies(*exports_);
     } catch (const std::exception& e) {
         // If parsing fails, return empty export directory
         // (allows graceful handling of malformed exports)
@@ -499,6 +1059,9 @@ std::shared_ptr<base_relocation_directory> pe_file::relocations() const {
             reloc_size
         );
         relocations_ = std::make_shared<base_relocation_directory>(std::move(parsed));
+
+        // Check for unusual relocation types and header targeting
+        check_relocation_anomalies(*relocations_);
     } catch (const std::exception& e) {
         // If parsing fails, return empty relocation directory
         // (allows graceful handling of malformed relocations)
@@ -888,6 +1451,49 @@ std::shared_ptr<reserved_directory> pe_file::reserved() const {
     reserved_ = std::make_shared<reserved_directory>(std::move(parsed));
 
     return reserved_;
+}
+
+// =============================================================================
+// Rich Header Access
+// =============================================================================
+
+std::optional<rich_header> pe_file::rich() const {
+    // Lazy parsing: only parse Rich header on first access
+    if (rich_header_parsed_) {
+        return rich_header_;
+    }
+
+    rich_header_parsed_ = true;
+
+    // Parse Rich header (located between DOS stub and PE header)
+    rich_header_ = rich_header_parser::parse(data_, pe_offset_);
+
+    return rich_header_;
+}
+
+bool pe_file::has_rich_header() const {
+    // Check if Rich header exists without fully parsing it
+    return rich_header_parser::has_rich_header(data_, pe_offset_);
+}
+
+// =============================================================================
+// Diagnostics
+// =============================================================================
+
+const diagnostic_collector& pe_file::diagnostics() const {
+    return diagnostics_;
+}
+
+bool pe_file::has_diagnostic(diagnostic_code code) const {
+    return diagnostics_.has_code(code);
+}
+
+bool pe_file::has_anomalies() const {
+    return diagnostics_.has_anomalies();
+}
+
+bool pe_file::has_parse_errors() const {
+    return diagnostics_.has_errors();
 }
 
 } // namespace libexe

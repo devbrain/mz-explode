@@ -6,8 +6,10 @@
 
 #include <libexe/export.hpp>
 #include <libexe/core/executable_file.hpp>
+#include <libexe/core/diagnostic_collector.hpp>
 #include <libexe/pe/types.hpp>
 #include <libexe/pe/section.hpp>
+#include <libexe/pe/rich_header.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
@@ -68,6 +70,18 @@ namespace libexe {
             [[nodiscard]] pe_subsystem subsystem() const;
             [[nodiscard]] pe_dll_characteristics dll_characteristics() const;
 
+            // =========================================================================
+            // Edge Case Detection Methods
+            // =========================================================================
+
+            /// Check if file uses low alignment mode (FileAlignment == SectionAlignment <= 0x200)
+            /// In low alignment mode, the PE header is writable and raw addresses equal virtual addresses
+            [[nodiscard]] bool is_low_alignment() const;
+
+            /// Get effective image base considering invalid values
+            /// If ImageBase is 0 or in kernel space, file will be relocated to 0x10000
+            [[nodiscard]] uint64_t effective_image_base() const;
+
             /// Section access
             [[nodiscard]] const std::vector <pe_section>& sections() const;
             [[nodiscard]] std::optional <pe_section> find_section(const std::string& name) const;
@@ -99,11 +113,38 @@ namespace libexe {
             [[nodiscard]] std::shared_ptr<architecture_directory> architecture() const;
             [[nodiscard]] std::shared_ptr<reserved_directory> reserved() const;
 
+            /// Rich header access (undocumented Microsoft build metadata)
+            [[nodiscard]] std::optional<rich_header> rich() const;
+
+            /// Check if file has a Rich header
+            [[nodiscard]] bool has_rich_header() const;
+
+            // =========================================================================
+            // Diagnostics
+            // =========================================================================
+
+            /// Get all diagnostics generated during parsing
+            [[nodiscard]] const diagnostic_collector& diagnostics() const;
+
+            /// Check if a specific diagnostic code exists
+            [[nodiscard]] bool has_diagnostic(diagnostic_code code) const;
+
+            /// Check if file has any anomalies
+            [[nodiscard]] bool has_anomalies() const;
+
+            /// Check if there were any parse errors (recovered)
+            [[nodiscard]] bool has_parse_errors() const;
+
         private:
             pe_file() = default;
 
             void parse_pe_headers();
             void parse_sections();
+            void detect_overlapping_directories();
+            void detect_directories_in_header();
+            void check_relocation_anomalies(const base_relocation_directory& relocs) const;
+            void check_import_anomalies(const import_directory& imports, const std::string& module_name = "") const;
+            void check_export_anomalies(const export_directory& exports) const;
 
             std::vector <uint8_t> data_;
             std::vector <pe_section> sections_;
@@ -146,6 +187,13 @@ namespace libexe {
             mutable std::shared_ptr<global_ptr_directory> global_ptr_;
             mutable std::shared_ptr<architecture_directory> architecture_;
             mutable std::shared_ptr<reserved_directory> reserved_;
+
+            // Rich header cache
+            mutable bool rich_header_parsed_ = false;
+            mutable std::optional<rich_header> rich_header_;
+
+            // Diagnostics collector (mutable because diagnostics can be added during lazy parsing)
+            mutable diagnostic_collector diagnostics_;
     };
 } // namespace libexe
 
