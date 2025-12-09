@@ -35,6 +35,9 @@ namespace data {
     // Forward declarations - LX with resources (OS/2)
     extern size_t makeini_lx_len;
     extern unsigned char makeini_lx[];
+
+    extern size_t os2chess_lx_len;
+    extern unsigned char os2chess_lx[];
 }
 
 // Include test data implementations
@@ -47,3 +50,4 @@ namespace data {
 #include "testdata/7z_lx.cc"
 #include "testdata/doom_le.cc"
 #include "testdata/makeini_lx.cc"
+#include "testdata/os2chess_lx.cc"
