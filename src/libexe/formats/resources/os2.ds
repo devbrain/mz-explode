@@ -1,0 +1,410 @@
+// OS/2 Presentation Manager Resource Structures
+// Supports LX/LE executable resources
+//
+// References:
+//   - IBM OS/2 Developer's Toolkit 4.5 (1/os2tk45/h/)
+//   - os2-gpi-font-tools by Alexander Taylor (public domain)
+//
+// See docs/OS2_RESOURCE_FORMATS.md for detailed documentation.
+
+package formats.resources.os2;
+
+// OS/2 is little-endian (x86)
+little;
+
+// =============================================================================
+// Resource Type Constants
+// =============================================================================
+
+const uint16 RT_POINTER      = 1;   // Mouse pointer
+const uint16 RT_BITMAP       = 2;   // Bitmap
+const uint16 RT_MENU         = 3;   // Menu template
+const uint16 RT_DIALOG       = 4;   // Dialog template
+const uint16 RT_STRING       = 5;   // String table
+const uint16 RT_FONTDIR      = 6;   // Font directory
+const uint16 RT_FONT         = 7;   // Font
+const uint16 RT_ACCELTABLE   = 8;   // Accelerator table
+const uint16 RT_RCDATA       = 9;   // Binary data
+const uint16 RT_MESSAGE      = 10;  // Message table
+const uint16 RT_HELPTABLE    = 18;  // Help table
+const uint16 RT_HELPSUBTABLE = 19;  // Help subtable
+
+// =============================================================================
+// Accelerator Table (RT_ACCELTABLE)
+// =============================================================================
+
+// Accelerator flags (AF_*)
+const uint16 AF_CHAR        = 0x0001;
+const uint16 AF_VIRTUALKEY  = 0x0002;
+const uint16 AF_SCANCODE    = 0x0004;
+const uint16 AF_SHIFT       = 0x0008;
+const uint16 AF_CONTROL     = 0x0010;
+const uint16 AF_ALT         = 0x0020;
+const uint16 AF_LONEKEY     = 0x0040;
+const uint16 AF_SYSCOMMAND  = 0x0100;
+const uint16 AF_HELP        = 0x0200;
+
+// Single accelerator entry (6 bytes)
+// From os2def.h: struct _ACCEL
+struct os2_accel {
+    uint16 fs;      // AF_* flags
+    uint16 key;     // Key code (virtual key or character)
+    uint16 cmd;     // Command ID
+};
+
+// Accelerator table (4 bytes header + variable entries)
+// From pmwin.h: struct _ACCELTABLE
+struct os2_accel_table {
+    uint16 c_accel;             // Number of accelerator entries
+    uint16 codepage;            // Code page for key codes
+    os2_accel entries[c_accel]; // Accelerator entries
+};
+
+// =============================================================================
+// Menu Item (RT_MENU)
+// =============================================================================
+
+// Menu style flags (MIS_*)
+const uint16 MIS_TEXT           = 0x0001;
+const uint16 MIS_BITMAP         = 0x0002;
+const uint16 MIS_SEPARATOR      = 0x0004;
+const uint16 MIS_OWNERDRAW      = 0x0008;
+const uint16 MIS_SUBMENU        = 0x0010;
+const uint16 MIS_MULTMENU       = 0x0020;
+const uint16 MIS_SYSCOMMAND     = 0x0040;
+const uint16 MIS_HELP           = 0x0080;
+const uint16 MIS_STATIC         = 0x0100;
+const uint16 MIS_BUTTONSEPARATOR = 0x0200;
+const uint16 MIS_BREAK          = 0x0400;
+const uint16 MIS_BREAKSEPARATOR = 0x0800;
+const uint16 MIS_GROUP          = 0x1000;
+const uint16 MIS_SINGLE         = 0x2000;
+
+// Menu attribute flags (MIA_*)
+const uint16 MIA_NODISMISS      = 0x0020;
+const uint16 MIA_FRAMED         = 0x1000;
+const uint16 MIA_CHECKED        = 0x2000;
+const uint16 MIA_DISABLED       = 0x4000;
+const uint16 MIA_HILITED        = 0x8000;
+
+// Menu item structure (16 bytes)
+// From pmwin.h: struct _MENUITEM
+struct os2_menu_item {
+    int16 i_position;       // Position in menu (-1 = end)
+    uint16 af_style;        // MIS_* style flags
+    uint16 af_attribute;    // MIA_* attribute flags
+    uint16 id;              // Menu item ID
+    uint32 hwnd_sub_menu;   // Submenu handle (HWND, 4 bytes)
+    uint32 h_item;          // Item handle/data
+};
+
+// =============================================================================
+// Dialog Template (RT_DIALOG)
+// =============================================================================
+
+// Dialog template header (14 bytes)
+// From pmwin.h: struct _DLGTEMPLATE
+struct os2_dialog_template {
+    uint16 cb_template;         // Total template size including all items
+    uint16 type;                // Template format type (usually 0)
+    uint16 codepage;            // Code page for strings
+    uint16 off_adlgti;          // Offset to first DLGTITEM
+    uint16 fs_template_status;  // Template status flags
+    uint16 i_item_focus;        // Index of item to receive focus
+    uint16 coff_pres_params;    // Count of presentation parameter offsets
+};
+
+// Dialog item structure (26 bytes)
+// From pmwin.h: struct _DLGTITEM
+struct os2_dialog_item {
+    uint16 fs_item_status;      // Item status flags
+    uint16 c_children;          // Number of child items
+    uint16 cch_class_name;      // Class name length
+    uint16 off_class_name;      // Offset to class name string
+    uint16 cch_text;            // Text length
+    uint16 off_text;            // Offset to text string
+    uint32 fl_style;            // Window style flags
+    int16 x;                    // X position
+    int16 y;                    // Y position
+    int16 cx;                   // Width
+    int16 cy;                   // Height
+    uint16 id;                  // Control ID
+    uint16 off_pres_params;     // Offset to presentation parameters
+    uint16 off_ctl_data;        // Offset to control data
+};
+
+// =============================================================================
+// Bitmap/Pointer (RT_BITMAP, RT_POINTER)
+// =============================================================================
+
+// Bitmap file type constants (BFT_*)
+const uint16 BFT_ICON         = 0x4349;  // 'IC'
+const uint16 BFT_BMAP         = 0x4D42;  // 'BM'
+const uint16 BFT_POINTER      = 0x5450;  // 'PT'
+const uint16 BFT_COLORICON    = 0x4943;  // 'CI'
+const uint16 BFT_COLORPOINTER = 0x5043;  // 'CP'
+const uint16 BFT_BITMAPARRAY  = 0x4142;  // 'BA'
+
+// Compression types (BCA_*)
+const uint32 BCA_UNCOMP    = 0;
+const uint32 BCA_RLE8      = 1;
+const uint32 BCA_RLE4      = 2;
+const uint32 BCA_HUFFMAN1D = 3;
+const uint32 BCA_RLE24     = 4;
+
+// OS/2 1.x bitmap info header (12 bytes)
+// From pmbitmap.h: struct _BITMAPINFOHEADER
+struct os2_bitmap_info_header {
+    uint32 cb_fix;          // Structure size (12)
+    uint16 cx;              // Width in pixels
+    uint16 cy;              // Height in pixels
+    uint16 c_planes;        // Number of planes (1)
+    uint16 c_bit_count;     // Bits per pixel (1, 4, 8, 24)
+};
+
+// RGB triple for OS/2 1.x palette (3 bytes)
+// From pmbitmap.h: struct _RGB
+struct os2_rgb {
+    uint8 b_blue;
+    uint8 b_green;
+    uint8 b_red;
+};
+
+// OS/2 2.0+ bitmap info header (variable size, minimum 16 bytes)
+// From pmbitmap.h: struct _BITMAPINFOHEADER2
+struct os2_bitmap_info_header2 {
+    uint32 cb_fix;              // Structure size (>= 16)
+    uint32 cx;                  // Width in pixels
+    uint32 cy;                  // Height in pixels
+    uint16 c_planes;            // Number of planes
+    uint16 c_bit_count;         // Bits per pixel
+    // Extended fields (present if cb_fix > 16)
+    uint32 ul_compression optional cb_fix > 16;
+    uint32 cb_image optional cb_fix > 20;
+    uint32 cx_resolution optional cb_fix > 24;
+    uint32 cy_resolution optional cb_fix > 28;
+    uint32 cclr_used optional cb_fix > 32;
+    uint32 cclr_important optional cb_fix > 36;
+    uint16 us_units optional cb_fix > 40;
+    uint16 us_reserved optional cb_fix > 42;
+    uint16 us_recording optional cb_fix > 44;
+    uint16 us_rendering optional cb_fix > 46;
+    uint32 c_size1 optional cb_fix > 48;
+    uint32 c_size2 optional cb_fix > 52;
+    uint32 ul_color_encoding optional cb_fix > 56;
+    uint32 ul_identifier optional cb_fix > 60;
+};
+
+// RGB quad for OS/2 2.0+ palette (4 bytes)
+// From pmbitmap.h: struct _RGB2
+struct os2_rgb2 {
+    uint8 b_blue;
+    uint8 b_green;
+    uint8 b_red;
+    uint8 fc_options;       // Reserved, must be 0
+};
+
+// Bitmap file header with 1.x info (26 bytes total)
+// From pmbitmap.h: struct _BITMAPFILEHEADER
+struct os2_bitmap_file_header {
+    uint16 us_type;         // BFT_* type
+    uint32 cb_size;         // File size
+    int16 x_hotspot;        // Hotspot X (for pointers)
+    int16 y_hotspot;        // Hotspot Y (for pointers)
+    uint32 off_bits;        // Offset to bitmap data
+    os2_bitmap_info_header bmp;  // 12-byte info header
+};
+
+// Bitmap array header (for multi-resolution icons/pointers)
+// From pmbitmap.h: struct _BITMAPARRAYFILEHEADER
+struct os2_bitmap_array_header {
+    uint16 us_type;         // BFT_BITMAPARRAY (0x4142)
+    uint32 cb_size;         // Size of this entry
+    uint32 off_next;        // Offset to next entry (0 = last)
+    uint16 cx_display;      // Target display width
+    uint16 cy_display;      // Target display height
+    // BITMAPFILEHEADER follows immediately
+};
+
+// =============================================================================
+// Help Table (RT_HELPTABLE)
+// =============================================================================
+
+// Help table entry (8 bytes in resource file)
+// From pmhelp.h: struct _HELPTABLE
+// Note: In resource file, the pointer is stored as an offset
+struct os2_help_table_entry {
+    uint16 id_app_window;       // Application window ID
+    uint32 offset_subtable;     // Offset to subtable
+    uint16 id_ext_panel;        // Extended help panel ID
+};
+
+// =============================================================================
+// GPI Font (RT_FONT)
+// =============================================================================
+
+// Font record identity codes
+const uint32 SIG_OS2FONTSTART  = 0xFFFFFFFE;
+const uint32 SIG_OS2METRICS    = 0x00000001;
+const uint32 SIG_OS2FONTDEF    = 0x00000002;
+const uint32 SIG_OS2KERN       = 0x00000003;
+const uint32 SIG_OS2ADDMETRICS = 0x00000004;
+const uint32 SIG_OS2FONTEND    = 0xFFFFFFFF;
+
+// Font start signature (20 bytes)
+// From gpifont.h: struct _OS2_Font_Header
+struct os2_font_start {
+    uint32 identity : identity == SIG_OS2FONTSTART;
+    uint32 ul_size;
+    uint8 ach_signature[12];    // "OS/2 FONT" or "OS/2 FONT 2"
+};
+
+// Font metrics (136 bytes)
+// From gpifont.h: struct _OS2_FOCA_Metrics
+struct os2_foca_metrics {
+    uint32 identity : identity == SIG_OS2METRICS;
+    uint32 ul_size;
+    uint8 sz_familyname[32];    // Null-terminated family name
+    uint8 sz_facename[32];      // Null-terminated face name
+    int16 us_registry_id;
+    int16 us_code_page;         // 850 = PMUGL
+    int16 y_em_height;
+    int16 y_x_height;
+    int16 y_max_ascender;
+    int16 y_max_descender;
+    int16 y_lowercase_ascent;
+    int16 y_lowercase_descent;
+    int16 y_internal_leading;
+    int16 y_external_leading;
+    int16 x_ave_char_width;
+    int16 x_max_char_inc;
+    int16 x_em_inc;
+    int16 y_max_baseline_ext;
+    int16 s_char_slope;
+    int16 s_inline_dir;
+    int16 s_char_rot;
+    uint16 us_weight_class;
+    uint16 us_width_class;
+    int16 x_device_res;
+    int16 y_device_res;
+    int16 us_first_char;
+    int16 us_last_char;
+    int16 us_default_char;
+    int16 us_break_char;
+    int16 us_nominal_point_size;
+    int16 us_minimum_point_size;
+    int16 us_maximum_point_size;
+    int16 fs_type_flags;
+    int16 fs_defn;
+    int16 fs_selection_flags;
+    int16 fs_capabilities;
+    int16 y_subscript_x_size;
+    int16 y_subscript_y_size;
+    int16 y_subscript_x_offset;
+    int16 y_subscript_y_offset;
+    int16 y_superscript_x_size;
+    int16 y_superscript_y_size;
+    int16 y_superscript_x_offset;
+    int16 y_superscript_y_offset;
+    int16 y_underscore_size;
+    int16 y_underscore_position;
+    int16 y_strikeout_size;
+    int16 y_strikeout_position;
+    int16 us_kerning_pairs;
+    int16 s_family_class;
+    uint32 reserved;
+};
+
+// Font definition header (24 bytes)
+// From gpifont.h: struct _OS2_Font_Definition
+struct os2_font_def_header {
+    uint32 identity : identity == SIG_OS2FONTDEF;
+    uint32 ul_size;             // Includes character data
+    int16 fs_fontdef;           // Font definition flags
+    int16 fs_chardef;           // Character definition format
+    int16 us_cell_size;         // Bytes per character definition
+    int16 x_cell_width;         // Cell width (type 1 only)
+    int16 y_cell_height;        // Cell height
+    int16 x_cell_increment;     // Increment (type 1 only)
+    int16 x_cell_a;             // a_space (type 3 only)
+    int16 x_cell_b;             // b_space (type 3 only)
+    int16 x_cell_c;             // c_space (type 3 only)
+    int16 p_cell_base_offset;   // Baseline offset from top
+};
+
+// Type 1/2 character definition (6 bytes)
+// From gpifont.h: struct _OS2_Character_1
+struct os2_char_def1 {
+    uint32 ul_offset;           // Bitmap offset in font
+    uint16 ul_width;            // Bitmap width in pixels
+};
+
+// Type 3 character definition (10 bytes)
+// From gpifont.h: struct _OS2_Character_3
+struct os2_char_def3 {
+    uint32 ul_offset;           // Bitmap offset
+    int16 a_space;              // Leading space
+    int16 b_space;              // Glyph width
+    int16 c_space;              // Trailing space
+};
+
+// Kerning pair table header (9 bytes)
+// From gpifont.h: struct _OS2_Kerning_Table
+struct os2_kern_pair_table {
+    uint32 identity : identity == SIG_OS2KERN;
+    uint32 ul_size;             // Should be 10 (per spec, but 9 in practice)
+    uint8 c_first_pair;         // Undocumented field
+};
+
+// Kerning pair (6 bytes)
+// From gpifont.h: struct _OS2_Kerning_Pair
+struct os2_kerning_pair {
+    int16 s_first_char;
+    int16 s_second_char;
+    int16 s_kerning_amount;
+};
+
+// Additional metrics / PANOSE (20 bytes)
+// From gpifont.h: struct _OS2_Extra_Metrics
+struct os2_add_metrics {
+    uint32 identity : identity == SIG_OS2ADDMETRICS;
+    uint32 ul_size;             // 20
+    uint8 panose[12];           // PANOSE data (padded)
+};
+
+// Font end signature (8 bytes)
+// From gpifont.h: typedef GENERICRECORD OS2FONTEND
+struct os2_font_end {
+    uint32 identity : identity == SIG_OS2FONTEND;
+    uint32 ul_size;
+};
+
+// =============================================================================
+// Font Directory (RT_FONTDIR)
+// =============================================================================
+
+// Font directory entry
+// From gpifont.h: struct _OS2_FontDir_Entry
+struct os2_font_dir_entry {
+    uint16 us_index;            // Resource ID of the font
+    os2_foca_metrics metrics;   // Font metrics (136 bytes)
+    uint8 panose[12];           // PANOSE data
+};
+
+// Font directory header
+// From gpifont.h: struct _OS2_Font_Directory
+struct os2_font_directory_header {
+    uint16 us_header_size;      // Size of this header
+    uint16 us_n_fonts;          // Number of fonts
+    uint16 us_i_metrics;        // Size of all metrics
+};
+
+// =============================================================================
+// String Table (RT_STRING)
+// =============================================================================
+
+// Length-prefixed string entry
+struct os2_string_entry {
+    uint16 length;              // String length in bytes
+    uint8 text[length];         // String data
+};

@@ -101,6 +101,7 @@ add_executable(libexe_unittest
         resources/test_dialog_parser.cpp    # Dialog parser tests - NE and PE formats
         resources/test_menu_parser.cpp      # Menu parser tests
         resources/test_bitmap_message_parsers.cpp  # Bitmap & Message Table parser tests
+        resources/test_os2_resource_parser.cpp  # OS/2 Presentation Manager resource parser tests
         test_corkami_corpus.cpp     # Integration tests using Corkami PE test corpus
         test_corkami_validation.cpp # Field-level validation using Corkami corpus
         test_corkami_generated.cpp  # Auto-generated tests from JSON specification

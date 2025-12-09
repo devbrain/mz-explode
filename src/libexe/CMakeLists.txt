@@ -99,6 +99,7 @@ add_datascript_parser(formats/resources/basic.ds libexe_format_basic.hh)
 add_datascript_parser(formats/resources/tables.ds libexe_format_tables.hh)
 add_datascript_parser(formats/resources/fonts.ds libexe_format_fonts.hh)
 add_datascript_parser(formats/resources/menus.ds libexe_format_menus.hh)
+add_datascript_parser(formats/resources/os2.ds libexe_format_os2.hh)
 
 # Set up dependencies: resource parsers depend on common being generated first
 add_dependencies(generate_dialogs_parser generate_common_parser)
@@ -162,6 +163,7 @@ add_library(libexe
         resources/parsers/menu_parser.cpp
         resources/parsers/bitmap_parser.cpp
         resources/parsers/message_table_parser.cpp
+        resources/parsers/os2_resource_parser.cpp
         # Decompressors
         decompressors/pklite_decompressor.cpp
         decompressors/lzexe_decompressor.cpp
@@ -197,6 +199,7 @@ add_dependencies(libexe
     generate_tables_parser
     generate_fonts_parser
     generate_menus_parser
+    generate_os2_parser
 )
 
 # Generate portable export header
