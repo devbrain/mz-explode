@@ -50,6 +50,7 @@ le_file le_file::from_memory(std::span<const uint8_t> data) {
         file.parse_entry_table();
         file.parse_import_module_table();
         file.parse_fixup_tables();
+        file.parse_resource_table();
     } catch (const formats::le::le_header::ConstraintViolation& e) {
         throw std::runtime_error(std::string("Invalid LE/LX file: ") + e.what());
     } catch (const std::runtime_error& e) {
@@ -150,6 +151,8 @@ void le_file::parse_le_headers() {
     object_table_offset_ = le_header.object_table_offset;
     object_count_ = le_header.object_count;
     page_table_offset_ = le_header.object_page_table_offset;
+    resource_table_offset_ = le_header.resource_table_offset;
+    resource_count_ = le_header.resource_count;
     resident_name_table_offset_ = le_header.resident_name_table_offset;
     entry_table_offset_ = le_header.entry_table_offset;
     import_module_table_offset_ = le_header.import_module_table_offset;
@@ -739,6 +742,50 @@ void le_file::parse_fixup_tables() {
     }
 }
 
+void le_file::parse_resource_table() {
+    // Resource table is optional - many LE/LX files don't have resources
+    if (resource_table_offset_ == 0 || resource_count_ == 0) {
+        return;
+    }
+
+    const uint8_t* ptr = data_.data() + le_header_offset_ + resource_table_offset_;
+    const uint8_t* end = data_.data() + data_.size();
+
+    // Each resource entry is 14 bytes (see le_resource_entry in DataScript)
+    const size_t entry_size = 14;
+
+    resources_.reserve(resource_count_);
+
+    for (uint32_t i = 0; i < resource_count_; ++i) {
+        if (ptr + entry_size > end) {
+            diagnostics_.warning(diagnostic_code::LE_INVALID_OBJECT_INDEX,
+                                "Resource table truncated");
+            break;
+        }
+
+        // Parse resource entry manually (DataScript struct is 14 bytes)
+        // uint16 type_id, uint16 name_id, uint32 size, uint16 object, uint32 offset
+        le_resource res;
+        res.type_id = static_cast<uint16_t>(ptr[0]) |
+                     (static_cast<uint16_t>(ptr[1]) << 8);
+        res.name_id = static_cast<uint16_t>(ptr[2]) |
+                     (static_cast<uint16_t>(ptr[3]) << 8);
+        res.size = static_cast<uint32_t>(ptr[4]) |
+                  (static_cast<uint32_t>(ptr[5]) << 8) |
+                  (static_cast<uint32_t>(ptr[6]) << 16) |
+                  (static_cast<uint32_t>(ptr[7]) << 24);
+        res.object = static_cast<uint16_t>(ptr[8]) |
+                    (static_cast<uint16_t>(ptr[9]) << 8);
+        res.offset = static_cast<uint32_t>(ptr[10]) |
+                    (static_cast<uint32_t>(ptr[11]) << 8) |
+                    (static_cast<uint32_t>(ptr[12]) << 16) |
+                    (static_cast<uint32_t>(ptr[13]) << 24);
+
+        resources_.push_back(res);
+        ptr += entry_size;
+    }
+}
+
 // Base class interface
 format_type le_file::get_format() const {
     if (is_lx_) {
@@ -1034,6 +1081,59 @@ std::vector<le_fixup> le_file::get_page_fixups(uint32_t page_index) const {
 size_t le_file::fixup_count() const { return fixups_.size(); }
 
 bool le_file::has_fixups() const { return !fixups_.empty(); }
+
+// Resource table
+const std::vector<le_resource>& le_file::resources() const { return resources_; }
+
+size_t le_file::resource_count() const { return resources_.size(); }
+
+bool le_file::has_resources() const { return !resources_.empty(); }
+
+std::vector<le_resource> le_file::resources_by_type(uint16_t type_id) const {
+    std::vector<le_resource> result;
+    for (const auto& res : resources_) {
+        if (res.type_id == type_id) {
+            result.push_back(res);
+        }
+    }
+    return result;
+}
+
+std::optional<le_resource> le_file::get_resource(uint16_t type_id, uint16_t name_id) const {
+    for (const auto& res : resources_) {
+        if (res.type_id == type_id && res.name_id == name_id) {
+            return res;
+        }
+    }
+    return std::nullopt;
+}
+
+std::vector<uint8_t> le_file::read_resource_data(const le_resource& resource) const {
+    // Get the object containing the resource
+    auto obj = get_object(resource.object);
+    if (!obj) {
+        return {};
+    }
+
+    // Read object data
+    auto obj_data = read_object_data(resource.object);
+    if (obj_data.empty()) {
+        return {};
+    }
+
+    // Extract resource data at the specified offset
+    if (resource.offset >= obj_data.size()) {
+        return {};
+    }
+
+    size_t available = obj_data.size() - resource.offset;
+    size_t copy_size = std::min(static_cast<size_t>(resource.size), available);
+
+    return std::vector<uint8_t>(
+        obj_data.begin() + resource.offset,
+        obj_data.begin() + resource.offset + copy_size
+    );
+}
 
 // Debug information
 bool le_file::has_debug_info() const {

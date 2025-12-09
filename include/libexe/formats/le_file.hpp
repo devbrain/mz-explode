@@ -56,6 +56,38 @@ struct le_name_entry {
     uint16_t ordinal;            // Entry ordinal
 };
 
+/// Resource table entry
+struct le_resource {
+    uint16_t type_id;            // Resource type ID (see OS/2 resource types)
+    uint16_t name_id;            // Resource name ID
+    uint32_t size;               // Resource size in bytes
+    uint16_t object;             // Object number containing resource (1-based)
+    uint32_t offset;             // Offset within object
+
+    // Standard OS/2 resource types
+    static constexpr uint16_t RT_POINTER    = 1;   // Mouse pointer
+    static constexpr uint16_t RT_BITMAP     = 2;   // Bitmap
+    static constexpr uint16_t RT_MENU       = 3;   // Menu template
+    static constexpr uint16_t RT_DIALOG     = 4;   // Dialog template
+    static constexpr uint16_t RT_STRING     = 5;   // String table
+    static constexpr uint16_t RT_FONTDIR    = 6;   // Font directory
+    static constexpr uint16_t RT_FONT       = 7;   // Font
+    static constexpr uint16_t RT_ACCELTABLE = 8;   // Accelerator table
+    static constexpr uint16_t RT_RCDATA     = 9;   // Binary data
+    static constexpr uint16_t RT_MESSAGE    = 10;  // Error message table
+    static constexpr uint16_t RT_DLGINCLUDE = 11;  // Dialog include file name
+    static constexpr uint16_t RT_VKEYTBL    = 12;  // Virtual key table
+    static constexpr uint16_t RT_KEYTBL     = 13;  // Key table
+    static constexpr uint16_t RT_CHARTBL    = 14;  // Char table
+    static constexpr uint16_t RT_DISPLAYINFO= 15;  // Display info
+    static constexpr uint16_t RT_FKASHORT   = 16;  // FKA short
+    static constexpr uint16_t RT_FKALONG    = 17;  // FKA long
+    static constexpr uint16_t RT_HELPTABLE  = 18;  // Help table
+    static constexpr uint16_t RT_HELPSUBTABLE = 19;// Help subtable
+    static constexpr uint16_t RT_FDDIR      = 20;  // Font directory (alternate)
+    static constexpr uint16_t RT_FD         = 21;  // Font
+};
+
 /// Entry table entry type
 enum class le_entry_type : uint8_t {
     UNUSED    = 0x00,     // Empty/skip (used to skip ordinal numbers)
@@ -278,6 +310,28 @@ public:
     [[nodiscard]] bool has_fixups() const;
 
     // =========================================================================
+    // Resource Table
+    // =========================================================================
+
+    /// Get all resources
+    [[nodiscard]] const std::vector<le_resource>& resources() const;
+
+    /// Get number of resources
+    [[nodiscard]] size_t resource_count() const;
+
+    /// Check if file has resources
+    [[nodiscard]] bool has_resources() const;
+
+    /// Get resources by type ID
+    [[nodiscard]] std::vector<le_resource> resources_by_type(uint16_t type_id) const;
+
+    /// Get resource by type and name ID
+    [[nodiscard]] std::optional<le_resource> get_resource(uint16_t type_id, uint16_t name_id) const;
+
+    /// Read resource data
+    [[nodiscard]] std::vector<uint8_t> read_resource_data(const le_resource& resource) const;
+
+    // =========================================================================
     // Debug information
     // =========================================================================
 
@@ -324,6 +378,7 @@ private:
     void parse_entry_table();
     void parse_import_module_table();
     void parse_fixup_tables();
+    void parse_resource_table();
     void detect_extender_type();
 
     std::vector<uint8_t> data_;
@@ -332,6 +387,7 @@ private:
     std::vector<le_entry> entries_;
     std::vector<std::string> import_modules_;
     std::vector<le_fixup> fixups_;
+    std::vector<le_resource> resources_;
 
     // Format identification
     bool is_lx_ = false;
@@ -358,6 +414,8 @@ private:
     uint32_t object_table_offset_ = 0;
     uint32_t object_count_ = 0;
     uint32_t page_table_offset_ = 0;
+    uint32_t resource_table_offset_ = 0;
+    uint32_t resource_count_ = 0;
     uint32_t resident_name_table_offset_ = 0;
     uint32_t entry_table_offset_ = 0;
     uint32_t import_module_table_offset_ = 0;

@@ -31,6 +31,10 @@ namespace data {
     // Forward declarations - LE format (DOS extenders)
     extern size_t doom_le_len;
     extern unsigned char doom_le[];
+
+    // Forward declarations - LX with resources (OS/2)
+    extern size_t makeini_lx_len;
+    extern unsigned char makeini_lx[];
 }
 
 // Include test data implementations
@@ -42,3 +46,4 @@ namespace data {
 #include "testdata/cmd_lx.cc"
 #include "testdata/7z_lx.cc"
 #include "testdata/doom_le.cc"
+#include "testdata/makeini_lx.cc"
