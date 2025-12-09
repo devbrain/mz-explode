@@ -114,7 +114,8 @@ add_executable(libexe_unittest
         formats/test_ne_font.cpp  # Real NE font (Windows 3.11 CGA font)
         formats/test_pe32.cpp     # Real PE32 file (32-bit executable)
         formats/test_pe64.cpp     # Real PE32+ file (64-bit executable)
-        formats/data_wrapper.cpp  # Includes all PE/NE format test data
+        formats/data_wrapper.cpp  # Includes all PE/NE format test data (includes tcmadm64.cc)
+        test_tcmadm64_parser.cpp  # TCMADM64.EXE PE64 tests with objdump ground truth
         testdata/corkami_test_data.cc  # Embedded Corkami PE test corpus files
         testdata/scheduler.cc  # Embedded scheduler.exe for PE parser tests
         md5.c  # MD5 implementation for verification
