@@ -11,6 +11,162 @@
 
 namespace libexe {
 
+// =============================================================================
+// LX Page Decompression
+// Based on public domain code by Alexander Taylor / Veit Kannegieser / Max Alekseyev
+// from os2-gpi-font-tools project
+// =============================================================================
+
+// EXEPACK1 decompression (iterated pages - simple run-length encoding)
+// Returns decompressed size, output written to out_buffer (must be at least 4096 bytes)
+static size_t lx_unpack1(const uint8_t* input, size_t input_size, uint8_t* output) {
+    if (input_size > 4096) {
+        // Not compressed, just copy
+        std::memcpy(output, input, input_size);
+        return input_size;
+    }
+
+    size_t in_pos = 0;
+    size_t out_pos = 0;
+
+    while (in_pos + 4 <= input_size) {
+        // Read repetition count (little-endian 16-bit)
+        uint16_t reps = static_cast<uint16_t>(input[in_pos]) |
+                       (static_cast<uint16_t>(input[in_pos + 1]) << 8);
+        if (reps == 0) break;
+        in_pos += 2;
+
+        // Read sequence length (little-endian 16-bit)
+        uint16_t len = static_cast<uint16_t>(input[in_pos]) |
+                      (static_cast<uint16_t>(input[in_pos + 1]) << 8);
+        in_pos += 2;
+
+        // Check bounds
+        if (out_pos + (reps * len) > 4096) break;
+        if (in_pos + len > input_size) break;
+
+        // Copy sequence 'reps' times
+        for (uint16_t r = 0; r < reps; ++r) {
+            std::memcpy(output + out_pos, input + in_pos, len);
+            out_pos += len;
+        }
+        in_pos += len;
+    }
+
+    return out_pos;
+}
+
+// Helper for EXEPACK2: byte-by-byte copy that handles overlapping regions
+static void copy_byte_seq(uint8_t* target, const uint8_t* source, size_t count) {
+    for (size_t i = 0; i < count; ++i) {
+        target[i] = source[i];
+    }
+}
+
+// EXEPACK2 decompression (modified Lempel-Ziv)
+// Returns decompressed size, output written to out_buffer (must be at least 4096 bytes)
+static size_t lx_unpack2(const uint8_t* input, size_t input_size, uint8_t* output) {
+    if (input_size > 4096) {
+        std::memcpy(output, input, input_size);
+        return input_size;
+    }
+
+    std::memset(output, 0, 4096);
+    size_t in_pos = 0;
+    size_t out_pos = 0;
+
+    while (in_pos + 2 <= input_size) {
+        // Read control word (little-endian 16-bit)
+        uint16_t control = static_cast<uint16_t>(input[in_pos]) |
+                          (static_cast<uint16_t>(input[in_pos + 1]) << 8);
+
+        // Bits 1 & 0 hold the case flag (0-3)
+        switch (control & 0x3) {
+            case 0: {
+                if ((control & 0xFF) == 0) {
+                    // When length1 == 0, fill (length2) bytes with the byte value following control
+                    uint32_t len = (control >> 8) & 0xFF;
+                    if (len == 0) goto done;
+                    if (in_pos + 2 >= input_size) goto done;
+                    std::memset(output + out_pos, input[in_pos + 2], len);
+                    in_pos += 3;
+                    out_pos += len;
+                } else {
+                    // Block copy (length1) bytes from after control word
+                    uint32_t len = (control >> 2) & 0x3F;
+                    if (in_pos + 1 + len > input_size) goto done;
+                    std::memcpy(output + out_pos, input + in_pos + 1, len);
+                    in_pos += len + 1;
+                    out_pos += len;
+                }
+                break;
+            }
+
+            case 1: {
+                // bits 15..7  = backwards reference
+                // bits  6..4  +3 = length2
+                // bits  3..2  = length1
+                uint32_t len1 = (control >> 2) & 0x3;
+                if (in_pos + 2 + len1 > input_size) goto done;
+                std::memcpy(output + out_pos, input + in_pos + 2, len1);
+                in_pos += len1 + 2;
+                out_pos += len1;
+
+                uint32_t len2 = ((control >> 4) & 0x7) + 3;
+                uint32_t back_ref = (control >> 7) & 0x1FF;
+                if (back_ref > out_pos) goto done;
+                copy_byte_seq(output + out_pos, output + out_pos - back_ref, len2);
+                out_pos += len2;
+                break;
+            }
+
+            case 2: {
+                // bits 15.. 4 = backwards reference
+                // bits  3.. 2 +3 = length
+                uint32_t len = ((control >> 2) & 0x3) + 3;
+                uint32_t back_ref = (control >> 4) & 0xFFF;
+                if (back_ref > out_pos) goto done;
+                copy_byte_seq(output + out_pos, output + out_pos - back_ref, len);
+                in_pos += 2;
+                out_pos += len;
+                break;
+            }
+
+            case 3: {
+                // Need 4-byte control word
+                if (in_pos + 4 > input_size) goto done;
+                uint32_t control32 = static_cast<uint32_t>(input[in_pos]) |
+                                    (static_cast<uint32_t>(input[in_pos + 1]) << 8) |
+                                    (static_cast<uint32_t>(input[in_pos + 2]) << 16) |
+                                    (static_cast<uint32_t>(input[in_pos + 3]) << 24);
+
+                // bits 20..12 = backwards reference
+                // bits 11.. 6 = length2
+                // bits  5.. 2 = length1
+                uint32_t len1 = (control32 >> 2) & 0xF;
+                if (in_pos + 3 + len1 > input_size) goto done;
+                std::memcpy(output + out_pos, input + in_pos + 3, len1);
+                in_pos += len1 + 3;
+                out_pos += len1;
+
+                uint32_t len2 = (control32 >> 6) & 0x3F;
+                uint32_t back_ref = (control32 >> 12) & 0xFFF;
+                if (back_ref > out_pos) goto done;
+                copy_byte_seq(output + out_pos, output + out_pos - back_ref, len2);
+                out_pos += len2;
+                break;
+            }
+        }
+
+        if (out_pos >= 4096) break;
+    }
+
+done:
+    return 4096;  // EXEPACK2 always produces 4096 bytes (except for last page)
+}
+
+// =============================================================================
+
 // Helper to read file into memory
 static std::vector<uint8_t> read_file_to_memory(const std::filesystem::path& path) {
     std::ifstream file(path, std::ios::binary | std::ios::ate);
@@ -929,6 +1085,9 @@ std::vector<uint8_t> le_file::read_object_data(uint32_t object_index) const {
     std::vector<uint8_t> result;
     result.reserve(obj->virtual_size);
 
+    // Temporary buffer for page decompression (must be at least 4096 bytes)
+    uint8_t page_buffer[4096];
+
     auto pages = get_object_pages(object_index);
     for (const auto& page : pages) {
         if (page.is_zerofill()) {
@@ -937,12 +1096,30 @@ std::vector<uint8_t> le_file::read_object_data(uint32_t object_index) const {
                                        static_cast<size_t>(obj->virtual_size - result.size()));
             result.resize(result.size() + fill_size, 0);
         } else if (page.is_invalid()) {
-            // Invalid page - skip or zero-fill?
+            // Invalid page - zero-fill
             size_t fill_size = std::min(static_cast<size_t>(page_size_),
                                        static_cast<size_t>(obj->virtual_size - result.size()));
             result.resize(result.size() + fill_size, 0);
+        } else if (page.is_iterated() && page.file_offset < data_.size()) {
+            // EXEPACK1 compressed page (iterated/run-length encoded)
+            size_t input_size = std::min(static_cast<size_t>(page.data_size),
+                                        data_.size() - page.file_offset);
+            size_t output_size = lx_unpack1(data_.data() + page.file_offset,
+                                           input_size, page_buffer);
+            size_t copy_size = std::min(output_size,
+                                       static_cast<size_t>(obj->virtual_size - result.size()));
+            result.insert(result.end(), page_buffer, page_buffer + copy_size);
+        } else if (page.is_compressed() && page.file_offset < data_.size()) {
+            // EXEPACK2 compressed page (Lempel-Ziv variant)
+            size_t input_size = std::min(static_cast<size_t>(page.data_size),
+                                        data_.size() - page.file_offset);
+            size_t output_size = lx_unpack2(data_.data() + page.file_offset,
+                                           input_size, page_buffer);
+            size_t copy_size = std::min(output_size,
+                                       static_cast<size_t>(obj->virtual_size - result.size()));
+            result.insert(result.end(), page_buffer, page_buffer + copy_size);
         } else if (page.file_offset < data_.size()) {
-            // Legal page - copy data
+            // Legal uncompressed page - copy data directly
             size_t copy_size = std::min(static_cast<size_t>(page.data_size),
                                        data_.size() - page.file_offset);
             copy_size = std::min(copy_size,

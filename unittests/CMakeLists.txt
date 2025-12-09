@@ -119,6 +119,7 @@ add_executable(libexe_unittest
         formats/test_le_import.cpp # LE/LX import module table tests
         formats/test_le_fixup.cpp # LE/LX fixup table parsing tests
         formats/test_le_resource.cpp # LE/LX resource table parsing tests
+        formats/test_le_decompress.cpp # LE/LX page decompression tests (EXEPACK1/EXEPACK2)
         formats/test_lx_real.cpp  # LX parser tests with real OS/2 executables
         formats/data_wrapper.cpp  # Includes all PE/NE format test data (includes tcmadm64.cc)
         test_tcmadm64_parser.cpp  # TCMADM64.EXE PE64 tests with objdump ground truth
