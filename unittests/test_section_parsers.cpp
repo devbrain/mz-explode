@@ -1,8 +1,9 @@
 // Comprehensive tests for section parsers
 #include <doctest/doctest.h>
-#include <libexe/pe_section_parser.hpp>
-#include <libexe/ne_segment_parser.hpp>
+#include <libexe/pe/section_parser.hpp>
+#include <libexe/ne/segment_parser.hpp>
 #include <vector>
+#include <stdexcept>
 
 using namespace libexe;
 

@@ -4,8 +4,8 @@
 // Tests for Exception Directory Parser
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/exception_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/exception.hpp>
 #include <vector>
 #include <cstring>
 

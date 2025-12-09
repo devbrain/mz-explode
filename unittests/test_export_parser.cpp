@@ -1,10 +1,10 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/pe_file.hpp>
-#include <libexe/parsers/export_directory_parser.hpp>
-#include <libexe/export_directory.hpp>
-#include <libexe/pe_types.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/export.hpp>
+#include <libexe/pe/directories/export.hpp>
+#include <libexe/pe/types.hpp>
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>
@@ -320,7 +320,7 @@ TEST_CASE("Export parser - Invalid data directory index") {
 
     SUBCASE("Out of range directory entry should throw") {
         CHECK_THROWS_AS(
-            pe.data_directory_rva(static_cast<directory_entry>(999)),
+            (void)pe.data_directory_rva(static_cast<directory_entry>(999)),
             std::out_of_range
         );
     }

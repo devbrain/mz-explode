@@ -89,8 +89,8 @@ enum uint32 font_flags {
  * device/face name strings.
  *
  * Version differences:
- * - 0x0200: Windows 2.x format
- * - 0x0300: Windows 3.x+ format (adds dfFlags and spacing fields)
+ * - 0x0200: Windows 2.x format (4-byte glyph entries)
+ * - 0x0300: Windows 3.x+ format (6-byte glyph entries, adds flags and spacing)
  *
  * Per fon.txt specification (lines 37-264)
  */
@@ -131,6 +131,103 @@ struct font_header {
     uint16 cspace;               // Global C space (Windows 3.0+)
     uint32 color_pointer;        // Offset to color table (Windows 3.0+)
     uint8  reserved1[16];        // Reserved (Windows 3.0+)
+};
+
+/**
+ * Complete Windows 2.x Font File
+ *
+ * Windows 2.x fonts use 4-byte glyph entries (2-byte width + 2-byte offset).
+ * The glyph table has (last_char - first_char + 2) entries:
+ *   - One entry per character in the range
+ *   - Plus one sentinel entry for absolute positioning
+ *
+ * Header size: 117 bytes (no flags, aspace, bspace, cspace, color_pointer, reserved1)
+ */
+struct font_2x {
+    // Header (117 bytes for 2.x)
+    uint16 version : version == 0x0200;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type;
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width;
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+    uint8  reserved;
+    // Note: No flags, aspace, bspace, cspace, color_pointer, reserved1 in 2.x
+
+    // Glyph table: (last_char - first_char + 2) entries
+    glyph_entry_2x glyphs[last_char - first_char + 2];
+};
+
+/**
+ * Complete Windows 3.x Font File
+ *
+ * Windows 3.x fonts use 6-byte glyph entries (2-byte width + 4-byte offset).
+ * The glyph table has (last_char - first_char + 2) entries.
+ */
+struct font_3x {
+    // Header (118 bytes)
+    uint16 version : version == 0x0300;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type;
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width;
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+    uint8  reserved;
+    uint32 flags;
+    uint16 aspace;
+    uint16 bspace;
+    uint16 cspace;
+    uint32 color_pointer;
+    uint8  reserved1[16];
+
+    // Glyph table: (last_char - first_char + 2) entries
+    glyph_entry_30 glyphs[last_char - first_char + 2];
 };
 
 // =============================================================================

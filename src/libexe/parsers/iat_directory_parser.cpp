@@ -1,8 +1,8 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/parsers/iat_directory_parser.hpp>
-#include <libexe/pe_section_parser.hpp>
+#include <libexe/pe/directories/iat.hpp>
+#include <libexe/pe/section_parser.hpp>
 #include <stdexcept>
 #include <cstring>
 

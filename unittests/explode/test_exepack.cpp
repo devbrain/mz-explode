@@ -1,8 +1,8 @@
 // Equivalence test: EXEPACK decompressor vs reference implementation
 // Follows exepack-1.4.0 test logic: allows up to 15 bytes of zero padding
 #include <doctest/doctest.h>
-#include <libexe/mz_file.hpp>
-#include <libexe/decompressors/exepack_decompressor.hpp>
+#include <libexe/formats/mz_file.hpp>
+#include <libexe/decompressors/exepack.hpp>
 #include <string>
 #include <algorithm>
 

@@ -3,8 +3,8 @@
 // Unit tests for Global Pointer Parser (IA64)
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/global_ptr_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/global_ptr.hpp>
 #include <cstring>
 #include <vector>
 

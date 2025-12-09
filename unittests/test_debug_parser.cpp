@@ -2,9 +2,9 @@
 // Copyright (c) 2024
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/debug_directory.hpp>
-#include <libexe/parsers/debug_directory_parser.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/debug.hpp>
+#include <libexe/pe/directories/debug.hpp>
 #include <vector>
 #include <cstring>
 

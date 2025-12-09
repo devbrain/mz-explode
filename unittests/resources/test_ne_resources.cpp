@@ -1,6 +1,6 @@
 // Test NE Resource Extraction
 #include <doctest/doctest.h>
-#include <libexe/ne_file.hpp>
+#include <libexe/formats/ne_file.hpp>
 #include <libexe/resources/resource.hpp>
 
 using namespace libexe;

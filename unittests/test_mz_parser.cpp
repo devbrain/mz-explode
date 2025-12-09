@@ -1,6 +1,6 @@
 // Unit tests for MZ file parsing
 #include <doctest/doctest.h>
-#include <libexe/mz_file.hpp>
+#include <libexe/formats/mz_file.hpp>
 #include <vector>
 #include <cstring>
 

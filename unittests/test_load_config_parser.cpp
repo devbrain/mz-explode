@@ -2,9 +2,9 @@
 // Copyright (c) 2024
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/load_config_directory.hpp>
-#include <libexe/parsers/load_config_directory_parser.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/load_config.hpp>
+#include <libexe/pe/directories/load_config.hpp>
 #include <vector>
 #include <cstring>
 

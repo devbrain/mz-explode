@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/parsers/global_ptr_directory_parser.hpp>
+#include <libexe/pe/directories/global_ptr.hpp>
 
 namespace libexe {
 

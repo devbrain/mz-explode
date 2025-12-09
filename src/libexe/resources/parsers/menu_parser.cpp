@@ -1,8 +1,6 @@
 #include <libexe/resources/parsers/menu_parser.hpp>
-#include "libexe_format_menus.hh"  // Generated DataScript parser (modular)
-#include <algorithm>
-#include <codecvt>
-#include <locale>
+#include "libexe_format_menus.hh"
+#include "../../core/utf_convert.hpp"
 
 namespace libexe {
 
@@ -22,13 +20,11 @@ uint16_t read_uint16_le(const uint8_t*& ptr, const uint8_t* end) {
 std::string read_ansi_string(const uint8_t*& ptr, const uint8_t* end) {
     std::string result;
 
-    // Read single-byte characters until null terminator
     while (ptr < end && *ptr != 0) {
         result.push_back(static_cast<char>(*ptr));
         ptr++;
     }
 
-    // Skip null terminator
     if (ptr < end && *ptr == 0) {
         ptr++;
     }
@@ -38,32 +34,20 @@ std::string read_ansi_string(const uint8_t*& ptr, const uint8_t* end) {
 
 // Helper to read null-terminated UTF-16LE string and convert to UTF-8 (PE format)
 std::string read_u16string(const uint8_t*& ptr, const uint8_t* end) {
-    std::u16string u16str;
+    std::vector<uint16_t> u16data;
 
-    // Read UTF-16 characters until null terminator
     while (ptr + 2 <= end) {
         uint16_t wchar = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
         ptr += 2;
 
         if (wchar == 0) {
-            break;  // Null terminator
+            break;
         }
 
-        u16str.push_back(static_cast<char16_t>(wchar));
+        u16data.push_back(wchar);
     }
 
-    // Convert UTF-16 to UTF-8
-    if (u16str.empty()) {
-        return "";
-    }
-
-    try {
-        std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-        return converter.to_bytes(u16str);
-    } catch (...) {
-        // Conversion failed, return empty string
-        return "";
-    }
+    return utf16_to_utf8(u16data);
 }
 
 // Detect menu format (NE=ANSI or PE=UTF-16)

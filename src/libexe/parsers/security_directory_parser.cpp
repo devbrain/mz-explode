@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/parsers/security_directory_parser.hpp>
+#include <libexe/pe/directories/security.hpp>
 #include <stdexcept>
 #include <cstring>
 

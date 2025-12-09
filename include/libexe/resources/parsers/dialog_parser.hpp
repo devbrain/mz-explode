@@ -12,28 +12,76 @@
 namespace libexe {
 
 /**
- * Dialog box styles (DS_* flags for both NE and PE dialogs).
+ * Dialog box styles (DS_* flags).
+ * These are combined with WS_* window styles in the style field.
  */
-enum class dialog_style : uint32_t {
-    DS_ABSALIGN     = 0x0001,  // Absolute alignment
-    DS_SYSMODAL     = 0x0002,  // System modal
-    DS_LOCALEDIT    = 0x0020,  // Local edit controls
-    DS_SETFONT      = 0x0040,  // Dialog has custom font
-    DS_MODALFRAME   = 0x0080,  // Modal frame
-    DS_NOIDLEMSG    = 0x0100,  // No idle messages
-};
+namespace dialog_style {
+    // DS_* Dialog-specific styles (low bits)
+    constexpr uint32_t DS_ABSALIGN      = 0x0001;  // Absolute alignment
+    constexpr uint32_t DS_SYSMODAL      = 0x0002;  // System modal (obsolete)
+    constexpr uint32_t DS_3DLOOK        = 0x0004;  // 3D look (obsolete)
+    constexpr uint32_t DS_FIXEDSYS      = 0x0008;  // Use SYSTEM_FIXED_FONT
+    constexpr uint32_t DS_NOFAILCREATE  = 0x0010;  // Don't fail on errors
+    constexpr uint32_t DS_LOCALEDIT     = 0x0020;  // Local edit controls
+    constexpr uint32_t DS_SETFONT       = 0x0040;  // Custom font specified
+    constexpr uint32_t DS_MODALFRAME    = 0x0080;  // Modal frame
+    constexpr uint32_t DS_NOIDLEMSG     = 0x0100;  // No WM_ENTERIDLE
+    constexpr uint32_t DS_SETFOREGROUND = 0x0200;  // Bring to foreground
+    constexpr uint32_t DS_CONTROL       = 0x0400;  // Child dialog
+    constexpr uint32_t DS_CENTER        = 0x0800;  // Center on screen
+    constexpr uint32_t DS_CENTERMOUSE   = 0x1000;  // Center on mouse
+    constexpr uint32_t DS_CONTEXTHELP   = 0x2000;  // Context help button
+    constexpr uint32_t DS_SHELLFONT     = 0x0048;  // DS_SETFONT | DS_FIXEDSYS
+
+    // WS_* Window styles (high bits, commonly used with dialogs)
+    constexpr uint32_t WS_POPUP         = 0x80000000;  // Popup window
+    constexpr uint32_t WS_CHILD         = 0x40000000;  // Child window
+    constexpr uint32_t WS_MINIMIZE      = 0x20000000;  // Minimized
+    constexpr uint32_t WS_VISIBLE       = 0x10000000;  // Visible
+    constexpr uint32_t WS_DISABLED      = 0x08000000;  // Disabled
+    constexpr uint32_t WS_CLIPSIBLINGS  = 0x04000000;  // Clip siblings
+    constexpr uint32_t WS_CLIPCHILDREN  = 0x02000000;  // Clip children
+    constexpr uint32_t WS_MAXIMIZE      = 0x01000000;  // Maximized
+    constexpr uint32_t WS_CAPTION       = 0x00C00000;  // Title bar (WS_BORDER | WS_DLGFRAME)
+    constexpr uint32_t WS_BORDER        = 0x00800000;  // Thin border
+    constexpr uint32_t WS_DLGFRAME      = 0x00400000;  // Dialog frame
+    constexpr uint32_t WS_VSCROLL       = 0x00200000;  // Vertical scrollbar
+    constexpr uint32_t WS_HSCROLL       = 0x00100000;  // Horizontal scrollbar
+    constexpr uint32_t WS_SYSMENU       = 0x00080000;  // System menu
+    constexpr uint32_t WS_THICKFRAME    = 0x00040000;  // Sizing border
+    constexpr uint32_t WS_GROUP         = 0x00020000;  // Group start
+    constexpr uint32_t WS_TABSTOP       = 0x00010000;  // Tab stop
+    constexpr uint32_t WS_MINIMIZEBOX   = 0x00020000;  // Minimize button
+    constexpr uint32_t WS_MAXIMIZEBOX   = 0x00010000;  // Maximize button
+}
+
+/**
+ * Format dialog/window style flags as human-readable string.
+ *
+ * @param style The combined DS_* and WS_* style flags
+ * @return String like "WS_POPUP | WS_CAPTION | DS_MODALFRAME | DS_SETFONT"
+ */
+LIBEXE_EXPORT std::string format_dialog_style(uint32_t style);
 
 /**
  * Predefined control classes (both NE and PE formats use the same IDs).
  */
 enum class control_class : uint8_t {
-    BUTTON      = 0x80,  // Button control
-    EDIT        = 0x81,  // Edit control
-    STATIC      = 0x82,  // Static text/image
-    LISTBOX     = 0x83,  // List box
-    SCROLLBAR   = 0x84,  // Scroll bar
-    COMBOBOX    = 0x85,  // Combo box
+    BUTTON      = 0x80,  // Button control (pushbutton, checkbox, radio, etc.)
+    EDIT        = 0x81,  // Edit control (text input field)
+    STATIC      = 0x82,  // Static control (text label, icon, image)
+    LISTBOX     = 0x83,  // List box control
+    SCROLLBAR   = 0x84,  // Scroll bar control
+    COMBOBOX    = 0x85,  // Combo box control (dropdown list)
 };
+
+/**
+ * Get human-readable name for a predefined control class.
+ *
+ * @param cls The control class enum value
+ * @return String like "BUTTON", "EDIT", "STATIC", etc.
+ */
+LIBEXE_EXPORT const char* control_class_name(control_class cls);
 
 /**
  * Name or resource ID (can be either a string or numeric ID).
@@ -148,7 +196,7 @@ struct LIBEXE_EXPORT dialog_template {
      * Check if this dialog uses a custom font.
      */
     [[nodiscard]] bool has_font() const {
-        return (style & static_cast<uint32_t>(dialog_style::DS_SETFONT)) != 0;
+        return (style & dialog_style::DS_SETFONT) != 0;
     }
 
     /**

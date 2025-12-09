@@ -7,14 +7,14 @@
 // data correctly, not just that they don't crash.
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/import_directory.hpp>
-#include <libexe/export_directory.hpp>
-#include <libexe/tls_directory.hpp>
-#include <libexe/debug_directory.hpp>
-#include <libexe/security_directory.hpp>
-#include <libexe/com_descriptor.hpp>
-#include <libexe/base_relocation.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/import.hpp>
+#include <libexe/pe/directories/export.hpp>
+#include <libexe/pe/directories/tls.hpp>
+#include <libexe/pe/directories/debug.hpp>
+#include <libexe/pe/directories/security.hpp>
+#include <libexe/pe/directories/com_descriptor.hpp>
+#include <libexe/pe/directories/relocation.hpp>
 #include <filesystem>
 #include <fstream>
 #include <vector>

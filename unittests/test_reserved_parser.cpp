@@ -3,8 +3,8 @@
 // Unit tests for Reserved Directory Parser
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/reserved_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/reserved.hpp>
 #include <cstring>
 #include <vector>
 

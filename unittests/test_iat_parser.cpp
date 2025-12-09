@@ -3,8 +3,8 @@
 // Unit tests for IAT (Import Address Table) Parser
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/iat_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/iat.hpp>
 #include <cstring>
 #include <vector>
 

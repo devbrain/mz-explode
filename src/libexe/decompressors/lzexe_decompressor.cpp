@@ -1,7 +1,7 @@
 // LZEXE decompressor implementation
 // Based on LZEXE 0.90 and 0.91 decompression algorithms
 
-#include <libexe/decompressors/lzexe_decompressor.hpp>
+#include <libexe/decompressors/lzexe.hpp>
 #include "bit_reader.hpp"
 #include <stdexcept>
 #include <cstring>

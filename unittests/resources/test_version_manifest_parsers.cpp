@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
+#include <libexe/formats/pe_file.hpp>
 #include <libexe/resources/resource.hpp>
 #include <libexe/resources/parsers/version_info_parser.hpp>
 #include <libexe/resources/parsers/manifest_parser.hpp>

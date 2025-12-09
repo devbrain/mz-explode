@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include <libexe/ne_file.hpp>
+#include <libexe/formats/ne_file.hpp>
 #include <libexe/resources/resource.hpp>
 #include <libexe/resources/parsers/font_parser.hpp>
 
@@ -33,152 +33,125 @@ TEST_SUITE("Font Resource Parsers") {
         auto rsrc = ne.resources();
         REQUIRE(rsrc != nullptr);
 
-        SUBCASE("Find and parse font resource") {
-            // CGA40WOA.FON has font resources
-            auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
-            REQUIRE(!fonts.empty());
+        // CGA40WOA.FON has 1 font resource
+        auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
+        REQUIRE(fonts.size() == 1);
 
-            auto& first_font = fonts[0];
-            auto parsed = font_parser::parse(first_font.data());
+        auto parsed = font_parser::parse(fonts[0].data());
+        REQUIRE(parsed.has_value());
 
-            REQUIRE(parsed.has_value());
+        SUBCASE("Verify font metadata") {
+            // Expected values from dewinfont.py reference implementation:
+            // version: 512 (0x0200 = Windows 2.x)
+            // size: 5219
+            // copyright: '(c) Copyright Bitstream Inc. 1984. All rights reserved.'
+            // type: 0 (RASTER)
+            CHECK(parsed->version == 0x0200);
+            CHECK(parsed->size == 5219);
+            CHECK(parsed->copyright == "(c) Copyright Bitstream Inc. 1984. All rights reserved.");
+            CHECK(parsed->type == font_type::RASTER);
+        }
 
-            // Verify font metadata
-            CHECK(parsed->version >= 0x0200);  // Windows 2.x or later
-            CHECK(parsed->size > 0);
+        SUBCASE("Verify font metrics") {
+            // Expected values from dewinfont.py:
+            // points: 9
+            // vert_res: 48
+            // horiz_res: 160
+            // ascent: 7
+            // internal_leading: 0
+            // external_leading: 0
+            CHECK(parsed->points == 9);
+            CHECK(parsed->vertical_res == 48);
+            CHECK(parsed->horizontal_res == 160);
+            CHECK(parsed->ascent == 7);
+            CHECK(parsed->internal_leading == 0);
+            CHECK(parsed->external_leading == 0);
+        }
 
-            // Verify font metrics
-            CHECK(parsed->points > 0);
-            CHECK(parsed->pixel_height > 0);
+        SUBCASE("Verify font appearance") {
+            // Expected values from dewinfont.py:
+            // italic: False
+            // underline: False
+            // strikeout: False
+            // weight: 400
+            // charset: 255
+            CHECK(parsed->italic == false);
+            CHECK(parsed->underline == false);
+            CHECK(parsed->strikeout == false);
+            CHECK(parsed->weight == 400);
+            CHECK(parsed->charset == 255);
+        }
 
-            // Verify character range
-            CHECK(parsed->first_char <= parsed->last_char);
-            CHECK(parsed->character_count() > 0);
+        SUBCASE("Verify character dimensions") {
+            // Expected values from dewinfont.py:
+            // pixel_width: 16
+            // pixel_height: 8
+            // avg_width: 16
+            // max_width: 16
+            CHECK(parsed->pixel_width == 16);
+            CHECK(parsed->pixel_height == 8);
+            CHECK(parsed->avg_width == 16);
+            CHECK(parsed->max_width == 16);
+        }
 
-            // Verify glyph table
+        SUBCASE("Verify character range") {
+            // Expected values from dewinfont.py:
+            // first_char: 1
+            // last_char: 254
+            // default_char: 31
+            // break_char: 31
+            // char_count: 254
+            CHECK(parsed->first_char == 1);
+            CHECK(parsed->last_char == 254);
+            CHECK(parsed->default_char == 31);
+            CHECK(parsed->break_char == 31);
+            CHECK(parsed->character_count() == 254);
+        }
+
+        SUBCASE("Verify font family and face name") {
+            // Expected values from dewinfont.py:
+            // pitch_and_family: 48 (0x30 = MODERN family)
+            // face_name: 'Terminal'
+            CHECK(parsed->family == font_family::MODERN);
+            CHECK(parsed->face_name == "Terminal");
+        }
+
+        SUBCASE("Verify glyph table") {
+            // Should have at least as many glyphs as characters
             CHECK(parsed->glyphs.size() >= parsed->character_count());
 
             // Verify bitmap data exists
             CHECK(!parsed->bitmap_data.empty());
         }
 
-        SUBCASE("Verify font properties") {
-            auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
-            REQUIRE(!fonts.empty());
+        SUBCASE("Verify character bitmaps") {
+            // This is a fixed-width font (pixel_width > 0 means fixed pitch)
+            // Note: pixel_width = 16 means all chars are 16 pixels wide
+            CHECK(parsed->pixel_width == 16);
 
-            auto font = font_parser::parse(fonts[0].data());
-            REQUIRE(font.has_value());
-
-            // CGA fonts are typically fixed-pitch raster fonts
-            CHECK(font->type == font_type::RASTER);
-
-            // Check that face name is not empty
-            CHECK(!font->face_name.empty());
-
-            // Verify dimensions are reasonable
-            CHECK(font->pixel_height >= 1);
-            CHECK(font->pixel_height <= 100);  // Reasonable upper limit
-
-            if (font->pixel_width > 0) {
-                CHECK(font->pixel_width <= 100);
+            // Check a few character widths - all should be 16
+            for (size_t i = 0; i < std::min(size_t(10), parsed->glyphs.size()); ++i) {
+                CHECK(parsed->glyphs[i].width == 16);
             }
 
-            // Verify character range is ASCII or extended ASCII
-            CHECK(font->first_char >= 0);
-            CHECK(font->last_char <= 255);
+            // Get bitmap for letter 'A' (should be 16x8 = 2 bytes/row * 8 rows = 16 bytes)
+            auto bitmap_A = parsed->get_char_bitmap('A');
+            CHECK(!bitmap_A.empty());
+            CHECK(bitmap_A.size() == 16);  // 2 bytes/row * 8 rows
+
+            // Get bitmap for space character
+            auto bitmap_space = parsed->get_char_bitmap(' ');
+            CHECK(!bitmap_space.empty());
         }
 
-        SUBCASE("Extract character bitmaps") {
-            auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
-            REQUIRE(!fonts.empty());
+        SUBCASE("Verify out-of-range character returns empty") {
+            // Character 0 is before first_char (1)
+            auto bitmap_0 = parsed->get_char_bitmap(0);
+            CHECK(bitmap_0.empty());
 
-            auto font = font_parser::parse(fonts[0].data());
-            REQUIRE(font.has_value());
-
-            // Try to get bitmap for a common character (space, 'A', etc.)
-            for (uint8_t c = font->first_char; c <= font->last_char; ++c) {
-                auto bitmap = font->get_char_bitmap(c);
-
-                // Not all characters may have bitmaps, but the method should not crash
-                if (!bitmap.empty()) {
-                    // Calculate expected size
-                    size_t glyph_index = c - font->first_char;
-                    if (glyph_index < font->glyphs.size()) {
-                        const auto& glyph = font->glyphs[glyph_index];
-                        size_t bytes_per_row = (glyph.width + 7) / 8;
-                        size_t expected_size = bytes_per_row * font->pixel_height;
-
-                        CHECK(bitmap.size() == expected_size);
-                    }
-                }
-
-                // Only check a few characters to keep test fast
-                if (c > font->first_char + 10) {
-                    break;
-                }
-            }
-        }
-
-        SUBCASE("Get bitmap for specific characters") {
-            auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
-            REQUIRE(!fonts.empty());
-
-            auto font = font_parser::parse(fonts[0].data());
-            REQUIRE(font.has_value());
-
-            // Try letter 'A' if it's in range
-            if ('A' >= font->first_char && 'A' <= font->last_char) {
-                auto bitmap = font->get_char_bitmap('A');
-                CHECK(!bitmap.empty());
-            }
-
-            // Try space character
-            if (' ' >= font->first_char && ' ' <= font->last_char) {
-                auto bitmap = font->get_char_bitmap(' ');
-                // Space might be empty or have a bitmap
-            }
-
-            // Try character outside range - should return empty span
-            // Only test if there's a character code outside the font's range
-            uint8_t out_of_range = 0;
-            if (font->first_char > 0) {
-                out_of_range = font->first_char - 1;
-            } else if (font->last_char < 255) {
-                out_of_range = font->last_char + 1;
-            }
-
-            if (out_of_range < font->first_char || out_of_range > font->last_char) {
-                auto bitmap = font->get_char_bitmap(out_of_range);
-                CHECK(bitmap.empty());
-            }
-        }
-
-        SUBCASE("Verify all fonts parse successfully") {
-            auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
-
-            for (const auto& font_entry : fonts) {
-                auto parsed = font_parser::parse(font_entry.data());
-                REQUIRE(parsed.has_value());
-
-                // Basic validation
-                CHECK(parsed->version >= 0x0200);
-                CHECK(parsed->size > 0);
-                CHECK(!parsed->glyphs.empty());
-                CHECK(!parsed->bitmap_data.empty());
-            }
-        }
-
-        SUBCASE("Check font weight values") {
-            auto fonts = rsrc->resources_by_type(resource_type::RT_FONT);
-            REQUIRE(!fonts.empty());
-
-            auto font = font_parser::parse(fonts[0].data());
-            REQUIRE(font.has_value());
-
-            // Font weight should be in valid range (100-900)
-            // Common values: 400 = normal, 700 = bold
-            CHECK(font->weight >= 100);
-            CHECK(font->weight <= 900);
+            // Character 255 is after last_char (254)
+            auto bitmap_255 = parsed->get_char_bitmap(255);
+            CHECK(bitmap_255.empty());
         }
     }
 
@@ -190,20 +163,10 @@ TEST_SUITE("Font Resource Parsers") {
         }
 
         SUBCASE("Truncated data") {
-            // Font header is 118 bytes
+            // Font header is 118 bytes minimum
             std::vector<uint8_t> truncated(50, 0);
             auto result = font_parser::parse(truncated);
             CHECK_FALSE(result.has_value());
-        }
-
-        SUBCASE("Invalid version") {
-            // Create minimal header with invalid version
-            std::vector<uint8_t> bad_header(118, 0);
-            // Version at offset 0: set to 0x0000 (invalid)
-            bad_header[0] = 0x00;
-            bad_header[1] = 0x00;
-            auto result = font_parser::parse(bad_header);
-            // Parser might still parse it, just verify it doesn't crash
         }
     }
 }

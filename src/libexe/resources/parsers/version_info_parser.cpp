@@ -1,5 +1,6 @@
 #include <libexe/resources/parsers/version_info_parser.hpp>
 #include "libexe_format_version.hh"  // Generated DataScript parser (modular)
+#include "../../core/utf_convert.hpp"
 #include <sstream>
 #include <cstring>
 
@@ -45,25 +46,6 @@ std::u16string read_utf16_string(const uint8_t*& ptr, const uint8_t* end) {
     return result;
 }
 
-// Helper to convert UTF-16 to UTF-8
-std::string utf16_to_utf8(const std::u16string& str) {
-    std::string result;
-
-    for (char16_t ch : str) {
-        if (ch < 0x80) {
-            result.push_back(static_cast<char>(ch));
-        } else if (ch < 0x800) {
-            result.push_back(static_cast<char>(0xC0 | (ch >> 6)));
-            result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-        } else {
-            result.push_back(static_cast<char>(0xE0 | (ch >> 12)));
-            result.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
-            result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-        }
-    }
-
-    return result;
-}
 
 // Helper to parse StringFileInfo section
 void parse_string_file_info(const uint8_t* ptr, const uint8_t* end, const uint8_t* base,

@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include <libexe/ne_file.hpp>
+#include <libexe/formats/ne_file.hpp>
 #include <libexe/resources/resource.hpp>
 #include <libexe/resources/parsers/menu_parser.hpp>
 #include <filesystem>
@@ -88,8 +88,6 @@ TEST_SUITE("Menu Parser") {
         CHECK(popup_count > 0);
         // Should have at least some normal menu items
         CHECK(normal_count > 0);
-
-        MESSAGE("Found ", popup_count, " popup menus with ", normal_count, " total items");
     }
 
     /**

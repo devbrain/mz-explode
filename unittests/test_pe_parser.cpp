@@ -1,7 +1,7 @@
 // Test PE file parser functionality
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/pe_types.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/types.hpp>
 #include <vector>
 
 using namespace libexe;

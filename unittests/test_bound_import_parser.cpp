@@ -3,8 +3,8 @@
 // Unit tests for Bound Import Directory Parser
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/bound_import_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/bound_import.hpp>
 #include <cstring>
 #include <vector>
 

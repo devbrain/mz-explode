@@ -1,467 +1,273 @@
 #include <libexe/resources/parsers/dialog_parser.hpp>
+#include "libexe_format_dialogs.hh"
+#include "../../core/utf_convert.hpp"
 #include <cstring>
 
 namespace libexe {
 
 namespace {
 
-// Helper to read uint16_t little-endian
-uint16_t read_u16(const uint8_t* ptr) {
-    return static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
+// Convert DataScript resource_name_or_id to libexe name_or_id
+name_or_id convert_resource_name_or_id(const formats::resources::dialogs::resource_name_or_id& src) {
+    if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(src).as_ordinal()) {
+        return ordinal->value;
+    } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(src).as_name()) {
+        return utf16_to_utf8(name->value);
+    }
+    return std::string("");
 }
 
-// Helper to read int16_t little-endian
-int16_t read_i16(const uint8_t* ptr) {
-    return static_cast<int16_t>(read_u16(ptr));
+// Convert DataScript ne_name_or_id to libexe name_or_id
+name_or_id convert_ne_name_or_id(const formats::resources::dialogs::ne_name_or_id& src) {
+    if (auto* ordinal = const_cast<formats::resources::dialogs::ne_name_or_id&>(src).as_ordinal_value()) {
+        return ordinal->value.ordinal;
+    } else if (auto* str_val = const_cast<formats::resources::dialogs::ne_name_or_id&>(src).as_string_value()) {
+        return std::string(str_val->value.chars.begin(), str_val->value.chars.end());
+    }
+    return std::string("");
 }
 
-// Helper to read uint32_t little-endian
-uint32_t read_u32(const uint8_t* ptr) {
-    return static_cast<uint32_t>(ptr[0]) |
-           (static_cast<uint32_t>(ptr[1]) << 8) |
-           (static_cast<uint32_t>(ptr[2]) << 16) |
-           (static_cast<uint32_t>(ptr[3]) << 24);
+// Convert DataScript ne_control_class to libexe control class variant
+std::variant<control_class, std::string> convert_ne_control_class(
+    formats::resources::dialogs::ne_control_class& src) {
+    // ne_control_class uses range-based discriminator: >= 0x80 is predefined, else custom string
+    if (auto* predefined = src.as_predefined_class()) {
+        uint8_t class_id = predefined->value.class_id;
+        if (class_id >= 0x80 && class_id <= 0x85) {
+            return static_cast<control_class>(class_id);
+        }
+        // Unknown predefined class (0x86-0xFF) - return as string
+        return std::string("Class_") + std::to_string(class_id);
+    } else if (auto* custom = src.as_custom_class()) {
+        return custom->value;  // Null-terminated string
+    }
+    return std::string("");
 }
 
-// Align pointer to DWORD boundary (PE dialogs require this)
-const uint8_t* align_dword(const uint8_t* ptr, const uint8_t* base) {
-    size_t offset = ptr - base;
-    size_t aligned = (offset + 3) & ~3;
-    return base + aligned;
+// Convert DataScript ne_control_text to libexe name_or_id
+name_or_id convert_ne_control_text(const formats::resources::dialogs::ne_control_text& src) {
+    if (auto* ordinal = const_cast<formats::resources::dialogs::ne_control_text&>(src).as_ordinal_value()) {
+        return ordinal->value.ordinal;
+    } else if (auto* str_val = const_cast<formats::resources::dialogs::ne_control_text&>(src).as_text()) {
+        return str_val->value;  // Already a std::string
+    }
+    return std::string("");
 }
 
-// Read null-terminated UTF-16 string, advance pointer (PE format)
-std::string read_utf16_string(const uint8_t*& ptr, const uint8_t* end) {
-    std::string result;
+// Parse PE extended dialog (DLGTEMPLATEEX)
+std::optional<dialog_template> parse_pe_dialog_ex(std::span<const uint8_t> data) {
+    try {
+        const uint8_t* ptr = data.data();
+        const uint8_t* end = data.data() + data.size();
 
-    while (ptr + 1 < end) {
-        uint16_t ch = read_u16(ptr);
-        ptr += 2;
+        auto ds_dialog = formats::resources::dialogs::dialog_template_ex::read(ptr, end);
 
-        if (ch == 0) break;
+        dialog_template result;
+        result.style = ds_dialog.style;
+        result.num_controls = static_cast<uint8_t>(ds_dialog.item_count > 255 ? 255 : ds_dialog.item_count);
+        result.x = ds_dialog.x;
+        result.y = ds_dialog.y;
+        result.width = ds_dialog.cx;
+        result.height = ds_dialog.cy;
+        result.menu = convert_resource_name_or_id(ds_dialog.menu);
 
-        // Simple UTF-16 to UTF-8 conversion (BMP only)
-        if (ch < 0x80) {
-            result.push_back(static_cast<char>(ch));
-        } else if (ch < 0x800) {
-            result.push_back(static_cast<char>(0xC0 | (ch >> 6)));
-            result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-        } else {
-            result.push_back(static_cast<char>(0xE0 | (ch >> 12)));
-            result.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
-            result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-        }
-    }
-
-    return result;
-}
-
-// Read PE name or ordinal: 0xFFFF prefix means ordinal follows, otherwise Unicode string
-name_or_id read_pe_name_or_ordinal(const uint8_t*& ptr, const uint8_t* end) {
-    if (ptr + 1 >= end) {
-        return std::string("");
-    }
-
-    uint16_t first = read_u16(ptr);
-
-    if (first == 0xFFFF) {
-        // Ordinal follows
-        ptr += 2;
-        if (ptr + 1 < end) {
-            uint16_t ordinal = read_u16(ptr);
-            ptr += 2;
-            return ordinal;
-        }
-        return uint16_t(0);
-    } else {
-        // Unicode string (already started reading it)
-        if (first == 0) {
-            ptr += 2;
-            return std::string("");
+        // Convert window class
+        if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_ordinal()) {
+            result.window_class = "Class_" + std::to_string(ordinal->value);
+        } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_name()) {
+            result.window_class = utf16_to_utf8(name->value);
         }
 
-        // Put first character back and read full string
-        std::string result;
+        result.caption = utf16_to_utf8(ds_dialog.title);
 
-        // Convert first character
-        if (first < 0x80) {
-            result.push_back(static_cast<char>(first));
-        } else if (first < 0x800) {
-            result.push_back(static_cast<char>(0xC0 | (first >> 6)));
-            result.push_back(static_cast<char>(0x80 | (first & 0x3F)));
-        } else {
-            result.push_back(static_cast<char>(0xE0 | (first >> 12)));
-            result.push_back(static_cast<char>(0x80 | ((first >> 6) & 0x3F)));
-            result.push_back(static_cast<char>(0x80 | (first & 0x3F)));
+        // Font info (conditional in DataScript, always parsed if DS_SETFONT)
+        if (result.has_font()) {
+            result.point_size = ds_dialog.point_size;
+            result.font_name = utf16_to_utf8(ds_dialog.typeface);
         }
 
-        ptr += 2;
-        result += read_utf16_string(ptr, end);
-        return result;
-    }
-}
-
-// Read null-terminated string, advance pointer (PE format)
-std::string read_string(const uint8_t*& ptr, const uint8_t* end) {
-    std::string result;
-
-    while (ptr < end && *ptr != 0) {
-        result.push_back(static_cast<char>(*ptr));
-        ptr++;
-    }
-
-    if (ptr < end) {
-        ptr++;  // Skip null terminator
-    }
-
-    return result;
-}
-
-// Read length-prefixed string (NE format: [length byte][characters])
-// Implements the ne_pstring structure from dialogs.ds
-//
-// Format per dialogs.ds:
-//   struct ne_pstring {
-//       uint8 length;
-//       uint8 chars[length];
-//   };
-//
-// NE format uses Pascal-style strings (NOT null-terminated).
-// Per ne.fmt specification (line 273): "String table follows (length-prefixed, NOT null-terminated)"
-std::string read_length_prefixed_string(const uint8_t*& ptr, const uint8_t* end) {
-    if (ptr >= end) {
-        return std::string();
-    }
-
-    uint8_t length = *ptr++;
-
-    if (length == 0) {
-        return std::string();
-    }
-
-    if (ptr + length > end) {
-        // Not enough data - return what we can
-        length = static_cast<uint8_t>(end - ptr);
-    }
-
-    std::string result(reinterpret_cast<const char*>(ptr), length);
-    ptr += length;
-
-    return result;
-}
-
-// Read name or ID: 0xFF prefix means ID follows, otherwise length-prefixed string (NE format)
-// Implements the ne_name_or_id pattern from dialogs.ds
-name_or_id read_name_or_id(const uint8_t*& ptr, const uint8_t* end, bool is_word_id = true) {
-    if (ptr >= end) {
-        return std::string("");
-    }
-
-    if (*ptr == 0xFF) {
-        // ID follows
-        ptr++;
-        if (is_word_id) {
-            if (ptr + 2 > end) return uint16_t(0);
-            uint16_t id = read_u16(ptr);
-            ptr += 2;
-            return id;
-        } else {
-            // Byte ID (for control classes)
-            if (ptr >= end) return uint16_t(0);
-            uint16_t id = *ptr;
-            ptr++;
-            return id;
-        }
-    } else {
-        // Length-prefixed string follows (NE format per dialogs.ds ne_pstring)
-        return read_length_prefixed_string(ptr, end);
-    }
-}
-
-// Parse PE DLGTEMPLATEEX format (32/64-bit Windows)
-std::optional<dialog_template> parse_pe_dialog(std::span<const uint8_t> data) {
-    const uint8_t* base = data.data();
-    const uint8_t* ptr = base;
-    const uint8_t* end = base + data.size();
-
-    dialog_template result;
-
-    // Read DLGTEMPLATEEX header
-    uint16_t version = read_u16(ptr);
-    ptr += 2;
-
-    uint16_t signature = read_u16(ptr);
-    ptr += 2;
-
-    if (version != 1 || signature != 0xFFFF) {
-        return std::nullopt;  // Not DLGTEMPLATEEX
-    }
-
-    // Read help ID (DLGTEMPLATEEX only)
-    uint32_t help_id = read_u32(ptr);
-    ptr += 4;
-
-    // Read extended style
-    uint32_t ex_style = read_u32(ptr);
-    ptr += 4;
-
-    // Read style
-    result.style = read_u32(ptr);
-    ptr += 4;
-
-    // Read control count (WORD, not BYTE like NE)
-    result.num_controls = read_u16(ptr);
-    ptr += 2;
-
-    // Read position and size
-    result.x = read_i16(ptr);
-    ptr += 2;
-
-    result.y = read_i16(ptr);
-    ptr += 2;
-
-    result.width = read_i16(ptr);
-    ptr += 2;
-
-    result.height = read_i16(ptr);
-    ptr += 2;
-
-    // Read menu (Unicode string or ordinal)
-    result.menu = read_pe_name_or_ordinal(ptr, end);
-
-    // Read window class (Unicode string or ordinal)
-    auto class_name_or_id = read_pe_name_or_ordinal(ptr, end);
-    if (std::holds_alternative<std::string>(class_name_or_id)) {
-        result.window_class = std::get<std::string>(class_name_or_id);
-    } else {
-        result.window_class = "Class_" + std::to_string(std::get<uint16_t>(class_name_or_id));
-    }
-
-    // Read caption (Unicode string)
-    result.caption = read_utf16_string(ptr, end);
-
-    // If DS_SETFONT, read font info (extended for PE)
-    if (result.has_font()) {
-        if (ptr + 2 <= end) {
-            result.point_size = read_u16(ptr);
-            ptr += 2;
-
-            // DLGTEMPLATEEX has weight, italic, charset
-            if (ptr + 4 <= end) {
-                // uint16_t weight = read_u16(ptr);
-                ptr += 2;  // Skip weight
-
-                // uint8_t italic = *ptr;
-                // uint8_t charset = *(ptr + 1);
-                ptr += 2;  // Skip italic and charset
-            }
-
-            result.font_name = read_utf16_string(ptr, end);
-        }
-    }
-
-    // Align to DWORD before controls
-    ptr = align_dword(ptr, base);
-
-    // Parse controls
-    for (size_t i = 0; i < result.num_controls; i++) {
-        if (ptr + 24 > end) break;  // Minimum control size
-
-        dialog_control control;
-
-        // Read help ID (DLGITEMTEMPLATEEX only)
-        // uint32_t ctrl_help_id = read_u32(ptr);
-        ptr += 4;
-
-        // Read extended style
-        // uint32_t ctrl_ex_style = read_u32(ptr);
-        ptr += 4;
-
-        // Read style
-        control.style = read_u32(ptr);
-        ptr += 4;
-
-        // Read position and size
-        control.x = read_i16(ptr);
-        ptr += 2;
-
-        control.y = read_i16(ptr);
-        ptr += 2;
-
-        control.width = read_i16(ptr);
-        ptr += 2;
-
-        control.height = read_i16(ptr);
-        ptr += 2;
-
-        // Read control ID (DWORD in DLGITEMTEMPLATEEX, but we store as uint16)
-        uint32_t id32 = read_u32(ptr);
-        ptr += 4;
-        control.id = static_cast<uint16_t>(id32 & 0xFFFF);
-
-        // Read control class (Unicode string or ordinal)
-        auto ctrl_class = read_pe_name_or_ordinal(ptr, end);
-        if (std::holds_alternative<std::string>(ctrl_class)) {
-            control.control_class_id = std::get<std::string>(ctrl_class);
-        } else {
-            uint16_t class_ord = std::get<uint16_t>(ctrl_class);
-            // Map predefined classes
-            if (class_ord >= 0x80 && class_ord <= 0x85) {
-                control.control_class_id = static_cast<control_class>(class_ord);
-            } else {
-                control.control_class_id = std::string("Class_") + std::to_string(class_ord);
-            }
-        }
-
-        // Read control text
-        control.text = read_pe_name_or_ordinal(ptr, end);
-
-        // Read extra data
-        if (ptr + 1 < end) {
-            uint16_t extra_len = read_u16(ptr);
-            ptr += 2;
-
-            if (extra_len > 0 && ptr + extra_len <= end) {
-                control.extra_data.assign(ptr, ptr + extra_len);
-                ptr += extra_len;
-            }
-        }
-
-        // Align to DWORD before next control
-        ptr = align_dword(ptr, base);
-
-        result.controls.push_back(std::move(control));
-    }
-
-    return result;
-}
-
-// Parse NE DLGTEMPLATE format (16-bit Windows)
-std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
-    const uint8_t* ptr = data.data();
-    const uint8_t* end = data.data() + data.size();
-
-    dialog_template result;
-
-    // Read fixed header
-    result.style = read_u32(ptr);
-    ptr += 4;
-
-    result.num_controls = *ptr++;
-
-    result.x = read_i16(ptr);
-    ptr += 2;
-
-    result.y = read_i16(ptr);
-    ptr += 2;
-
-    result.width = read_i16(ptr);
-    ptr += 2;
-
-    result.height = read_i16(ptr);
-    ptr += 2;
-
-    // Read menu name or ID
-    result.menu = read_name_or_id(ptr, end);
-
-    // Read window class (usually empty)
-    // NE format: null-terminated string OR 0xFF + byte ID
-    if (ptr < end) {
-        if (*ptr == 0xFF) {
-            // Class ID (rarely used)
-            ptr++;
-            if (ptr + 1 <= end) {
-                result.window_class = std::string("Class_") + std::to_string(*ptr);
-                ptr++;
-            }
-        } else {
-            // Class name string (null-terminated, NOT length-prefixed)
-            result.window_class = read_string(ptr, end);
-        }
-    }
-
-    // Read caption (null-terminated, NOT length-prefixed!)
-    if (ptr < end) {
-        result.caption = read_string(ptr, end);
-    }
-
-    // If DS_SETFONT, read font info
-    if (result.has_font()) {
-        if (ptr + 2 <= end) {
-            result.point_size = read_u16(ptr);
-            ptr += 2;
-
-            // Font name (null-terminated, NOT length-prefixed)
-            if (ptr < end) {
-                result.font_name = read_string(ptr, end);
-            }
-        }
-    }
-
-    // Read controls
-    for (size_t i = 0; i < result.num_controls && ptr + 14 <= end; i++) {
-        dialog_control control;
-
-        // Read control position and size
-        control.x = read_i16(ptr);
-        ptr += 2;
-
-        control.y = read_i16(ptr);
-        ptr += 2;
-
-        control.width = read_i16(ptr);
-        ptr += 2;
-
-        control.height = read_i16(ptr);
-        ptr += 2;
-
-        // Read control ID
-        control.id = read_u16(ptr);
-        ptr += 2;
-
-        // Read control style
-        control.style = read_u32(ptr);
-        ptr += 4;
-
-        // Read control class (can be predefined or custom string)
-        // Implements ne_control_class pattern from dialogs.ds
-        if (ptr < end) {
-            if (*ptr == 0xFF) {
-                // Predefined class
-                ptr++;
-                if (ptr < end) {
-                    uint8_t class_id = *ptr++;
-                    // Map to enum if it's a known predefined class
-                    if (class_id >= 0x80 && class_id <= 0x85) {
-                        control.control_class_id = static_cast<control_class>(class_id);
+        // Parse controls using dialog_item_ex
+        const uint8_t* start_for_align = data.data();
+        for (uint16_t i = 0; i < ds_dialog.item_count && ptr < end; i++) {
+            // Align to DWORD boundary before each control
+            size_t offset = ptr - start_for_align;
+            size_t aligned = (offset + 3) & ~size_t(3);
+            ptr = start_for_align + aligned;
+
+            if (ptr >= end) break;
+
+            try {
+                auto ds_item = formats::resources::dialogs::dialog_item_ex::read(ptr, end);
+
+                dialog_control control;
+                control.x = ds_item.x;
+                control.y = ds_item.y;
+                control.width = ds_item.cx;
+                control.height = ds_item.cy;
+                control.id = static_cast<uint16_t>(ds_item.id & 0xFFFF);
+                control.style = ds_item.style;
+
+                // Convert control class
+                if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_ordinal()) {
+                    uint16_t class_ord = ordinal->value;
+                    if (class_ord >= 0x80 && class_ord <= 0x85) {
+                        control.control_class_id = static_cast<control_class>(class_ord);
                     } else {
-                        control.control_class_id = std::string("Class_") + std::to_string(class_id);
+                        control.control_class_id = std::string("Class_") + std::to_string(class_ord);
                     }
+                } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_name()) {
+                    control.control_class_id = utf16_to_utf8(name->value);
                 }
-            } else {
-                // Custom class name (length-prefixed per dialogs.ds ne_pstring)
-                control.control_class_id = read_length_prefixed_string(ptr, end);
+
+                // Convert control text
+                control.text = convert_resource_name_or_id(ds_item.title);
+
+                // Extra data
+                control.extra_data = ds_item.creation_data;
+
+                result.controls.push_back(std::move(control));
+            } catch (...) {
+                break; // Stop on parse error
             }
         }
 
-        // Read control text
-        if (ptr < end) {
-            control.text = read_name_or_id(ptr, end);
-        }
-
-        // Read extra data length and data
-        if (ptr < end) {
-            uint8_t extra_len = *ptr++;
-            if (extra_len > 0 && ptr + extra_len <= end) {
-                control.extra_data.assign(ptr, ptr + extra_len);
-                ptr += extra_len;
-            }
-        }
-
-        result.controls.push_back(std::move(control));
+        return result;
+    } catch (...) {
+        return std::nullopt;
     }
+}
 
-    return result;
+// Parse PE standard dialog (DLGTEMPLATE)
+std::optional<dialog_template> parse_pe_dialog_standard(std::span<const uint8_t> data) {
+    try {
+        const uint8_t* ptr = data.data();
+        const uint8_t* end = data.data() + data.size();
+
+        auto ds_dialog = formats::resources::dialogs::dialog_template::read(ptr, end);
+
+        dialog_template result;
+        result.style = ds_dialog.style;
+        result.num_controls = static_cast<uint8_t>(ds_dialog.item_count > 255 ? 255 : ds_dialog.item_count);
+        result.x = ds_dialog.x;
+        result.y = ds_dialog.y;
+        result.width = ds_dialog.cx;
+        result.height = ds_dialog.cy;
+        result.menu = convert_resource_name_or_id(ds_dialog.menu);
+
+        // Convert window class
+        if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_ordinal()) {
+            result.window_class = "Class_" + std::to_string(ordinal->value);
+        } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_name()) {
+            result.window_class = utf16_to_utf8(name->value);
+        }
+
+        result.caption = utf16_to_utf8(ds_dialog.title);
+
+        // Font info
+        if (result.has_font()) {
+            result.point_size = ds_dialog.point_size;
+            result.font_name = utf16_to_utf8(ds_dialog.typeface);
+        }
+
+        // Parse controls using dialog_item
+        const uint8_t* start_for_align = data.data();
+        for (uint16_t i = 0; i < ds_dialog.item_count && ptr < end; i++) {
+            // Align to DWORD boundary
+            size_t offset = ptr - start_for_align;
+            size_t aligned = (offset + 3) & ~size_t(3);
+            ptr = start_for_align + aligned;
+
+            if (ptr >= end) break;
+
+            try {
+                auto ds_item = formats::resources::dialogs::dialog_item::read(ptr, end);
+
+                dialog_control control;
+                control.x = ds_item.x;
+                control.y = ds_item.y;
+                control.width = ds_item.cx;
+                control.height = ds_item.cy;
+                control.id = ds_item.id;
+                control.style = ds_item.style;
+
+                // Convert control class
+                if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_ordinal()) {
+                    uint16_t class_ord = ordinal->value;
+                    if (class_ord >= 0x80 && class_ord <= 0x85) {
+                        control.control_class_id = static_cast<control_class>(class_ord);
+                    } else {
+                        control.control_class_id = std::string("Class_") + std::to_string(class_ord);
+                    }
+                } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_name()) {
+                    control.control_class_id = utf16_to_utf8(name->value);
+                }
+
+                control.text = convert_resource_name_or_id(ds_item.title);
+                control.extra_data = ds_item.creation_data;
+
+                result.controls.push_back(std::move(control));
+            } catch (...) {
+                break;
+            }
+        }
+
+        return result;
+    } catch (...) {
+        return std::nullopt;
+    }
+}
+
+// Parse NE dialog (16-bit Windows DLGTEMPLATE)
+std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
+    try {
+        const uint8_t* ptr = data.data();
+        const uint8_t* end = data.data() + data.size();
+
+        auto ds_dialog = formats::resources::dialogs::ne_dialog_template::read(ptr, end);
+
+        dialog_template result;
+        result.style = ds_dialog.style;
+        result.num_controls = ds_dialog.item_count;
+        result.x = ds_dialog.x;
+        result.y = ds_dialog.y;
+        result.width = ds_dialog.cx;
+        result.height = ds_dialog.cy;
+        result.menu = convert_ne_name_or_id(ds_dialog.menu);
+        result.window_class = ds_dialog.window_class;
+        result.caption = ds_dialog.title;
+
+        // Font info
+        if (result.has_font()) {
+            result.point_size = ds_dialog.point_size;
+            result.font_name = ds_dialog.typeface;
+        }
+
+        // Parse NE controls
+        for (uint8_t i = 0; i < ds_dialog.item_count && ptr < end; i++) {
+            try {
+                auto ds_item = formats::resources::dialogs::ne_dialog_item::read(ptr, end);
+
+                dialog_control control;
+                control.x = ds_item.x;
+                control.y = ds_item.y;
+                control.width = ds_item.cx;
+                control.height = ds_item.cy;
+                control.id = ds_item.id;
+                control.style = ds_item.style;
+                control.control_class_id = convert_ne_control_class(ds_item.window_class);
+                control.text = convert_ne_control_text(ds_item.text);
+                control.extra_data = ds_item.creation_data;
+
+                result.controls.push_back(std::move(control));
+            } catch (...) {
+                break;
+            }
+        }
+
+        return result;
+    } catch (...) {
+        return std::nullopt;
+    }
 }
 
 } // anonymous namespace
@@ -471,19 +277,131 @@ std::optional<dialog_template> dialog_parser::parse(std::span<const uint8_t> dat
         return std::nullopt;  // Too small for any dialog format
     }
 
-    // Check for DLGTEMPLATEEX signature (PE format)
+    // Check for DLGTEMPLATEEX signature (PE extended format)
     // Signature is: version (WORD) = 1, signature (WORD) = 0xFFFF
     const uint8_t* ptr = data.data();
-    uint16_t version = read_u16(ptr);
-    uint16_t signature = read_u16(ptr + 2);
+    uint16_t version = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
+    uint16_t signature = static_cast<uint16_t>(ptr[2]) | (static_cast<uint16_t>(ptr[3]) << 8);
 
     if (version == 1 && signature == 0xFFFF) {
-        // PE format (DLGTEMPLATEEX)
-        return parse_pe_dialog(data);
-    } else {
-        // NE format (DLGTEMPLATE) - starts with style DWORD
-        return parse_ne_dialog(data);
+        // PE extended format (DLGTEMPLATEEX)
+        return parse_pe_dialog_ex(data);
     }
+
+    // Check if this looks like a PE standard dialog (DLGTEMPLATE)
+    // PE dialogs have extended_style at offset 4, while NE dialogs have item_count (byte) at offset 4
+    // PE dialogs typically have small values in the first DWORD (style), and the second DWORD
+    // (extended_style) is often 0 or small. We can also check if the item_count field
+    // (at offset 8 for PE) makes sense.
+
+    // Simple heuristic: check if bytes 4-7 look like extended_style (usually 0 or small)
+    // and byte 8-9 look like a reasonable item count
+    uint32_t second_dword = static_cast<uint32_t>(ptr[4]) |
+                           (static_cast<uint32_t>(ptr[5]) << 8) |
+                           (static_cast<uint32_t>(ptr[6]) << 16) |
+                           (static_cast<uint32_t>(ptr[7]) << 24);
+
+    // For NE format, byte 4 is item_count (0-255), bytes 5-12 are x,y,cx,cy
+    // For PE format, bytes 4-7 are extended_style, bytes 8-9 are item_count
+
+    // If second_dword looks like a reasonable extended_style (usually 0 or WS_EX_* flags)
+    // and data size is large enough for PE format, try PE first
+    if (data.size() >= 20 && (second_dword == 0 || (second_dword & 0xFFFF0000) == 0)) {
+        auto pe_result = parse_pe_dialog_standard(data);
+        if (pe_result.has_value() && pe_result->num_controls <= 100) {
+            return pe_result;
+        }
+    }
+
+    // Try NE format
+    return parse_ne_dialog(data);
+}
+
+const char* control_class_name(control_class cls) {
+    switch (cls) {
+        case control_class::BUTTON:    return "BUTTON";
+        case control_class::EDIT:      return "EDIT";
+        case control_class::STATIC:    return "STATIC";
+        case control_class::LISTBOX:   return "LISTBOX";
+        case control_class::SCROLLBAR: return "SCROLLBAR";
+        case control_class::COMBOBOX:  return "COMBOBOX";
+        default:                       return "UNKNOWN";
+    }
+}
+
+std::string format_dialog_style(uint32_t style) {
+    std::string result;
+    uint32_t remaining = style;
+
+    // Helper to append flag name
+    auto append_flag = [&](uint32_t flag, const char* name) {
+        if ((remaining & flag) == flag) {
+            if (!result.empty()) {
+                result += " | ";
+            }
+            result += name;
+            remaining &= ~flag;
+        }
+    };
+
+    // Check WS_* window styles (high bits) first
+    // Note: WS_CAPTION = WS_BORDER | WS_DLGFRAME, so check it before its components
+    append_flag(dialog_style::WS_POPUP, "WS_POPUP");
+    append_flag(dialog_style::WS_CHILD, "WS_CHILD");
+    append_flag(dialog_style::WS_MINIMIZE, "WS_MINIMIZE");
+    append_flag(dialog_style::WS_VISIBLE, "WS_VISIBLE");
+    append_flag(dialog_style::WS_DISABLED, "WS_DISABLED");
+    append_flag(dialog_style::WS_CLIPSIBLINGS, "WS_CLIPSIBLINGS");
+    append_flag(dialog_style::WS_CLIPCHILDREN, "WS_CLIPCHILDREN");
+    append_flag(dialog_style::WS_MAXIMIZE, "WS_MAXIMIZE");
+    append_flag(dialog_style::WS_CAPTION, "WS_CAPTION");  // Check before BORDER/DLGFRAME
+    append_flag(dialog_style::WS_BORDER, "WS_BORDER");
+    append_flag(dialog_style::WS_DLGFRAME, "WS_DLGFRAME");
+    append_flag(dialog_style::WS_VSCROLL, "WS_VSCROLL");
+    append_flag(dialog_style::WS_HSCROLL, "WS_HSCROLL");
+    append_flag(dialog_style::WS_SYSMENU, "WS_SYSMENU");
+    append_flag(dialog_style::WS_THICKFRAME, "WS_THICKFRAME");
+    // Note: WS_GROUP and WS_MINIMIZEBOX share 0x00020000
+    // Note: WS_TABSTOP and WS_MAXIMIZEBOX share 0x00010000
+    if ((remaining & 0x00020000) != 0) {
+        append_flag(0x00020000, "WS_GROUP");  // or WS_MINIMIZEBOX
+    }
+    if ((remaining & 0x00010000) != 0) {
+        append_flag(0x00010000, "WS_TABSTOP");  // or WS_MAXIMIZEBOX
+    }
+
+    // Check DS_* dialog styles (low bits)
+    append_flag(dialog_style::DS_CONTEXTHELP, "DS_CONTEXTHELP");
+    append_flag(dialog_style::DS_CENTERMOUSE, "DS_CENTERMOUSE");
+    append_flag(dialog_style::DS_CENTER, "DS_CENTER");
+    append_flag(dialog_style::DS_CONTROL, "DS_CONTROL");
+    append_flag(dialog_style::DS_SETFOREGROUND, "DS_SETFOREGROUND");
+    append_flag(dialog_style::DS_NOIDLEMSG, "DS_NOIDLEMSG");
+    append_flag(dialog_style::DS_MODALFRAME, "DS_MODALFRAME");
+    append_flag(dialog_style::DS_SETFONT, "DS_SETFONT");
+    append_flag(dialog_style::DS_LOCALEDIT, "DS_LOCALEDIT");
+    append_flag(dialog_style::DS_NOFAILCREATE, "DS_NOFAILCREATE");
+    append_flag(dialog_style::DS_FIXEDSYS, "DS_FIXEDSYS");
+    append_flag(dialog_style::DS_3DLOOK, "DS_3DLOOK");
+    append_flag(dialog_style::DS_SYSMODAL, "DS_SYSMODAL");
+    append_flag(dialog_style::DS_ABSALIGN, "DS_ABSALIGN");
+
+    // If there are remaining unknown bits, show them as hex
+    if (remaining != 0) {
+        if (!result.empty()) {
+            result += " | ";
+        }
+        char hex_buf[16];
+        snprintf(hex_buf, sizeof(hex_buf), "0x%X", remaining);
+        result += hex_buf;
+    }
+
+    // If nothing matched, just show the raw value
+    if (result.empty()) {
+        result = "0";
+    }
+
+    return result;
 }
 
 } // namespace libexe

@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/parsers/bound_import_directory_parser.hpp>
+#include <libexe/pe/directories/bound_import.hpp>
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>

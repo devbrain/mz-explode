@@ -1,5 +1,5 @@
-#include <libexe/parsers/tls_directory_parser.hpp>
-#include <libexe/pe_section_parser.hpp>
+#include <libexe/pe/directories/tls.hpp>
+#include <libexe/pe/section_parser.hpp>
 #include "libexe_format_pe_tls.hh"  // Generated DataScript parser
 #include <stdexcept>
 

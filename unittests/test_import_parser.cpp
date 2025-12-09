@@ -1,10 +1,10 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/pe_file.hpp>
-#include <libexe/parsers/import_directory_parser.hpp>
-#include <libexe/import_directory.hpp>
-#include <libexe/pe_types.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/import.hpp>
+#include <libexe/pe/directories/import.hpp>
+#include <libexe/pe/types.hpp>
 #include <doctest/doctest.h>
 #include <filesystem>
 #include <fstream>

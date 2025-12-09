@@ -1,4 +1,4 @@
-#include <libexe/ne_segment_parser.hpp>
+#include <libexe/ne/segment_parser.hpp>
 #include "libexe_format_ne.hh"  // Generated DataScript parser
 #include <algorithm>
 #include <stdexcept>

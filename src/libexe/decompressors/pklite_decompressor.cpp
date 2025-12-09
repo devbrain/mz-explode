@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/decompressors/pklite_decompressor.hpp>
+#include <libexe/decompressors/pklite.hpp>
 #include "bit_reader.hpp"
 #include <stdexcept>
 #include <vector>

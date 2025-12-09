@@ -1,7 +1,6 @@
 #include <libexe/resources/parsers/message_table_parser.hpp>
-#include "libexe_format_tables.hh"  // Generated DataScript parser (modular)
-#include <codecvt>
-#include <locale>
+#include "libexe_format_tables.hh"
+#include "../../core/utf_convert.hpp"
 
 namespace libexe {
 
@@ -10,29 +9,6 @@ namespace {
 // Helper to read uint16 little-endian
 uint16_t read_uint16_le(const uint8_t* ptr) {
     return static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
-}
-
-// Helper to read uint32 little-endian
-uint32_t read_uint32_le(const uint8_t* ptr) {
-    return static_cast<uint32_t>(ptr[0]) |
-           (static_cast<uint32_t>(ptr[1]) << 8) |
-           (static_cast<uint32_t>(ptr[2]) << 16) |
-           (static_cast<uint32_t>(ptr[3]) << 24);
-}
-
-// Helper to convert UTF-16 to UTF-8
-std::string utf16_to_utf8(const char16_t* str, size_t len) {
-    if (len == 0) {
-        return "";
-    }
-
-    try {
-        std::wstring_convert<std::codecvt_utf8_utf16<char16_t>, char16_t> converter;
-        return converter.to_bytes(str, str + len);
-    } catch (...) {
-        // Conversion failed, return empty string
-        return "";
-    }
 }
 
 } // anonymous namespace

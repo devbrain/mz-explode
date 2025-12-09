@@ -3,17 +3,17 @@
 // Integration tests using Corkami PE test corpus
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/import_directory.hpp>
-#include <libexe/export_directory.hpp>
-#include <libexe/tls_directory.hpp>
-#include <libexe/delay_import_directory.hpp>
-#include <libexe/bound_import_directory.hpp>
-#include <libexe/base_relocation.hpp>
-#include <libexe/debug_directory.hpp>
-#include <libexe/security_directory.hpp>
-#include <libexe/com_descriptor.hpp>
-#include <libexe/load_config_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/import.hpp>
+#include <libexe/pe/directories/export.hpp>
+#include <libexe/pe/directories/tls.hpp>
+#include <libexe/pe/directories/delay_import.hpp>
+#include <libexe/pe/directories/bound_import.hpp>
+#include <libexe/pe/directories/relocation.hpp>
+#include <libexe/pe/directories/debug.hpp>
+#include <libexe/pe/directories/security.hpp>
+#include <libexe/pe/directories/com_descriptor.hpp>
+#include <libexe/pe/directories/load_config.hpp>
 #include <filesystem>
 #include <fstream>
 #include <vector>
@@ -192,7 +192,7 @@ TEST_CASE("Corkami - TLS directory parsing") {
         if (pe.has_data_directory(directory_entry::TLS)) {
             auto tls = pe.tls();
             REQUIRE(tls != nullptr);
-            MESSAGE("TLS callbacks found: ", tls->callback_count());
+            CHECK(tls->callback_count() >= 0);
         }
     }
 

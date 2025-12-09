@@ -2,7 +2,7 @@
 // Based on exepack-1.4.0 by David Fifield (https://www.bamsoftware.com/software/exepack/)
 // Algorithm: Backward decompression with FILL and COPY commands
 
-#include <libexe/decompressors/exepack_decompressor.hpp>
+#include <libexe/decompressors/exepack.hpp>
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>

@@ -1,6 +1,6 @@
 // Test PE Resource Extraction
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
+#include <libexe/formats/pe_file.hpp>
 #include <libexe/resources/resource.hpp>
 
 using namespace libexe;

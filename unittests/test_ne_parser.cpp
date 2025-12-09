@@ -1,7 +1,7 @@
 // Test NE file parser functionality
 #include <doctest/doctest.h>
-#include <libexe/ne_file.hpp>
-#include <libexe/ne_types.hpp>
+#include <libexe/formats/ne_file.hpp>
+#include <libexe/ne/types.hpp>
 #include <vector>
 
 using namespace libexe;

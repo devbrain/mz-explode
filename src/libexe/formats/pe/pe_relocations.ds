@@ -54,31 +54,36 @@ little;
  *   9 = MIPS16 specific
  *  10 = IMAGE_REL_BASED_DIR64     (64-bit address, PE32+)
  */
+/**
+ * IMAGE_BASE_RELOCATION header only
+ *
+ * Header for a block of base relocations. Use this for just the header.
+ */
 struct image_base_relocation {
-    /**
-     * Page RVA
-     *
-     * RVA of the 4KB page that this block relocates.
-     * All offsets in this block are relative to this RVA.
-     */
     uint32 virtual_address;
-
-    /**
-     * Block size
-     *
-     * Total size of this relocation block in bytes, including:
-     * - This 8-byte header
-     * - All following type/offset entries (2 bytes each)
-     *
-     * Number of entries = (size_of_block - 8) / 2
-     */
     uint32 size_of_block;
+};
 
-    // Note: Type/offset entries follow immediately after this header.
-    // They are NOT part of this structure - must be read separately
-    // as an array of uint16 values. Each entry encodes:
-    //   - Relocation type (high 4 bits)
-    //   - Page offset (low 12 bits)
+/**
+ * Complete relocation block with entries
+ *
+ * Header for a block of base relocations plus all type/offset entries.
+ * Each block covers one 4KB page of the executable.
+ *
+ * Type/Offset format (16 bits each):
+ *   Bits 0-11:  Offset within the page (0-4095)
+ *   Bits 12-15: Relocation type (0-10)
+ *
+ * To extract:
+ *   offset = type_offset & 0x0FFF
+ *   type = (type_offset >> 12) & 0x0F
+ *   actual_rva = virtual_address + offset
+ */
+struct relocation_block {
+    uint32 virtual_address;
+    uint32 size_of_block;
+    // Entries array: (size_of_block - 8) / 2 entries
+    uint16 entries[(size_of_block - 8) / 2];
 };
 
 /*

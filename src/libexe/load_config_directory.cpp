@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/load_config_directory.hpp>
+#include <libexe/pe/directories/load_config.hpp>
 #include <sstream>
 #include <cstring>
 

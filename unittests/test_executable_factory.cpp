@@ -1,9 +1,9 @@
 // Test executable factory format detection
 #include <doctest/doctest.h>
-#include <libexe/executable_factory.hpp>
-#include <libexe/mz_file.hpp>
-#include <libexe/ne_file.hpp>
-#include <libexe/pe_file.hpp>
+#include <libexe/formats/executable_factory.hpp>
+#include <libexe/formats/mz_file.hpp>
+#include <libexe/formats/ne_file.hpp>
+#include <libexe/formats/pe_file.hpp>
 #include <vector>
 
 using namespace libexe;

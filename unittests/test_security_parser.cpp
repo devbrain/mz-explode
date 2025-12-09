@@ -3,8 +3,8 @@
 // Unit tests for Security Directory Parser (Certificate Table)
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/security_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/security.hpp>
 #include <cstring>
 #include <vector>
 

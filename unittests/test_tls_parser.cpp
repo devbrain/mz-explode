@@ -2,9 +2,9 @@
 // Copyright (c) 2024
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/tls_directory.hpp>
-#include <libexe/parsers/tls_directory_parser.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/tls.hpp>
+#include <libexe/pe/directories/tls.hpp>
 #include <vector>
 #include <cstring>
 

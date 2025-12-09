@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/debug_directory.hpp>
+#include <libexe/pe/directories/debug.hpp>
 #include <sstream>
 #include <iomanip>
 #include <algorithm>

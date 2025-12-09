@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/parsers/exception_directory_parser.hpp>
+#include <libexe/pe/directories/exception.hpp>
 #include <libexe_format_pe_exception.hh>
 #include <stdexcept>
 #include <cstring>

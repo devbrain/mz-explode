@@ -128,6 +128,28 @@ struct bitmap_info_header {
 };
 
 /**
+ * Complete bitmap with header, palette, and pixel data
+ *
+ * For bit_count <= 8, includes color palette.
+ * Palette size is clr_used if non-zero, otherwise 2^bit_count.
+ */
+struct bitmap_with_palette {
+    uint32 size : size == 40;
+    int32  width;
+    int32  height;
+    uint16 planes : planes == 1;
+    uint16 bit_count;
+    uint32 compression;
+    uint32 size_image;
+    int32  x_pels_per_meter;
+    int32  y_pels_per_meter;
+    uint32 clr_used;
+    uint32 clr_important;
+    // Palette: clr_used entries if non-zero, otherwise 2^bit_count for bit_count <= 8
+    rgb_quad palette[clr_used > 0 ? clr_used : (bit_count <= 8 ? (1 << bit_count) : 0)];
+};
+
+/**
  * Bitmap core header (OS/2 1.x format)
  *
  * Older OS/2 bitmap format, distinguished by size field == 12.

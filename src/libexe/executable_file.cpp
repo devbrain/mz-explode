@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/executable_file.hpp>
+#include <libexe/core/executable_file.hpp>
 
 namespace libexe {
 

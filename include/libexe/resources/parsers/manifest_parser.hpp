@@ -2,7 +2,7 @@
 #define LIBEXE_MANIFEST_PARSER_HPP
 
 #include <libexe/export.hpp>
-#include <libexe/enum_bitmask.hpp>
+#include <libexe/core/enum_bitmask.hpp>
 #include <cstdint>
 #include <span>
 #include <string>

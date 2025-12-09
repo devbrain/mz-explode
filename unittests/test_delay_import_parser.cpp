@@ -4,8 +4,8 @@
 // Tests for Delay Import Directory Parser
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/delay_import_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/delay_import.hpp>
 #include <vector>
 #include <cstring>
 

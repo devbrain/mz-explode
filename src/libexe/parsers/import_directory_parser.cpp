@@ -1,5 +1,5 @@
-#include <libexe/parsers/import_directory_parser.hpp>
-#include <libexe/pe_section_parser.hpp>
+#include <libexe/pe/directories/import.hpp>
+#include <libexe/pe/section_parser.hpp>
 #include "libexe_format_pe_imports.hh"  // Generated DataScript parser
 #include <stdexcept>
 #include <algorithm>

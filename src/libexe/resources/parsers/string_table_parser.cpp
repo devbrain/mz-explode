@@ -1,36 +1,6 @@
 #include <libexe/resources/parsers/string_table_parser.hpp>
-#include <vector>
-#include <sstream>
 
 namespace libexe {
-
-namespace {
-
-// Helper to convert UTF-16 to UTF-8
-std::string utf16_to_utf8(const std::vector<uint16_t>& utf16) {
-    std::string result;
-    result.reserve(utf16.size());  // Reserve space (will be >= final size)
-
-    for (char16_t ch : utf16) {
-        if (ch < 0x80) {
-            // 1-byte sequence (ASCII)
-            result.push_back(static_cast<char>(ch));
-        } else if (ch < 0x800) {
-            // 2-byte sequence
-            result.push_back(static_cast<char>(0xC0 | (ch >> 6)));
-            result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-        } else {
-            // 3-byte sequence (covers BMP)
-            result.push_back(static_cast<char>(0xE0 | (ch >> 12)));
-            result.push_back(static_cast<char>(0x80 | ((ch >> 6) & 0x3F)));
-            result.push_back(static_cast<char>(0x80 | (ch & 0x3F)));
-        }
-    }
-
-    return result;
-}
-
-} // anonymous namespace
 
 std::optional<string_table> string_table_parser::parse(std::span<const uint8_t> data, uint16_t block_id) {
     if (data.empty()) {

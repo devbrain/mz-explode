@@ -2,7 +2,7 @@
 // Unit tests for RT_STRING and RT_ACCELERATOR resource parsers
 
 #include <doctest/doctest.h>
-#include <libexe/ne_file.hpp>
+#include <libexe/formats/ne_file.hpp>
 #include <libexe/resources/resource.hpp>
 #include <libexe/resources/parsers/string_table_parser.hpp>
 #include <libexe/resources/parsers/accelerator_parser.hpp>

@@ -1,5 +1,5 @@
 #include <doctest/doctest.h>
-#include <libexe/ne_file.hpp>
+#include <libexe/formats/ne_file.hpp>
 #include <libexe/resources/resource.hpp>
 #include <libexe/resources/parsers/icon_group_parser.hpp>
 #include <libexe/resources/parsers/icon_parser.hpp>

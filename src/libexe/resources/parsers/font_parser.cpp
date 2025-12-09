@@ -1,7 +1,6 @@
 #include <libexe/resources/parsers/font_parser.hpp>
-#include "libexe_format_fonts.hh"  // Generated DataScript parser (modular)
+#include "libexe_format_fonts.hh"
 #include <cstring>
-#include <algorithm>
 
 namespace libexe {
 
@@ -34,6 +33,144 @@ std::string read_string_at_offset(std::span<const uint8_t> data, uint32_t offset
     return result;
 }
 
+// Parse Windows 2.x font using DataScript
+std::optional<font_data> parse_font_2x(std::span<const uint8_t> data) {
+    const uint8_t* ptr = data.data();
+    const uint8_t* end = data.data() + data.size();
+
+    auto ds_font = formats::resources::fonts::font_2x::read(ptr, end);
+
+    font_data result;
+
+    // Metadata
+    result.version = ds_font.version;
+    result.size = ds_font.size;
+    result.copyright = extract_string(ds_font.copyright.data(), ds_font.copyright.size());
+    result.type = static_cast<font_type>(ds_font.type);
+
+    // Metrics
+    result.points = ds_font.points;
+    result.vertical_res = ds_font.vert_res;
+    result.horizontal_res = ds_font.horiz_res;
+    result.ascent = ds_font.ascent;
+    result.internal_leading = ds_font.internal_leading;
+    result.external_leading = ds_font.external_leading;
+
+    // Appearance
+    result.italic = ds_font.italic != 0;
+    result.underline = ds_font.underline != 0;
+    result.strikeout = ds_font.strike_out != 0;
+    result.weight = ds_font.weight;
+    result.charset = ds_font.char_set;
+
+    // Dimensions
+    result.pixel_width = ds_font.pix_width;
+    result.pixel_height = ds_font.pix_height;
+    result.avg_width = ds_font.avg_width;
+    result.max_width = ds_font.max_width;
+
+    // Character range
+    result.first_char = ds_font.first_char;
+    result.last_char = ds_font.last_char;
+    result.default_char = ds_font.default_char;
+    result.break_char = ds_font.break_char;
+
+    // Pitch and family
+    result.pitch = static_cast<font_pitch>(ds_font.pitch_and_family & 0x0F);
+    result.family = static_cast<font_family>(ds_font.pitch_and_family & 0xF0);
+
+    // Face name
+    result.face_name = read_string_at_offset(data, ds_font.face);
+
+    // Convert glyph table from DataScript
+    result.glyphs.reserve(ds_font.glyphs.size());
+    for (const auto& ds_glyph : ds_font.glyphs) {
+        glyph_entry glyph;
+        glyph.width = ds_glyph.width;
+        glyph.offset = ds_glyph.offset;
+        result.glyphs.push_back(glyph);
+    }
+
+    // Bitmap data: use the first glyph offset as the start of bitmap data
+    // In 2.x fonts, glyph offsets are absolute from start of font file
+    if (!result.glyphs.empty() && result.glyphs[0].offset < data.size()) {
+        uint32_t bits_start = result.glyphs[0].offset;
+        const uint8_t* bitmap_start = data.data() + bits_start;
+        size_t bitmap_size = data.size() - bits_start;
+        result.bitmap_data.assign(bitmap_start, bitmap_start + bitmap_size);
+    }
+
+    return result;
+}
+
+// Parse Windows 3.x font using DataScript
+std::optional<font_data> parse_font_3x(std::span<const uint8_t> data) {
+    const uint8_t* ptr = data.data();
+    const uint8_t* end = data.data() + data.size();
+
+    auto ds_font = formats::resources::fonts::font_3x::read(ptr, end);
+
+    font_data result;
+
+    // Metadata
+    result.version = ds_font.version;
+    result.size = ds_font.size;
+    result.copyright = extract_string(ds_font.copyright.data(), ds_font.copyright.size());
+    result.type = static_cast<font_type>(ds_font.type);
+
+    // Metrics
+    result.points = ds_font.points;
+    result.vertical_res = ds_font.vert_res;
+    result.horizontal_res = ds_font.horiz_res;
+    result.ascent = ds_font.ascent;
+    result.internal_leading = ds_font.internal_leading;
+    result.external_leading = ds_font.external_leading;
+
+    // Appearance
+    result.italic = ds_font.italic != 0;
+    result.underline = ds_font.underline != 0;
+    result.strikeout = ds_font.strike_out != 0;
+    result.weight = ds_font.weight;
+    result.charset = ds_font.char_set;
+
+    // Dimensions
+    result.pixel_width = ds_font.pix_width;
+    result.pixel_height = ds_font.pix_height;
+    result.avg_width = ds_font.avg_width;
+    result.max_width = ds_font.max_width;
+
+    // Character range
+    result.first_char = ds_font.first_char;
+    result.last_char = ds_font.last_char;
+    result.default_char = ds_font.default_char;
+    result.break_char = ds_font.break_char;
+
+    // Pitch and family
+    result.pitch = static_cast<font_pitch>(ds_font.pitch_and_family & 0x0F);
+    result.family = static_cast<font_family>(ds_font.pitch_and_family & 0xF0);
+
+    // Face name
+    result.face_name = read_string_at_offset(data, ds_font.face);
+
+    // Convert glyph table from DataScript
+    result.glyphs.reserve(ds_font.glyphs.size());
+    for (const auto& ds_glyph : ds_font.glyphs) {
+        glyph_entry glyph;
+        glyph.width = ds_glyph.width;
+        glyph.offset = ds_glyph.offset;
+        result.glyphs.push_back(glyph);
+    }
+
+    // Bitmap data starts at bits_offset
+    if (ds_font.bits_offset < data.size()) {
+        const uint8_t* bitmap_start = data.data() + ds_font.bits_offset;
+        size_t bitmap_size = data.size() - ds_font.bits_offset;
+        result.bitmap_data.assign(bitmap_start, bitmap_start + bitmap_size);
+    }
+
+    return result;
+}
+
 } // anonymous namespace
 
 std::optional<font_data> font_parser::parse(std::span<const uint8_t> data) {
@@ -43,113 +180,19 @@ std::optional<font_data> font_parser::parse(std::span<const uint8_t> data) {
     }
 
     try {
-        // Parse using generated DataScript parser
-        const uint8_t* ptr = data.data();
-        const uint8_t* end = data.data() + data.size();
-        auto ds_font = formats::resources::fonts::font_header::read(ptr, end);
+        // Check version to determine which parser to use
+        uint16_t version = static_cast<uint16_t>(data[0]) | (static_cast<uint16_t>(data[1]) << 8);
 
-        // Convert to our public API structure
-        font_data result;
-
-        // Metadata
-        result.version = ds_font.version;
-        result.size = ds_font.size;
-        result.copyright = extract_string(ds_font.copyright.data(), ds_font.copyright.size());
-        result.type = static_cast<font_type>(ds_font.type);
-
-        // Metrics
-        result.points = ds_font.points;
-        result.vertical_res = ds_font.vert_res;
-        result.horizontal_res = ds_font.horiz_res;
-        result.ascent = ds_font.ascent;
-        result.internal_leading = ds_font.internal_leading;
-        result.external_leading = ds_font.external_leading;
-
-        // Appearance
-        result.italic = ds_font.italic != 0;
-        result.underline = ds_font.underline != 0;
-        result.strikeout = ds_font.strike_out != 0;
-        result.weight = ds_font.weight;
-        result.charset = ds_font.char_set;
-
-        // Dimensions
-        result.pixel_width = ds_font.pix_width;
-        result.pixel_height = ds_font.pix_height;
-        result.avg_width = ds_font.avg_width;
-        result.max_width = ds_font.max_width;
-
-        // Character range
-        result.first_char = ds_font.first_char;
-        result.last_char = ds_font.last_char;
-        result.default_char = ds_font.default_char;
-        result.break_char = ds_font.break_char;
-
-        // Pitch and family
-        result.pitch = static_cast<font_pitch>(ds_font.pitch_and_family & 0x0F);
-        result.family = static_cast<font_family>(ds_font.pitch_and_family & 0xF0);
-
-        // Face name (stored at face offset)
-        result.face_name = read_string_at_offset(data, ds_font.face);
-
-        // Parse glyph table
-        // The glyph table immediately follows the header
-        size_t char_count = result.character_count() + 1;  // +1 for sentinel
-        result.glyphs.reserve(char_count);
-
-        // Reset pointer to parse glyph table
-        ptr = data.data() + 118;  // Start of glyph table (after header)
-
-        // Determine glyph entry size based on version and flags
-        bool has_abc_spacing = (ds_font.flags & 0x0001) != 0;  // DFF_ABCFIXED or DFF_ABCPROPORTIONAL
-        bool is_color = (ds_font.flags & 0x0004) != 0;         // DFF_COLORFONT
-
-        for (size_t i = 0; i < char_count && ptr + 6 <= end; ++i) {
-            glyph_entry glyph;
-
-            if (result.version == 0x0200) {
-                // Windows 2.x: 2-byte width + 2-byte offset
-                if (ptr + 4 > end) break;
-                glyph.width = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
-                glyph.offset = static_cast<uint16_t>(ptr[2]) | (static_cast<uint16_t>(ptr[3]) << 8);
-                ptr += 4;
-            } else {
-                // Windows 3.0: 2-byte width + 4-byte offset
-                if (ptr + 6 > end) break;
-                glyph.width = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
-                glyph.offset = static_cast<uint32_t>(ptr[2]) |
-                              (static_cast<uint32_t>(ptr[3]) << 8) |
-                              (static_cast<uint32_t>(ptr[4]) << 16) |
-                              (static_cast<uint32_t>(ptr[5]) << 24);
-                ptr += 6;
-
-                // Parse ABC spacing if present
-                if (has_abc_spacing && ptr + 6 <= end) {
-                    glyph.a_space = static_cast<int16_t>(
-                        static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8)
-                    );
-                    glyph.b_space = static_cast<uint16_t>(ptr[2]) | (static_cast<uint16_t>(ptr[3]) << 8);
-                    glyph.c_space = static_cast<int16_t>(
-                        static_cast<uint16_t>(ptr[4]) | (static_cast<uint16_t>(ptr[5]) << 8)
-                    );
-                    ptr += 6;
-                }
-            }
-
-            result.glyphs.push_back(glyph);
+        if (version == 0x0200) {
+            return parse_font_2x(data);
+        } else if (version == 0x0300) {
+            return parse_font_3x(data);
+        } else {
+            // Unknown version - try 2.x format as fallback
+            return parse_font_2x(data);
         }
-
-        // The bitmap data starts after the glyph table
-        // For simplicity, we store everything from bits_offset to end of file
-        if (ds_font.bits_offset < data.size()) {
-            const uint8_t* bitmap_start = data.data() + ds_font.bits_offset;
-            size_t bitmap_size = data.size() - ds_font.bits_offset;
-            result.bitmap_data.assign(bitmap_start, bitmap_start + bitmap_size);
-        }
-
-        return result;
     }
     catch (const std::exception&) {
-        // Parse error - return nullopt
         return std::nullopt;
     }
 }
@@ -169,16 +212,48 @@ std::span<const uint8_t> font_data::get_char_bitmap(uint8_t c) const {
     const auto& glyph = glyphs[glyph_index];
 
     // Calculate bitmap size
-    size_t bytes_per_row = (glyph.width + 7) / 8;  // Round up to bytes
+    size_t bytes_per_row = (glyph.width + 7) / 8;
     size_t bitmap_size = bytes_per_row * pixel_height;
 
+    // For 2.x fonts, offset is relative to bits_offset which we've already handled
+    // The bitmap_data already starts at bits_offset, so we need to adjust
+    // Actually, in 2.x format, offset is absolute from start of file
+    // But we stored bitmap_data starting from bits_offset
+    // So we need to subtract bits_offset from the glyph offset
+
+    // The glyph offset points to the bitmap data relative to file start
+    // Our bitmap_data starts at bits_offset from file start
+    // So the index into bitmap_data is: glyph.offset - bits_offset
+    // But we don't have bits_offset stored... let's check if offset is already relative
+
+    // Actually, looking at the font format, for character bitmaps in 2.x:
+    // The offset in glyph entry is the byte offset from start of file to the bitmap
+    // We need to compute relative to where bitmap_data starts
+
+    // For simplicity, let's compute assuming offsets are into the original file
+    // and bitmap_data contains everything from bits_offset onwards
+
+    // Get the minimum offset from all glyphs to determine bits_offset
+    uint32_t min_offset = UINT32_MAX;
+    for (const auto& g : glyphs) {
+        if (g.offset > 0 && g.offset < min_offset) {
+            min_offset = g.offset;
+        }
+    }
+
+    if (min_offset == UINT32_MAX || glyph.offset < min_offset) {
+        return {};
+    }
+
+    size_t relative_offset = glyph.offset - min_offset;
+
     // Check bounds
-    if (glyph.offset + bitmap_size > bitmap_data.size()) {
+    if (relative_offset + bitmap_size > bitmap_data.size()) {
         return {};
     }
 
     return std::span<const uint8_t>(
-        bitmap_data.data() + glyph.offset,
+        bitmap_data.data() + relative_offset,
         bitmap_size
     );
 }

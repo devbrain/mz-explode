@@ -1,7 +1,7 @@
 // Knowledge Dynamics decompressor implementation
 // LZW (Lempel-Ziv-Welch) dictionary-based compression
 
-#include <libexe/decompressors/knowledge_dynamics_decompressor.hpp>
+#include <libexe/decompressors/knowledge_dynamics.hpp>
 #include <stdexcept>
 #include <cstring>
 #include <array>

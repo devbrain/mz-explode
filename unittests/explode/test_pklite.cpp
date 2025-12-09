@@ -1,7 +1,7 @@
 // Tests for PKLITE decompression
 #include <doctest/doctest.h>
-#include <libexe/mz_file.hpp>
-#include <libexe/decompressors/pklite_decompressor.hpp>
+#include <libexe/formats/mz_file.hpp>
+#include <libexe/decompressors/pklite.hpp>
 #include <vector>
 #include <span>
 #include "../md5.h"

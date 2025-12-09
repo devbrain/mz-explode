@@ -3,8 +3,8 @@
 // Unit tests for Architecture Directory Parser
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/architecture_directory.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/architecture.hpp>
 #include <cstring>
 #include <vector>
 

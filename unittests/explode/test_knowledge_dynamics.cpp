@@ -1,7 +1,7 @@
 // Tests for Knowledge Dynamics decompression
 #include <doctest/doctest.h>
-#include <libexe/mz_file.hpp>
-#include <libexe/decompressors/knowledge_dynamics_decompressor.hpp>
+#include <libexe/formats/mz_file.hpp>
+#include <libexe/decompressors/knowledge_dynamics.hpp>
 #include "../md5.h"
 #include <vector>
 #include <span>

@@ -3,8 +3,8 @@
 // Unit tests for COM Descriptor Parser (.NET CLR Runtime Header)
 
 #include <doctest/doctest.h>
-#include <libexe/pe_file.hpp>
-#include <libexe/com_descriptor.hpp>
+#include <libexe/formats/pe_file.hpp>
+#include <libexe/pe/directories/com_descriptor.hpp>
 #include <cstring>
 #include <vector>
 

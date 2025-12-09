@@ -1,7 +1,7 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/com_descriptor.hpp>
+#include <libexe/pe/directories/com_descriptor.hpp>
 #include <sstream>
 
 namespace libexe {

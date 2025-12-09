@@ -1,8 +1,8 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
-#include <libexe/parsers/debug_directory_parser.hpp>
-#include <libexe/pe_section_parser.hpp>
+#include <libexe/pe/directories/debug.hpp>
+#include <libexe/pe/section_parser.hpp>
 #include "libexe_format_pe_debug.hh"  // Generated DataScript parser
 #include <stdexcept>
 #include <cstring>
