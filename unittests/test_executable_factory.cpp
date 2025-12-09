@@ -4,6 +4,7 @@
 #include <libexe/formats/mz_file.hpp>
 #include <libexe/formats/ne_file.hpp>
 #include <libexe/formats/pe_file.hpp>
+#include <libexe/formats/le_file.hpp>
 #include <vector>
 
 using namespace libexe;
@@ -88,6 +89,80 @@ TEST_CASE("Executable factory: format detection") {
         CHECK(fmt == format_type::PE_PLUS_WIN64);
     }
 
+    SUBCASE("Detects LE bound files") {
+        // Create DOS header pointing to LE header
+        std::vector<uint8_t> le_exe(256, 0);
+        le_exe[0] = 0x4D;  // 'M'
+        le_exe[1] = 0x5A;  // 'Z'
+        le_exe[0x3C] = 0x80;  // e_lfanew = 0x80
+        le_exe[0x3D] = 0x00;
+
+        // LE signature at offset 0x80
+        le_exe[0x80] = 0x4C;  // 'L'
+        le_exe[0x81] = 0x45;  // 'E'
+        // OS type at 0x8A (0x80 + 0x0A) - DOS (0x03)
+        le_exe[0x8A] = 0x03;
+        le_exe[0x8B] = 0x00;
+
+        auto fmt = executable_factory::detect_format(le_exe);
+        CHECK(fmt == format_type::LE_DOS32_BOUND);
+    }
+
+    SUBCASE("Detects LX bound files") {
+        // Create DOS header pointing to LX header
+        std::vector<uint8_t> lx_exe(256, 0);
+        lx_exe[0] = 0x4D;  // 'M'
+        lx_exe[1] = 0x5A;  // 'Z'
+        lx_exe[0x3C] = 0x80;  // e_lfanew = 0x80
+        lx_exe[0x3D] = 0x00;
+
+        // LX signature at offset 0x80
+        lx_exe[0x80] = 0x4C;  // 'L'
+        lx_exe[0x81] = 0x58;  // 'X'
+
+        auto fmt = executable_factory::detect_format(lx_exe);
+        CHECK(fmt == format_type::LX_OS2_BOUND);
+    }
+
+    SUBCASE("Detects raw LE files") {
+        // LE file without MZ stub
+        std::vector<uint8_t> le_raw(256, 0);
+        le_raw[0] = 0x4C;  // 'L'
+        le_raw[1] = 0x45;  // 'E'
+
+        auto fmt = executable_factory::detect_format(le_raw);
+        CHECK(fmt == format_type::LE_DOS32_RAW);
+    }
+
+    SUBCASE("Detects raw LX files") {
+        // LX file without MZ stub
+        std::vector<uint8_t> lx_raw(256, 0);
+        lx_raw[0] = 0x4C;  // 'L'
+        lx_raw[1] = 0x58;  // 'X'
+
+        auto fmt = executable_factory::detect_format(lx_raw);
+        CHECK(fmt == format_type::LX_OS2_RAW);
+    }
+
+    SUBCASE("Detects VxD files") {
+        // Create DOS header pointing to LE header with Windows (VxD) OS type
+        std::vector<uint8_t> vxd_exe(256, 0);
+        vxd_exe[0] = 0x4D;  // 'M'
+        vxd_exe[1] = 0x5A;  // 'Z'
+        vxd_exe[0x3C] = 0x80;  // e_lfanew = 0x80
+        vxd_exe[0x3D] = 0x00;
+
+        // LE signature at offset 0x80
+        vxd_exe[0x80] = 0x4C;  // 'L'
+        vxd_exe[0x81] = 0x45;  // 'E'
+        // OS type at 0x8A (0x80 + 0x0A) - Windows (0x02)
+        vxd_exe[0x8A] = 0x02;
+        vxd_exe[0x8B] = 0x00;
+
+        auto fmt = executable_factory::detect_format(vxd_exe);
+        CHECK(fmt == format_type::LE_VXD);
+    }
+
     SUBCASE("Rejects files that are too small") {
         std::vector<uint8_t> tiny_data = {0x4D, 0x5A};
         CHECK_THROWS_AS(executable_factory::detect_format(tiny_data), std::runtime_error);
@@ -106,6 +181,11 @@ TEST_CASE("Executable factory: format type names") {
         CHECK(executable_factory::format_type_name(format_type::NE_WIN16) == "NE (16-bit Windows/OS2)");
         CHECK(executable_factory::format_type_name(format_type::PE_WIN32) == "PE32 (32-bit Windows)");
         CHECK(executable_factory::format_type_name(format_type::PE_PLUS_WIN64) == "PE32+ (64-bit Windows)");
+        CHECK(executable_factory::format_type_name(format_type::LE_DOS32_BOUND) == "LE (32-bit DOS with extender)");
+        CHECK(executable_factory::format_type_name(format_type::LE_DOS32_RAW) == "LE (32-bit DOS raw)");
+        CHECK(executable_factory::format_type_name(format_type::LE_VXD) == "LE (Windows VxD)");
+        CHECK(executable_factory::format_type_name(format_type::LX_OS2_BOUND) == "LX (OS/2 with stub)");
+        CHECK(executable_factory::format_type_name(format_type::LX_OS2_RAW) == "LX (OS/2 raw)");
         CHECK(executable_factory::format_type_name(format_type::UNKNOWN) == "Unknown");
     }
 }

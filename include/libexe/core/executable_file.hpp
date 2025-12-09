@@ -13,10 +13,17 @@ namespace libexe {
     /// Executable format types
     enum class format_type {
         UNKNOWN,
-        MZ_DOS,        // DOS MZ executable
-        NE_WIN16,      // 16-bit Windows/OS2
-        PE_WIN32,      // 32-bit Windows
-        PE_PLUS_WIN64  // 64-bit Windows
+        MZ_DOS,           // DOS MZ executable (plain, no extended header)
+        NE_WIN16,         // 16-bit Windows/OS2
+        PE_WIN32,         // 32-bit Windows
+        PE_PLUS_WIN64,    // 64-bit Windows
+
+        // LE/LX formats - distinguish bound (with MZ stub) vs raw
+        LE_DOS32_BOUND,   // 32-bit DOS with extender stub (DOS/4GW, DOS/32A, etc.)
+        LE_DOS32_RAW,     // 32-bit DOS, raw LE (no MZ stub)
+        LE_VXD,           // Windows VxD driver
+        LX_OS2_BOUND,     // OS/2 2.0+ with MZ stub
+        LX_OS2_RAW        // OS/2 2.0+ raw LX
     };
 
     /// Base class for all executable file formats

@@ -76,6 +76,7 @@ add_datascript_parser(formats/common.ds libexe_format_common.hh)
 add_datascript_parser(formats/mz.ds libexe_format_mz.hh)
 add_datascript_parser(formats/ne/ne_header.ds libexe_format_ne.hh)
 add_datascript_parser(formats/pe/pe_header.ds libexe_format_pe.hh)
+add_datascript_parser(formats/le/le_header.ds libexe_format_le.hh)
 
 # PE data directory parsers
 add_datascript_parser(formats/pe/pe_imports.ds libexe_format_pe_imports.hh)
@@ -113,11 +114,13 @@ add_dependencies(generate_menus_parser generate_common_parser)
 
 add_library(libexe
         # Core files
+        core/diagnostic.cpp
         executable_file.cpp
         executable_factory.cpp
         mz_file.cpp
         pe_file.cpp
         ne_file.cpp
+        le_file.cpp
         # Section parsers
         pe_section_parser.cpp
         ne_segment_parser.cpp
@@ -137,6 +140,7 @@ add_library(libexe
         parsers/global_ptr_directory_parser.cpp
         parsers/architecture_directory_parser.cpp
         parsers/reserved_directory_parser.cpp
+        parsers/rich_header_parser.cpp
         # Data directory structures (only those with implementation)
         debug_directory.cpp
         load_config_directory.cpp
@@ -174,6 +178,7 @@ add_dependencies(libexe
     generate_mz_parser
     generate_ne_header_parser
     generate_pe_header_parser
+    generate_le_header_parser
     generate_pe_imports_parser
     generate_pe_exports_parser
     generate_pe_relocations_parser

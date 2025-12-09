@@ -4,6 +4,7 @@
 #include <libexe/formats/mz_file.hpp>
 #include <libexe/formats/ne_file.hpp>
 #include <libexe/formats/pe_file.hpp>
+#include <libexe/formats/le_file.hpp>
 #include <libexe/pe/types.hpp>
 #include <vector>
 

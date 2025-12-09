@@ -15,11 +15,12 @@ namespace libexe {
     class mz_file;
     class ne_file;
     class pe_file;
+    class le_file;
 }
 
 namespace libexe {
     /// Result type for executable factory - holds one of the supported formats
-    using executable_variant = std::variant <mz_file, ne_file, pe_file>;
+    using executable_variant = std::variant<mz_file, ne_file, pe_file, le_file>;
 
     /// Factory for auto-detecting and loading executable files
     class LIBEXE_EXPORT executable_factory {
