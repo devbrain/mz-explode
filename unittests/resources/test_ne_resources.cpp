@@ -2,6 +2,7 @@
 #include <doctest/doctest.h>
 #include <libexe/formats/ne_file.hpp>
 #include <libexe/resources/resource.hpp>
+#include <algorithm>
 
 using namespace libexe;
 
@@ -175,6 +176,90 @@ TEST_CASE("NE Resource Extraction - PROGMAN.EXE") {
         CHECK(icon_langs.size() == 1);
         if (!icon_langs.empty()) {
             CHECK(icon_langs[0] == 0);
+        }
+    }
+}
+
+// =============================================================================
+// OS/2 NE Resource Tests
+// =============================================================================
+
+// External embedded test data - OS/2 SYSFONT.DLL
+namespace data {
+    extern size_t sysfont_ne_len;
+    extern unsigned char sysfont_ne[];
+}
+
+TEST_CASE("NE Resource Extraction - OS/2 SYSFONT.DLL") {
+    std::vector<uint8_t> file_data(
+        data::sysfont_ne,
+        data::sysfont_ne + data::sysfont_ne_len
+    );
+
+    auto ne = ne_file::from_memory(file_data);
+
+    SUBCASE("File is recognized as OS/2") {
+        CHECK(ne.target_os() == ne_target_os::OS2);
+    }
+
+    SUBCASE("File has resources") {
+        CHECK(ne.has_resources());
+    }
+
+    SUBCASE("OS/2 compact resource format is parsed") {
+        auto rsrc = ne.resources();
+        CHECK(rsrc != nullptr);
+
+        // SYSFONT.DLL has 6 resources (7 segments but truncated resource table)
+        CHECK(rsrc->resource_count() == 6);
+    }
+
+    SUBCASE("Resources are type RT_FONT (7)") {
+        auto rsrc = ne.resources();
+        auto types = rsrc->types();
+
+        // Should have only 1 type: RT_FONT (7)
+        CHECK(types.size() == 1);
+        if (!types.empty()) {
+            CHECK(types[0] == 7);
+        }
+    }
+
+    SUBCASE("Font resources have correct IDs") {
+        auto rsrc = ne.resources();
+        auto fonts = rsrc->resources_by_type_id(7);
+
+        CHECK(fonts.size() == 6);
+
+        // Expected IDs: 1 (fontdir), 101-105 (fonts)
+        std::vector<uint16_t> expected_ids = {1, 101, 102, 103, 104, 105};
+        std::vector<uint16_t> actual_ids;
+
+        for (const auto& font : fonts) {
+            if (font.id()) {
+                actual_ids.push_back(*font.id());
+            }
+        }
+
+        std::sort(actual_ids.begin(), actual_ids.end());
+        CHECK(actual_ids == expected_ids);
+    }
+
+    SUBCASE("Resource data comes from segments") {
+        auto rsrc = ne.resources();
+
+        // Font ID 101 should have data from segment 2
+        auto font = rsrc->find_resource_by_type_id(7, 101);
+        REQUIRE(font.has_value());
+
+        // Check font data is accessible
+        auto data = font->data();
+        CHECK(data.size() > 0);
+
+        // Font data should start with OS/2 GPI font signature (0xFFFFFFFE)
+        if (data.size() >= 4) {
+            uint32_t sig = data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+            CHECK(sig == 0xFFFFFFFE);
         }
     }
 }

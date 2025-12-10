@@ -262,7 +262,7 @@ public:
      * @param format Windows resource format (PE or NE)
      * @return Parsed dialog template on success, std::nullopt on parse error
      */
-    static std::optional<dialog_template> parse(std::span<const uint8_t> data, windows_resource_format format);
+    [[nodiscard]] static std::optional<dialog_template> parse(std::span<const uint8_t> data, windows_resource_format format);
 };
 
 } // namespace libexe

@@ -156,10 +156,10 @@ struct le_entry {
 class LIBEXE_EXPORT le_file final : public executable_file {
 public:
     /// Load LE/LX file from filesystem
-    static le_file from_file(const std::filesystem::path& path);
+    [[nodiscard]] static le_file from_file(const std::filesystem::path& path);
 
     /// Load LE/LX file from memory
-    static le_file from_memory(std::span<const uint8_t> data);
+    [[nodiscard]] static le_file from_memory(std::span<const uint8_t> data);
 
     // =========================================================================
     // Base class interface

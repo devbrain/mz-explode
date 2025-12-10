@@ -102,7 +102,7 @@ public:
      * @param data Raw resource data from RT_GROUP_ICON resource
      * @return Parsed icon group on success, std::nullopt on parse error
      */
-    static std::optional<icon_group> parse(std::span<const uint8_t> data);
+    [[nodiscard]] static std::optional<icon_group> parse(std::span<const uint8_t> data);
 };
 
 } // namespace libexe

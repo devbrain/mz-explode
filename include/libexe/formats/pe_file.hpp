@@ -41,10 +41,10 @@ namespace libexe {
     class LIBEXE_EXPORT pe_file final : public executable_file {
         public:
             /// Load PE file from filesystem
-            static pe_file from_file(const std::filesystem::path& path);
+            [[nodiscard]] static pe_file from_file(const std::filesystem::path& path);
 
             /// Load PE file from memory
-            static pe_file from_memory(std::span <const uint8_t> data);
+            [[nodiscard]] static pe_file from_memory(std::span <const uint8_t> data);
 
             // Implement base class interface
             [[nodiscard]] format_type get_format() const override;

@@ -135,7 +135,7 @@ public:
      * @param data Raw resource data from RT_ICON resource
      * @return Parsed icon image on success, std::nullopt on parse error
      */
-    static std::optional<icon_image> parse(std::span<const uint8_t> data);
+    [[nodiscard]] static std::optional<icon_image> parse(std::span<const uint8_t> data);
 };
 
 } // namespace libexe

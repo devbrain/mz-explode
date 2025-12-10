@@ -156,7 +156,7 @@ public:
      * @note For OS/2 menus (NE OS/2, LE, LX), use parse_os2_menu() from
      *       os2_resource_parser.hpp instead.
      */
-    static std::optional<menu_template> parse(std::span<const uint8_t> data, windows_resource_format format);
+    [[nodiscard]] static std::optional<menu_template> parse(std::span<const uint8_t> data, windows_resource_format format);
 };
 
 } // namespace libexe

@@ -9,12 +9,12 @@ using namespace libexe;
 TEST_CASE("PE file parser: basic validation") {
     SUBCASE("Rejects files that are too small") {
         std::vector<uint8_t> tiny_data = {0x4D, 0x5A};  // Just MZ signature
-        CHECK_THROWS_AS(pe_file::from_memory(tiny_data), std::runtime_error);
+        CHECK_THROWS_AS((void)pe_file::from_memory(tiny_data), std::runtime_error);
     }
 
     SUBCASE("Rejects non-MZ files") {
         std::vector<uint8_t> bad_data(128, 0xFF);
-        CHECK_THROWS_AS(pe_file::from_memory(bad_data), std::runtime_error);
+        CHECK_THROWS_AS((void)pe_file::from_memory(bad_data), std::runtime_error);
     }
 
     SUBCASE("Rejects MZ files without PE header") {
@@ -23,7 +23,7 @@ TEST_CASE("PE file parser: basic validation") {
         dos_only[0] = 0x4D;  // 'M'
         dos_only[1] = 0x5A;  // 'Z'
         // e_lfanew at offset 0x3C is 0
-        CHECK_THROWS_AS(pe_file::from_memory(dos_only), std::runtime_error);
+        CHECK_THROWS_AS((void)pe_file::from_memory(dos_only), std::runtime_error);
     }
 }
 

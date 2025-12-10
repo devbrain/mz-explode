@@ -17,10 +17,10 @@ namespace libexe {
     class LIBEXE_EXPORT mz_file final : public executable_file {
         public:
             /// Load MZ file from filesystem
-            static mz_file from_file(const std::filesystem::path& path);
+            [[nodiscard]] static mz_file from_file(const std::filesystem::path& path);
 
             /// Load MZ file from memory
-            static mz_file from_memory(std::span <const uint8_t> data);
+            [[nodiscard]] static mz_file from_memory(std::span <const uint8_t> data);
 
             // Implement base class interface
             [[nodiscard]] format_type get_format() const override;
@@ -53,9 +53,17 @@ namespace libexe {
             std::vector <uint8_t> data_;
             compression_type compression_ = compression_type::NONE;
 
-            // Cached offsets from MZ header
+            // Cached DOS header fields (populated once during construction)
             uint16_t header_size_ = 0;
             uint16_t code_offset_ = 0;
+            uint16_t e_cs_ = 0;          // Initial CS register
+            uint16_t e_ip_ = 0;          // Initial IP register
+            uint16_t e_ss_ = 0;          // Initial SS register
+            uint16_t e_sp_ = 0;          // Initial SP register
+            uint16_t e_minalloc_ = 0;    // Minimum extra paragraphs
+            uint16_t e_maxalloc_ = 0;    // Maximum extra paragraphs
+            uint16_t e_crlc_ = 0;        // Relocation count
+            uint16_t e_cparhdr_ = 0;     // Header size in paragraphs
     };
 } // namespace libexe
 

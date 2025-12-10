@@ -199,7 +199,7 @@ public:
      * @param data Raw resource data from RT_FONT resource
      * @return Parsed font data on success, std::nullopt on parse error
      */
-    static std::optional<font_data> parse(std::span<const uint8_t> data);
+    [[nodiscard]] static std::optional<font_data> parse(std::span<const uint8_t> data);
 };
 
 } // namespace libexe

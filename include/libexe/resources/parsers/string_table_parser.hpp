@@ -103,7 +103,7 @@ public:
      * @param format Windows resource format (PE or NE)
      * @return Parsed string table on success, std::nullopt on parse error
      */
-    static std::optional<string_table> parse(std::span<const uint8_t> data, uint16_t block_id, windows_resource_format format);
+    [[nodiscard]] static std::optional<string_table> parse(std::span<const uint8_t> data, uint16_t block_id, windows_resource_format format);
 };
 
 } // namespace libexe

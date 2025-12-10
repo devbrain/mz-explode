@@ -160,7 +160,7 @@ public:
      * @param data Raw resource data from RT_MESSAGETABLE resource
      * @return Parsed message table on success, std::nullopt on parse error
      */
-    static std::optional<message_table> parse(std::span<const uint8_t> data);
+    [[nodiscard]] static std::optional<message_table> parse(std::span<const uint8_t> data);
 };
 
 } // namespace libexe

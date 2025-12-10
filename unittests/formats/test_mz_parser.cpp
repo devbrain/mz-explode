@@ -90,7 +90,7 @@ TEST_CASE("mz_file: basic parsing") {
         std::vector<uint8_t> tiny_data(10, 0);
 
         CHECK_THROWS_AS(
-            mz_file::from_memory(tiny_data),
+            (void)mz_file::from_memory(tiny_data),
             std::runtime_error
         );
     }
@@ -101,7 +101,7 @@ TEST_CASE("mz_file: basic parsing") {
         data[1] = 0x00;
 
         CHECK_THROWS_WITH(
-            mz_file::from_memory(data),
+            (void)mz_file::from_memory(data),
             doctest::Contains("Invalid MZ file")
         );
     }

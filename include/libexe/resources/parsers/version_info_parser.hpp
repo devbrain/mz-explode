@@ -207,7 +207,7 @@ public:
      * @param data Raw resource data from RT_VERSION resource
      * @return Parsed version info on success, std::nullopt on parse error
      */
-    static std::optional<version_info> parse(std::span<const uint8_t> data);
+    [[nodiscard]] static std::optional<version_info> parse(std::span<const uint8_t> data);
 };
 
 } // namespace libexe

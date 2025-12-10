@@ -142,7 +142,7 @@ public:
      * @param data Raw resource data from RT_ACCELERATOR resource
      * @return Parsed accelerator table on success, std::nullopt on parse error
      */
-    static std::optional<accelerator_table> parse(std::span<const uint8_t> data);
+    [[nodiscard]] static std::optional<accelerator_table> parse(std::span<const uint8_t> data);
 };
 
 } // namespace libexe

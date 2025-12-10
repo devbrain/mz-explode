@@ -213,3 +213,54 @@ TEST_CASE("OS/2 menu_item flag helpers") {
     item.attribute = 0x8000;  // MIA_HILITED
     CHECK(item.is_highlighted());
 }
+
+// =============================================================================
+// Menu Resource Tests
+// =============================================================================
+
+TEST_CASE("OS/2 Resource Parser: OS2CHESS.EXE menu resource") {
+    std::span<const uint8_t> input(data::os2chess_lx, data::os2chess_lx_len);
+    auto le = le_file::from_memory(input);
+
+    REQUIRE(le.has_resources());
+
+    // Get menu resources (RT_MENU = 3)
+    auto menus = le.resources_by_type(le_resource::RT_MENU);
+    REQUIRE(menus.size() == 2);
+
+    // Parse first menu (larger one with ~Game submenu)
+    auto data = le.read_resource_data(menus[0]);
+    REQUIRE_FALSE(data.empty());
+
+    auto parsed = parse_os2_menu(data);
+    REQUIRE(parsed.has_value());
+
+    MESSAGE("Menu: ", parsed->items.size(), " top-level items");
+
+    // Should have top-level items
+    CHECK(parsed->items.size() > 0);
+
+    // First item should be ~Game with submenu
+    if (!parsed->items.empty()) {
+        const auto& game_menu = parsed->items[0];
+        MESSAGE("First menu item: \"", game_menu.text, "\", style=0x", std::hex, game_menu.style,
+                ", id=", std::dec, game_menu.id);
+        CHECK(game_menu.text.find("Game") != std::string::npos);
+        CHECK(game_menu.has_submenu());
+        CHECK(game_menu.id == 8100);
+
+        // Check submenu items
+        MESSAGE("  Submenu has ", game_menu.submenu.size(), " items");
+        CHECK(game_menu.submenu.size() > 0);
+
+        // Print submenu items for verification
+        for (size_t i = 0; i < std::min(game_menu.submenu.size(), size_t(5)); ++i) {
+            const auto& sub = game_menu.submenu[i];
+            if (sub.is_separator()) {
+                MESSAGE("  [", i, "] SEPARATOR");
+            } else {
+                MESSAGE("  [", i, "] \"", sub.text, "\", id=", sub.id);
+            }
+        }
+    }
+}

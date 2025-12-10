@@ -19,7 +19,7 @@ namespace {
 /**
  * Create minimal DOS header (64 bytes)
  */
-static void create_dos_header(std::vector<uint8_t>& data, uint32_t pe_offset) {
+void create_dos_header(std::vector<uint8_t>& data, uint32_t pe_offset) {
     data.resize(pe_offset + 512);
     data[0] = 'M';
     data[1] = 'Z';
@@ -32,7 +32,7 @@ static void create_dos_header(std::vector<uint8_t>& data, uint32_t pe_offset) {
 /**
  * Create PE signature (4 bytes: "PE\0\0")
  */
-static void create_pe_signature(std::vector<uint8_t>& data, uint32_t offset) {
+void create_pe_signature(std::vector<uint8_t>& data, uint32_t offset) {
     data[offset] = 'P';
     data[offset + 1] = 'E';
     data[offset + 2] = 0;
@@ -42,7 +42,7 @@ static void create_pe_signature(std::vector<uint8_t>& data, uint32_t offset) {
 /**
  * Create COFF file header (20 bytes)
  */
-static void create_coff_header(std::vector<uint8_t>& data, uint32_t offset) {
+void create_coff_header(std::vector<uint8_t>& data, uint32_t offset) {
     uint8_t* header = data.data() + offset;
 
     // Machine type (I386)
@@ -77,7 +77,7 @@ static void create_coff_header(std::vector<uint8_t>& data, uint32_t offset) {
 /**
  * Create PE32 optional header (224 bytes) with Architecture directory
  */
-static void create_optional_header_pe32(std::vector<uint8_t>& data, uint32_t offset,
+void create_optional_header_pe32(std::vector<uint8_t>& data, uint32_t offset,
                                         uint32_t arch_rva, uint32_t arch_size) {
     uint8_t* header = data.data() + offset;
 
@@ -126,7 +126,7 @@ static void create_optional_header_pe32(std::vector<uint8_t>& data, uint32_t off
 /**
  * Create section table entry (40 bytes)
  */
-static void create_section_header(std::vector<uint8_t>& data, uint32_t offset,
+void create_section_header(std::vector<uint8_t>& data, uint32_t offset,
                                   const char* name, uint32_t virtual_addr,
                                   uint32_t virtual_size, uint32_t raw_offset,
                                   uint32_t raw_size) {
@@ -165,7 +165,7 @@ static void create_section_header(std::vector<uint8_t>& data, uint32_t offset,
  * - Padding to 0x400
  * - Section .text at RVA 0x1000, file offset 0x400
  */
-static std::vector<uint8_t> create_test_pe_reserved_arch() {
+std::vector<uint8_t> create_test_pe_reserved_arch() {
     std::vector<uint8_t> data;
 
     // DOS header at offset 0
@@ -195,7 +195,7 @@ static std::vector<uint8_t> create_test_pe_reserved_arch() {
  * Create a non-standard PE32 with architecture directory set (non-zero)
  * This is technically invalid according to PE/COFF spec
  */
-static std::vector<uint8_t> create_test_pe_nonstandard_arch() {
+std::vector<uint8_t> create_test_pe_nonstandard_arch() {
     std::vector<uint8_t> data;
 
     create_dos_header(data, 128);

@@ -22,10 +22,10 @@ namespace libexe {
     class LIBEXE_EXPORT ne_file final : public executable_file {
         public:
             /// Load NE file from filesystem
-            static ne_file from_file(const std::filesystem::path& path);
+            [[nodiscard]] static ne_file from_file(const std::filesystem::path& path);
 
             /// Load NE file from memory
-            static ne_file from_memory(std::span <const uint8_t> data);
+            [[nodiscard]] static ne_file from_memory(std::span <const uint8_t> data);
 
             // Implement base class interface
             [[nodiscard]] format_type get_format() const override;
