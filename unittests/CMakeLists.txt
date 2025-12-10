@@ -125,6 +125,7 @@ add_executable(libexe_unittest
         testdata/compressed_data_wrapper.cpp
         pe/test_tcmadm64_parser.cpp  # TCMADM64.EXE PE64 tests with objdump ground truth
         pe/test_rich_parser.cpp  # Rich header parser tests with richprint ground truth
+        pe/test_security_analysis.cpp  # Security analysis (ASLR/DEP/CFG) and import/export tests
         core/test_diagnostics.cpp     # Diagnostics system unit tests
         testdata/corkami/corkami_test_data.cc  # Embedded Corkami PE test corpus files
         testdata/pe/scheduler.cc  # Embedded scheduler.exe for PE parser tests

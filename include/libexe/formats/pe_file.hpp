@@ -120,6 +120,89 @@ namespace libexe {
             [[nodiscard]] bool has_rich_header() const;
 
             // =========================================================================
+            // Security Analysis (ASLR/DEP/CFG/etc.)
+            // =========================================================================
+
+            /// Check if ASLR (Address Space Layout Randomization) is enabled
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE (0x0040)
+            [[nodiscard]] bool has_aslr() const;
+
+            /// Check if high-entropy ASLR is enabled (64-bit only, better randomization)
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA (0x0020)
+            [[nodiscard]] bool has_high_entropy_aslr() const;
+
+            /// Check if DEP/NX (Data Execution Prevention) is enabled
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_NX_COMPAT (0x0100)
+            [[nodiscard]] bool has_dep() const;
+
+            /// Check if CFG (Control Flow Guard) is enabled
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_GUARD_CF (0x4000)
+            [[nodiscard]] bool has_cfg() const;
+
+            /// Check if SEH (Structured Exception Handling) is disabled
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_NO_SEH (0x0400)
+            [[nodiscard]] bool has_no_seh() const;
+
+            /// Check if SafeSEH is enabled (32-bit only, via load config)
+            [[nodiscard]] bool has_safe_seh() const;
+
+            /// Check if Authenticode signature is present
+            /// True if security directory (data directory index 4) is non-empty
+            [[nodiscard]] bool has_authenticode() const;
+
+            /// Check if this is a .NET/CLR assembly
+            /// True if COM descriptor directory (data directory index 14) is non-empty
+            [[nodiscard]] bool is_dotnet() const;
+
+            /// Check if Force Integrity flag is set (requires signature verification)
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY (0x0080)
+            [[nodiscard]] bool has_force_integrity() const;
+
+            /// Check if AppContainer execution is required
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_APPCONTAINER (0x1000)
+            [[nodiscard]] bool is_appcontainer() const;
+
+            /// Check if Terminal Server aware
+            /// Corresponds to IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE (0x8000)
+            [[nodiscard]] bool is_terminal_server_aware() const;
+
+            /// Check if this is a DLL (vs executable)
+            /// Corresponds to IMAGE_FILE_DLL characteristic (0x2000)
+            [[nodiscard]] bool is_dll() const;
+
+            /// Check if Large Address Aware (can use >2GB address space on 32-bit)
+            /// Corresponds to IMAGE_FILE_LARGE_ADDRESS_AWARE (0x0020)
+            [[nodiscard]] bool is_large_address_aware() const;
+
+            // =========================================================================
+            // Import/Export Analysis
+            // =========================================================================
+
+            /// Get list of all imported DLL names
+            [[nodiscard]] std::vector<std::string> imported_dlls() const;
+
+            /// Get total count of imported functions
+            [[nodiscard]] size_t imported_function_count() const;
+
+            /// Check if a specific DLL is imported
+            [[nodiscard]] bool imports_dll(std::string_view dll_name) const;
+
+            /// Check if a specific function is imported from any DLL
+            [[nodiscard]] bool imports_function(std::string_view function_name) const;
+
+            /// Check if a specific function is imported from a specific DLL
+            [[nodiscard]] bool imports_function(std::string_view dll_name, std::string_view function_name) const;
+
+            /// Get list of all exported function names
+            [[nodiscard]] std::vector<std::string> exported_functions() const;
+
+            /// Get total count of exported functions
+            [[nodiscard]] size_t exported_function_count() const;
+
+            /// Check if a specific function is exported
+            [[nodiscard]] bool exports_function(std::string_view function_name) const;
+
+            // =========================================================================
             // Diagnostics
             // =========================================================================
 

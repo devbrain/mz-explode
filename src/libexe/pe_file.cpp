@@ -1559,4 +1559,190 @@ bool pe_file::has_parse_errors() const {
     return diagnostics_.has_errors();
 }
 
+// =============================================================================
+// Security Analysis (ASLR/DEP/CFG/etc.)
+// =============================================================================
+
+bool pe_file::has_aslr() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::DYNAMIC_BASE)) != 0;
+}
+
+bool pe_file::has_high_entropy_aslr() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::HIGH_ENTROPY_VA)) != 0;
+}
+
+bool pe_file::has_dep() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::NX_COMPAT)) != 0;
+}
+
+bool pe_file::has_cfg() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::GUARD_CF)) != 0;
+}
+
+bool pe_file::has_no_seh() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::NO_SEH)) != 0;
+}
+
+bool pe_file::has_safe_seh() const {
+    // SafeSEH is only applicable to 32-bit PE files
+    if (is_64bit_) {
+        return false;
+    }
+
+    // Check load config directory for SEHandlerTable
+    auto lc = load_config();
+    if (!lc) {
+        return false;
+    }
+
+    // SafeSEH is enabled if SEHandlerTable and SEHandlerCount are non-zero
+    return lc->se_handler_table != 0 && lc->se_handler_count > 0;
+}
+
+bool pe_file::has_authenticode() const {
+    return has_data_directory(directory_entry::SECURITY) &&
+           data_directory_size(directory_entry::SECURITY) > 0;
+}
+
+bool pe_file::is_dotnet() const {
+    return has_data_directory(directory_entry::COM_DESCRIPTOR) &&
+           data_directory_size(directory_entry::COM_DESCRIPTOR) > 0;
+}
+
+bool pe_file::has_force_integrity() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::FORCE_INTEGRITY)) != 0;
+}
+
+bool pe_file::is_appcontainer() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::APPCONTAINER)) != 0;
+}
+
+bool pe_file::is_terminal_server_aware() const {
+    return (dll_characteristics_ & static_cast<uint16_t>(pe_dll_characteristics::TERMINAL_SERVER_AWARE)) != 0;
+}
+
+bool pe_file::is_dll() const {
+    return (characteristics_ & static_cast<uint16_t>(pe_file_characteristics::DLL)) != 0;
+}
+
+bool pe_file::is_large_address_aware() const {
+    return (characteristics_ & static_cast<uint16_t>(pe_file_characteristics::LARGE_ADDRESS_AWARE)) != 0;
+}
+
+// =============================================================================
+// Import/Export Analysis
+// =============================================================================
+
+std::vector<std::string> pe_file::imported_dlls() const {
+    auto imp = imports();
+    if (!imp) {
+        return {};
+    }
+
+    std::vector<std::string> dll_names;
+    dll_names.reserve(imp->dlls.size());
+    for (const auto& dll : imp->dlls) {
+        dll_names.push_back(dll.name);
+    }
+    return dll_names;
+}
+
+size_t pe_file::imported_function_count() const {
+    auto imp = imports();
+    if (!imp) {
+        return 0;
+    }
+    return imp->total_imports();
+}
+
+bool pe_file::imports_dll(std::string_view dll_name) const {
+    auto imp = imports();
+    if (!imp) {
+        return false;
+    }
+
+    // Case-insensitive comparison
+    auto to_lower = [](std::string s) {
+        for (auto& c : s) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        return s;
+    };
+
+    std::string target = to_lower(std::string(dll_name));
+    for (const auto& dll : imp->dlls) {
+        if (to_lower(dll.name) == target) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool pe_file::imports_function(std::string_view function_name) const {
+    auto imp = imports();
+    if (!imp) {
+        return false;
+    }
+
+    for (const auto& dll : imp->dlls) {
+        for (const auto& func : dll.functions) {
+            if (func.name == function_name) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool pe_file::imports_function(std::string_view dll_name, std::string_view function_name) const {
+    auto imp = imports();
+    if (!imp) {
+        return false;
+    }
+
+    // Case-insensitive DLL comparison
+    auto to_lower = [](std::string s) {
+        for (auto& c : s) {
+            c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+        }
+        return s;
+    };
+
+    std::string target_dll = to_lower(std::string(dll_name));
+    for (const auto& dll : imp->dlls) {
+        if (to_lower(dll.name) == target_dll) {
+            for (const auto& func : dll.functions) {
+                if (func.name == function_name) {
+                    return true;
+                }
+            }
+        }
+    }
+    return false;
+}
+
+std::vector<std::string> pe_file::exported_functions() const {
+    auto exp = exports();
+    if (!exp) {
+        return {};
+    }
+    return exp->get_export_names();
+}
+
+size_t pe_file::exported_function_count() const {
+    auto exp = exports();
+    if (!exp) {
+        return 0;
+    }
+    return exp->export_count();
+}
+
+bool pe_file::exports_function(std::string_view function_name) const {
+    auto exp = exports();
+    if (!exp) {
+        return false;
+    }
+    return exp->find_export(function_name) != nullptr;
+}
+
 } // namespace libexe
