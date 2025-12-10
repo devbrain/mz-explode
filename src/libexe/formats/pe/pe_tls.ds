@@ -1,0 +1,194 @@
+/**
+ * PE Thread Local Storage (TLS) Directory Structures
+ *
+ * Defines structures for parsing PE TLS directory.
+ * TLS provides thread-local storage - each thread gets its own copy
+ * of certain variables. Used for thread-safe global/static variables.
+ *
+ * Based on Microsoft PE/COFF specification.
+ *
+ * Package: formats.pe.pe_tls
+ */
+
+package formats.pe.pe_tls;
+
+// PE is little-endian
+little;
+
+/**
+ * IMAGE_TLS_DIRECTORY32
+ *
+ * TLS directory for PE32 (32-bit) executables.
+ * Contains pointers (32-bit virtual addresses, not RVAs!) to TLS data.
+ *
+ * Size: 24 bytes
+ *
+ * Note: All pointer fields are virtual addresses (VAs), not RVAs.
+ * To convert to RVA: rva = va - image_base
+ */
+struct image_tls_directory32 {
+    /**
+     * Start of TLS template data (VA)
+     *
+     * Virtual address of the start of the TLS template.
+     * The template is used to initialize TLS data for each thread.
+     */
+    uint32 start_address_of_raw_data;
+
+    /**
+     * End of TLS template data (VA)
+     *
+     * Virtual address of the end of the TLS template.
+     * Size = end - start
+     */
+    uint32 end_address_of_raw_data;
+
+    /**
+     * Address of TLS index (VA)
+     *
+     * Virtual address of the TLS index variable (a DWORD).
+     * The loader writes the TLS index here at load time.
+     */
+    uint32 address_of_index;
+
+    /**
+     * Address of TLS callbacks array (VA)
+     *
+     * Virtual address of null-terminated array of TLS callback function pointers.
+     * Each callback is called for thread attach/detach events.
+     * Callback signature: void NTAPI TlsCallback(PVOID DllHandle, DWORD Reason, PVOID Reserved)
+     */
+    uint32 address_of_callbacks;
+
+    /**
+     * Size of zero-fill section
+     *
+     * Size of additional uninitialized TLS data (BSS).
+     * This is appended after the template data.
+     */
+    uint32 size_of_zero_fill;
+
+    /**
+     * Characteristics
+     *
+     * Alignment characteristics (bits 20-23).
+     * Bits 20-23: Alignment as power of 2 (value 0-15)
+     * Alignment = 2^(bits-1) bytes (if bits != 0)
+     */
+    uint32 characteristics;
+};
+
+/**
+ * IMAGE_TLS_DIRECTORY64
+ *
+ * TLS directory for PE32+ (64-bit) executables.
+ * Same structure as IMAGE_TLS_DIRECTORY32 but with 64-bit pointers.
+ *
+ * Size: 40 bytes
+ *
+ * Note: All pointer fields are virtual addresses (VAs), not RVAs.
+ * To convert to RVA: rva = va - image_base
+ */
+struct image_tls_directory64 {
+    /**
+     * Start of TLS template data (VA)
+     *
+     * Virtual address (64-bit) of the start of the TLS template.
+     */
+    uint64 start_address_of_raw_data;
+
+    /**
+     * End of TLS template data (VA)
+     *
+     * Virtual address (64-bit) of the end of the TLS template.
+     */
+    uint64 end_address_of_raw_data;
+
+    /**
+     * Address of TLS index (VA)
+     *
+     * Virtual address (64-bit) of the TLS index variable (a DWORD).
+     */
+    uint64 address_of_index;
+
+    /**
+     * Address of TLS callbacks array (VA)
+     *
+     * Virtual address (64-bit) of null-terminated array of TLS callback pointers.
+     */
+    uint64 address_of_callbacks;
+
+    /**
+     * Size of zero-fill section
+     *
+     * Size of additional uninitialized TLS data (BSS).
+     */
+    uint32 size_of_zero_fill;
+
+    /**
+     * Characteristics
+     *
+     * Alignment characteristics (bits 20-23).
+     */
+    uint32 characteristics;
+};
+
+/*
+ * TLS DIRECTORY USAGE:
+ *
+ * Parsing TLS directory:
+ *   1. Read TLS directory from data directory[9]
+ *   2. Read IMAGE_TLS_DIRECTORY32 or IMAGE_TLS_DIRECTORY64 (based on PE type)
+ *   3. Convert VAs to RVAs: rva = va - image_base
+ *   4. Read TLS template data from start_address to end_address
+ *   5. If address_of_callbacks != 0:
+ *      a. Convert VA to file offset
+ *      b. Read array of callback pointers (32-bit or 64-bit)
+ *      c. Continue until null pointer
+ *
+ * TLS callback array:
+ *   - PE32: Array of uint32 pointers, null-terminated
+ *   - PE32+: Array of uint64 pointers, null-terminated
+ *   - Each pointer is a VA to a callback function
+ *
+ * TLS initialization:
+ *   1. Loader allocates TLS data for thread
+ *   2. Copies template data (start_address to end_address)
+ *   3. Zero-fills additional bytes (size_of_zero_fill)
+ *   4. Calls TLS callbacks with DLL_THREAD_ATTACH
+ *   5. Sets TLS index variable
+ *
+ * Example (PE32):
+ *   start_address_of_raw_data = 0x00401000  (VA, not RVA!)
+ *   end_address_of_raw_data   = 0x00401100  (256 bytes template)
+ *   address_of_index          = 0x00402000  (TLS index storage)
+ *   address_of_callbacks      = 0x00402100  (callback array)
+ *   size_of_zero_fill         = 0x100       (256 bytes BSS)
+ *   characteristics           = 0x00300000  (alignment bits)
+ *
+ *   Total TLS size per thread = 256 + 256 = 512 bytes
+ *
+ *   Callbacks at 0x00402100:
+ *     [0] = 0x00403000  (first callback)
+ *     [1] = 0x00403100  (second callback)
+ *     [2] = 0x00000000  (null terminator)
+ *
+ * VA vs RVA:
+ *   - TLS directory uses VAs (absolute addresses in memory)
+ *   - Most other PE structures use RVAs (relative to image base)
+ *   - Conversion: rva = va - image_base
+ *   - Example: If image_base = 0x00400000 and va = 0x00401000,
+ *             then rva = 0x00001000
+ *
+ * Thread attachment:
+ *   - Main thread: TLS initialized before entry point
+ *   - New threads: TLS initialized before thread start
+ *   - Callbacks called for: DLL_THREAD_ATTACH, DLL_THREAD_DETACH
+ *
+ * Common uses:
+ *   - Thread-safe errno
+ *   - Thread-local random number generators
+ *   - Thread-specific cached data
+ *   - C++ thread_local variables
+ *   - __declspec(thread) variables in MSVC
+ */

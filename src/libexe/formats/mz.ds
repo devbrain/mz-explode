@@ -1,0 +1,90 @@
+/**
+ * MS-DOS MZ Executable Format
+ *
+ * This module defines the DOS MZ (Mark Zbikowski) executable format,
+ * the original DOS executable format created for MS-DOS and PC DOS.
+ *
+ * All Windows executables (NE, PE, PE+) begin with this header for
+ * backward compatibility. When run in DOS, the stub code displays
+ * "This program cannot be run in DOS mode" and exits.
+ *
+ * References:
+ * - Microsoft MS-DOS Programmer's Reference
+ * - pecoff.docx (Microsoft PE/COFF Specification)
+ */
+package formats.mz;
+
+// All Windows executable formats use little-endian byte order
+little;
+
+// DOS MZ signature constant (must be local for constraint validation)
+const uint16 DOS_SIGNATURE = 0x5A4D;  // "MZ" - Mark Zbikowski
+
+// =============================================================================
+// DOS MZ Header
+// =============================================================================
+
+/**
+ * MS-DOS Executable Header (MZ Format)
+ *
+ * This 64-byte header is present at the start of all DOS executables
+ * and all Windows executables (for backward compatibility).
+ *
+ * Structure size: 64 bytes (fixed)
+ * Magic signature: 0x5A4D ("MZ")
+ */
+struct image_dos_header {
+    uint16 e_magic: e_magic == DOS_SIGNATURE;  // Magic number "MZ" (0x5A4D)
+    uint16 e_cblp;                             // Bytes on last page of file
+    uint16 e_cp;                               // Pages in file (512 bytes each)
+    uint16 e_crlc;                             // Number of relocation entries
+    uint16 e_cparhdr;                          // Size of header in paragraphs (16 bytes)
+    uint16 e_minalloc;                         // Minimum extra paragraphs needed
+    uint16 e_maxalloc;                         // Maximum extra paragraphs needed
+    uint16 e_ss;                               // Initial (relative) SS value
+    uint16 e_sp;                               // Initial SP value
+    uint16 e_csum;                             // Checksum (usually 0, not validated)
+    uint16 e_ip;                               // Initial IP value
+    uint16 e_cs;                               // Initial (relative) CS value
+    uint16 e_lfarlc;                           // File offset to relocation table
+    uint16 e_ovno;                             // Overlay number (0 for main program)
+    uint16 e_res[4];                           // Reserved words
+    uint16 e_oemid;                            // OEM identifier (for e_oeminfo)
+    uint16 e_oeminfo;                          // OEM information (e_oemid specific)
+    uint16 e_res2[10];                         // Reserved words
+    uint32 e_lfanew;                           // File offset to new exe header (NE/PE)
+};
+
+// =============================================================================
+// Usage Notes
+// =============================================================================
+
+/*
+ * DOS MZ FORMAT USAGE:
+ *
+ * Loading a DOS executable:
+ *   1. Read image_dos_header (64 bytes)
+ *   2. Validate e_magic == DOS_SIGNATURE (0x5A4D)
+ *   3. Check e_lfanew field:
+ *      - If e_lfanew == 0 or e_lfanew > file_size: Plain DOS executable
+ *      - Otherwise: Extended format (NE, PE, or PE+)
+ *   4. For extended formats, read signature at file offset e_lfanew:
+ *      - 0x454E ("NE"): 16-bit Windows/OS2 (NE format)
+ *      - 0x4550 ("PE"): 32/64-bit Windows (PE/PE+ format)
+ *
+ * Field calculations:
+ *   - File size = e_cp * 512 - (512 - e_cblp)
+ *   - Header size = e_cparhdr * 16
+ *   - Load module size = e_minalloc * 16
+ *   - Code offset = header_size
+ *
+ * Initial state for DOS execution:
+ *   - CS:IP = e_cs:e_ip (code segment:instruction pointer)
+ *   - SS:SP = e_ss:e_sp (stack segment:stack pointer)
+ *   - These are relative to the load segment
+ *
+ * Relocation table:
+ *   - Location: File offset e_lfarlc
+ *   - Entries: e_crlc * 4 bytes (segment:offset pairs)
+ *   - Applied when loading at different segment addresses
+ */

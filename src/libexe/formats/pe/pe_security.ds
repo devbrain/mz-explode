@@ -1,0 +1,85 @@
+/**
+ * PE Security Directory Structures (Certificate Table)
+ *
+ * Defines structures for parsing PE security/certificate directory.
+ * Based on Microsoft PE/COFF specification, section 5.7.
+ * Data directory index: 4 (IMAGE_DIRECTORY_ENTRY_SECURITY)
+ *
+ * The security directory contains Authenticode code signing certificates.
+ * It is used to verify the integrity and authenticity of the executable.
+ *
+ * CRITICAL DIFFERENCE: Unlike all other data directories, the RVA field
+ * for the security directory is actually a FILE OFFSET, not an RVA!
+ * This is because the certificate table is not loaded into memory.
+ *
+ * The signature must cover the entire PE file (except the certificate itself),
+ * so it cannot be part of the loaded image.
+ *
+ * Package: formats.pe.pe_security
+ */
+
+package formats.pe.pe_security;
+
+/**
+ * WIN_CERTIFICATE
+ *
+ * Certificate entry header (variable length).
+ *
+ * The certificate directory contains one or more WIN_CERTIFICATE structures.
+ * Each structure must be 8-byte aligned (padded if necessary).
+ *
+ * The most common type is WIN_CERT_TYPE_PKCS_SIGNED_DATA (0x0002), which
+ * contains a PKCS#7 SignedData structure. This is used for Authenticode
+ * code signing.
+ *
+ * Structure layout:
+ * - 4 bytes: dwLength (total length including header and data)
+ * - 2 bytes: wRevision (certificate version)
+ * - 2 bytes: wCertificateType (certificate type)
+ * - Variable: bCertificate[] (certificate data)
+ *
+ * Total: 8 + certificate_data_length bytes (8-byte aligned)
+ */
+struct win_certificate_header {
+    /**
+     * dwLength
+     *
+     * Total length of certificate entry in bytes, including this header.
+     * Minimum value is 8 (size of header with no certificate data).
+     *
+     * Note: The actual entry in the file is padded to an 8-byte boundary,
+     * but dwLength only includes the actual data, not padding.
+     */
+    uint32 length;
+
+    /**
+     * wRevision
+     *
+     * Certificate revision:
+     * - 0x0100 = WIN_CERT_REVISION_1_0 (legacy, rarely used)
+     * - 0x0200 = WIN_CERT_REVISION_2_0 (current standard)
+     *
+     * Revision 2.0 is the current standard and should be used for all
+     * new code signing operations.
+     */
+    uint16 revision;
+
+    /**
+     * wCertificateType
+     *
+     * Certificate type:
+     * - 0x0001 = WIN_CERT_TYPE_X509 (X.509 certificate, deprecated)
+     * - 0x0002 = WIN_CERT_TYPE_PKCS_SIGNED_DATA (PKCS#7 SignedData, Authenticode)
+     * - 0x0003 = Reserved
+     * - 0x0004 = WIN_CERT_TYPE_TS_STACK_SIGNED (Terminal Server)
+     *
+     * WIN_CERT_TYPE_PKCS_SIGNED_DATA (0x0002) is the most common type and
+     * is used for Authenticode code signing. The bCertificate field contains
+     * a PKCS#7 SignedData structure.
+     *
+     * Note: The certificate data follows immediately after this header.
+     * It is variable-length and must be parsed separately.
+     * Certificate data length = dwLength - 8 (header size)
+     */
+    uint16 certificate_type;
+};

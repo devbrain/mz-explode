@@ -1,0 +1,64 @@
+/**
+ * Common types and constants for Windows executable formats
+ *
+ * This module provides shared type aliases and constants used across
+ * all Windows executable formats (MZ, NE, PE/PE+).
+ */
+package formats.common;
+
+// All Windows executable formats use little-endian byte order (x86 architecture)
+little;
+
+// =============================================================================
+// Common Type Aliases
+// =============================================================================
+
+/** 32-bit little-endian unsigned integer (Windows DWORD) */
+typedef dword = uint32;
+
+/** 16-bit little-endian unsigned integer (Windows WORD) */
+typedef word = uint16;
+
+/** 8-bit unsigned integer (Windows BYTE) */
+typedef byte = uint8;
+
+/** Relative Virtual Address (RVA) - 32-bit offset from image base */
+typedef rva = uint32;
+
+/** Virtual Address - 32-bit */
+typedef va32 = uint32;
+
+/** Virtual Address - 64-bit */
+typedef va64 = uint64;
+
+// =============================================================================
+// Magic Number Constants
+// =============================================================================
+
+/** DOS MZ signature - "MZ" (Mark Zbikowski) */
+const uint16 DOS_SIGNATURE = 0x5A4D;
+
+/** NE signature - "NE" (New Executable, 16-bit Windows/OS2) */
+const uint16 NE_SIGNATURE = 0x454E;
+
+/** PE signature - "PE\0\0" (Portable Executable, 32/64-bit Windows) */
+const uint32 PE_SIGNATURE = 0x00004550;
+
+/** PE32 magic number (32-bit executable) */
+const uint16 PE32_MAGIC = 0x010B;
+
+/** PE32+ magic number (64-bit executable) */
+const uint16 PE32PLUS_MAGIC = 0x020B;
+
+// =============================================================================
+// Common Resource Constants
+// =============================================================================
+
+/** Resource ordinal marker - indicates ordinal ID follows instead of name */
+const uint16 RESOURCE_ORDINAL_MARKER = 0xFFFF;
+
+/** Dialog extended template signature */
+const uint32 DIALOG_EXTENDED_SIGNATURE = 0xFFFF0001;
+
+/** VS_FIXEDFILEINFO signature */
+const uint32 VS_VERSION_INFO_SIGNATURE = 0xFEEF04BD;

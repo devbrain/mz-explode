@@ -1,0 +1,24 @@
+# Build artifacts
+build/
+obj/
+bin/
+lib/
+
+# Generated code (regenerated from .ds files during build)
+generated/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+cmake-build-debug/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test data (extracted from testdata.tar.gz at build time)
+unittests/testdata/

@@ -1,0 +1,56 @@
+/**
+ * PE Import Address Table (IAT) Format
+ *
+ * Data directory index: 12 (IMAGE_DIRECTORY_ENTRY_IAT)
+ *
+ * The IAT is an array of function pointers used for dynamic linking.
+ * Each entry is either 32-bit (PE32) or 64-bit (PE32+).
+ *
+ * IAT Structure (before loading):
+ * - Each entry points to an IMAGE_IMPORT_BY_NAME structure
+ * - Or has high bit set for import by ordinal
+ *
+ * IAT Structure (after loading):
+ * - Each entry contains actual function address filled by loader
+ *
+ * The IAT data directory (index 12) points to the beginning of the
+ * entire IAT array, which may contain entries for multiple DLLs.
+ * Individual import descriptors point to their portion of the IAT
+ * via the FirstThunk field.
+ *
+ * References:
+ * - Microsoft PE/COFF Specification Section 6.4.1
+ * - Windows SDK: winnt.h (IMAGE_THUNK_DATA)
+ *
+ * Package: formats.pe.pe_iat
+ */
+
+package formats.pe.pe_iat;
+
+/**
+ * IMAGE_THUNK_DATA32
+ *
+ * Import Address Table entry for PE32 (32-bit).
+ * 32-bit value that is either:
+ * - RVA to IMAGE_IMPORT_BY_NAME (if bit 31 is 0)
+ * - Ordinal value (if bit 31 is 1, ordinal in bits 0-15)
+ *
+ * Size: 4 bytes
+ */
+struct image_thunk_data32 {
+    uint32 address_of_data;
+};
+
+/**
+ * IMAGE_THUNK_DATA64
+ *
+ * Import Address Table entry for PE32+ (64-bit).
+ * 64-bit value that is either:
+ * - RVA to IMAGE_IMPORT_BY_NAME (if bit 63 is 0)
+ * - Ordinal value (if bit 63 is 1, ordinal in bits 0-15)
+ *
+ * Size: 8 bytes
+ */
+struct image_thunk_data64 {
+    uint64 address_of_data;
+};

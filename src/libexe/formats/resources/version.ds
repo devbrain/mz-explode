@@ -1,0 +1,270 @@
+/**
+ * Windows Version Resource Structures (RT_VERSION)
+ *
+ * This module defines version information structures for Windows executables.
+ * Version resources contain both fixed binary data (VS_FIXEDFILEINFO) and
+ * variable-length string tables (StringFileInfo, VarFileInfo).
+ *
+ * References:
+ * - resfmt.txt section 4.4 (Version Resources)
+ * - MSDN: VS_VERSIONINFO structure
+ * - MSDN: VS_FIXEDFILEINFO structure
+ *
+ * NEW FEATURES USED:
+ * - UTF-16 strings (u16string)
+ * - Alignment directives
+ * - Constraint validation
+ * - Optional fields
+ */
+package formats.resources.version;
+
+// All Windows resource formats use little-endian byte order
+little;
+
+// Version info signature constant
+const uint32 VS_VERSION_INFO_SIGNATURE = 0xFEEF04BD;
+
+// =============================================================================
+// VS_FIXEDFILEINFO - Fixed File Version Information
+// =============================================================================
+
+/**
+ * File flags for VS_FIXEDFILEINFO.dwFileFlags
+ */
+enum uint32 vs_file_flags {
+    VS_FF_DEBUG        = 0x00000001,  // File contains debugging information
+    VS_FF_PRERELEASE   = 0x00000002,  // File is a pre-release version
+    VS_FF_PATCHED      = 0x00000004,  // File has been modified
+    VS_FF_PRIVATEBUILD = 0x00000008,  // File is a private build
+    VS_FF_INFOINFERRED = 0x00000010,  // File version constructed from other info
+    VS_FF_SPECIALBUILD = 0x00000020   // File is a special build
+};
+
+/**
+ * Operating system for VS_FIXEDFILEINFO.dwFileOS
+ */
+enum uint32 vs_file_os {
+    VOS_UNKNOWN       = 0x00000000,  // Unknown OS
+    VOS_DOS           = 0x00010000,  // MS-DOS
+    VOS_OS216         = 0x00020000,  // 16-bit OS/2
+    VOS_OS232         = 0x00030000,  // 32-bit OS/2
+    VOS_NT            = 0x00040000,  // Windows NT
+    VOS_WINCE         = 0x00050000,  // Windows CE
+    VOS__WINDOWS16    = 0x00000001,  // 16-bit Windows
+    VOS__PM16         = 0x00000002,  // 16-bit Presentation Manager
+    VOS__PM32         = 0x00000003,  // 32-bit Presentation Manager
+    VOS__WINDOWS32    = 0x00000004,  // 32-bit Windows
+    VOS_DOS_WINDOWS16 = 0x00010001,  // MS-DOS with 16-bit Windows
+    VOS_DOS_WINDOWS32 = 0x00010004,  // MS-DOS with 32-bit Windows
+    VOS_OS216_PM16    = 0x00020002,  // 16-bit OS/2 with 16-bit PM
+    VOS_OS232_PM32    = 0x00030003,  // 32-bit OS/2 with 32-bit PM
+    VOS_NT_WINDOWS32  = 0x00040004   // Windows NT with 32-bit Windows
+};
+
+/**
+ * File type for VS_FIXEDFILEINFO.dwFileType
+ */
+enum uint32 vs_file_type {
+    VFT_UNKNOWN    = 0x00000000,  // Unknown file type
+    VFT_APP        = 0x00000001,  // Application
+    VFT_DLL        = 0x00000002,  // Dynamic-link library
+    VFT_DRV        = 0x00000003,  // Device driver
+    VFT_FONT       = 0x00000004,  // Font file
+    VFT_VXD        = 0x00000005,  // Virtual device driver
+    VFT_STATIC_LIB = 0x00000007   // Static-link library
+};
+
+/**
+ * Driver file subtype (when dwFileType == VFT_DRV)
+ */
+enum uint32 vs_file_subtype_drv {
+    VFT2_UNKNOWN               = 0x00000000,  // Unknown driver
+    VFT2_DRV_PRINTER           = 0x00000001,  // Printer driver
+    VFT2_DRV_KEYBOARD          = 0x00000002,  // Keyboard driver
+    VFT2_DRV_LANGUAGE          = 0x00000003,  // Language driver
+    VFT2_DRV_DISPLAY           = 0x00000004,  // Display driver
+    VFT2_DRV_MOUSE             = 0x00000005,  // Mouse driver
+    VFT2_DRV_NETWORK           = 0x00000006,  // Network driver
+    VFT2_DRV_SYSTEM            = 0x00000007,  // System driver
+    VFT2_DRV_INSTALLABLE       = 0x00000008,  // Installable driver
+    VFT2_DRV_SOUND             = 0x00000009,  // Sound driver
+    VFT2_DRV_COMM              = 0x0000000A,  // Communications driver
+    VFT2_DRV_VERSIONED_PRINTER = 0x0000000C   // Versioned printer driver
+};
+
+/**
+ * Font file subtype (when dwFileType == VFT_FONT)
+ */
+enum uint32 vs_file_subtype_font {
+    VFT2_FONT_RASTER   = 0x00000001,  // Raster font
+    VFT2_FONT_VECTOR   = 0x00000002,  // Vector font
+    VFT2_FONT_TRUETYPE = 0x00000003   // TrueType font
+};
+
+/**
+ * VS_FIXEDFILEINFO - Fixed file information structure
+ *
+ * This is the binary portion of the version resource containing
+ * version numbers, file flags, OS, and file type information.
+ *
+ * Size: 52 bytes (fixed)
+ * Per resfmt.txt section 4.4.1
+ */
+struct vs_fixed_file_info {
+    uint32 signature : signature == VS_VERSION_INFO_SIGNATURE;  // Must be 0xFEEF04BD
+    uint32 struct_version;         // Structure version (usually 0x00010000)
+    uint32 file_version_ms;        // File version high DWORD (major.minor)
+    uint32 file_version_ls;        // File version low DWORD (patch.build)
+    uint32 product_version_ms;     // Product version high DWORD
+    uint32 product_version_ls;     // Product version low DWORD
+    uint32 file_flags_mask;        // Bitmask of valid bits in file_flags
+    uint32 file_flags;             // File flags (VsFileFlags)
+    uint32 file_os;                // Target operating system (VsFileOS)
+    uint32 file_type;              // File type (VsFileType)
+    uint32 file_subtype;           // File subtype (driver/font specific)
+    uint32 file_date_ms;           // File date high DWORD
+    uint32 file_date_ls;           // File date low DWORD
+};
+
+// =============================================================================
+// Version Info Node Structure (for string tables)
+// =============================================================================
+
+/**
+ * Version info node type
+ */
+enum uint16 version_info_type {
+    VI_TYPE_BINARY = 0,  // Binary data
+    VI_TYPE_TEXT   = 1   // Text data (UTF-16 strings)
+};
+
+/**
+ * Base structure for version info nodes
+ *
+ * All version info structures (StringFileInfo, StringTable, String, VarFileInfo)
+ * share this common header format:
+ *   - uint16 length (total size including children)
+ *   - uint16 value_length (size of value data)
+ *   - uint16 type (0=binary, 1=text)
+ *   - WCHAR key[] (null-terminated UTF-16 key name)
+ *   - [align to DWORD]
+ *   - VALUE data (if value_length > 0)
+ *   - [align to DWORD]
+ *   - CHILDREN nodes (recursive)
+ *
+ * DataScript cannot express the recursive tree structure, so this provides
+ * the base header that C++ code can use to navigate the tree.
+ */
+struct version_info_node_header {
+    uint16 length;               // Total structure size (including children)
+    uint16 value_length;         // Value size in WCHARs (text) or bytes (binary)
+    uint16 type;                 // 0=binary, 1=text (VersionInfoType)
+    little u16string key;        // Node key name (null-terminated UTF-16LE)
+
+    align(4):
+    // Value data follows (size = value_length)
+    // Then child nodes follow (until reaching length offset)
+    // C++ wrapper handles navigation
+};
+
+/**
+ * String pair structure (leaf node in StringFileInfo tree)
+ *
+ * This represents a single key-value pair in a StringTable
+ * (e.g., "CompanyName" = "Microsoft Corporation")
+ */
+struct version_info_string {
+    uint16 length;               // Total structure size
+    uint16 value_length;         // Value string length in WCHARs
+    uint16 type;                 // Always 1 (text)
+    little u16string key;        // String key (e.g., "CompanyName")
+
+    align(4):
+    little u16string value optional value_length > 0;  // String value
+
+    align(4):
+};
+
+// =============================================================================
+// VS_VERSION_INFO Root Structure
+// =============================================================================
+
+/**
+ * VS_VERSION_INFO root structure
+ *
+ * This is the top-level version resource structure.
+ *
+ * Structure:
+ *   - Header (length, value_length, type, key="VS_VERSION_INFO")
+ *   - VS_FIXEDFILEINFO (52 bytes)
+ *   - StringFileInfo section (optional, contains string tables)
+ *   - VarFileInfo section (optional, contains translation info)
+ *
+ * The StringFileInfo and VarFileInfo sections are variable-length
+ * and require recursive parsing in C++.
+ *
+ * This DataScript structure provides the fixed header and VS_FIXEDFILEINFO.
+ * C++ wrapper code must handle the StringFileInfo/VarFileInfo sections.
+ */
+struct vs_version_info {
+    uint16 length;               // Total structure size
+    uint16 value_length;         // Size of VS_FIXEDFILEINFO (should be 52)
+    uint16 type;                 // Always 0 (binary)
+    little u16string key;        // Always "VS_VERSION_INFO"
+
+    align(4):
+    vs_fixed_file_info fixed_info;  // Fixed version information (52 bytes)
+
+    align(4):
+
+    // StringFileInfo and VarFileInfo sections follow
+    // These are variable-length recursive structures that must be
+    // parsed by C++ wrapper code:
+    //
+    // StringFileInfo (optional):
+    //   - Contains one or more StringTable nodes
+    //   - Each StringTable has a language ID key (e.g., "040904b0")
+    //   - Each StringTable contains String nodes (key-value pairs)
+    //
+    // VarFileInfo (optional):
+    //   - Contains Var nodes with translation information
+    //
+    // Use VersionInfoNodeHeader to navigate these sections in C++
+};
+
+// =============================================================================
+// Usage Notes for C++ Wrapper
+// =============================================================================
+
+/*
+ * HYBRID PARSING APPROACH:
+ *
+ * 1. Use DataScript to parse:
+ *    - VsVersionInfo (root header + fixed info)
+ *    - Individual VersionInfoString nodes
+ *
+ * 2. Use C++ wrapper for:
+ *    - Navigating StringFileInfo/StringTable tree
+ *    - Iterating children based on length fields
+ *    - Building map of string key-value pairs
+ *
+ * Example C++ usage:
+ *
+ *   // Parse root structure with DataScript
+ *   auto version_info = read_vs_version_info(data, size);
+ *
+ *   // Extract fixed info (directly available)
+ *   uint32_t file_version_major = version_info.fixed_info.file_version_ms >> 16;
+ *   uint32_t file_version_minor = version_info.fixed_info.file_version_ms & 0xFFFF;
+ *
+ *   // Parse StringFileInfo section with C++ helper
+ *   const uint8_t* ptr = data + sizeof(VsVersionInfo);
+ *   while (ptr < data + version_info.length) {
+ *       auto node = read_version_info_node_header(ptr);
+ *       if (node.key == u"StringFileInfo") {
+ *           // Navigate string table children
+ *           parse_string_file_info(ptr, ...);
+ *       }
+ *       ptr += node.length;
+ *   }
+ */

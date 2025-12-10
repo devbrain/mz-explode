@@ -1,0 +1,121 @@
+/**
+ * PE Bound Import Directory Structures
+ *
+ * Defines structures for parsing PE bound import directory.
+ * Based on Microsoft PE/COFF specification, section 6.7.
+ * Data directory index: 11 (IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT)
+ *
+ * Bound imports are an optimization where import addresses are pre-resolved
+ * at bind time (after linking but before distribution). This avoids the
+ * overhead of symbol lookup at load time.
+ *
+ * The loader validates the binding by checking DLL timestamps. If the DLL
+ * has been updated (timestamp mismatch), the loader falls back to normal
+ * import resolution using the import directory.
+ *
+ * Note: Bound imports are less common in modern executables due to ASLR
+ * (Address Space Layout Randomization), which makes pre-resolved addresses
+ * invalid. ASLR requires rebasing at load time anyway, negating the benefit
+ * of binding.
+ *
+ * Package: formats.pe.pe_bound_imports
+ */
+
+package formats.pe.pe_bound_imports;
+
+/**
+ * IMAGE_BOUND_IMPORT_DESCRIPTOR
+ *
+ * Bound import descriptor (8 bytes).
+ *
+ * The bound import directory is an array of these descriptors, terminated by
+ * a null descriptor (TimeDateStamp = 0).
+ *
+ * Each descriptor represents one bound DLL. Module names are stored as
+ * null-terminated ASCII strings elsewhere in the directory, referenced by
+ * offset from the directory start.
+ *
+ * Forwarder references immediately follow each descriptor if
+ * NumberOfModuleForwarderRefs > 0. Forwarders handle import redirection
+ * (e.g., KERNEL32.dll forwards some functions to NTDLL.dll).
+ */
+struct image_bound_import_descriptor {
+    /**
+     * TimeDateStamp
+     *
+     * Timestamp of the bound DLL (seconds since Unix epoch).
+     * Used to validate that the DLL hasn't changed.
+     *
+     * If this is zero, it marks the end of the descriptor array (null entry).
+     *
+     * At load time, the loader compares this with the actual DLL's timestamp:
+     * - Match: Use pre-resolved addresses from IAT (fast path)
+     * - Mismatch: Fall back to normal import resolution (slow path)
+     */
+    uint32 time_date_stamp;
+
+    /**
+     * OffsetModuleName
+     *
+     * Offset to DLL name (relative to start of bound import directory).
+     * The name is a null-terminated ASCII string.
+     *
+     * Example: If bound import directory starts at RVA 0x10000 and this field
+     * is 0x0050, the DLL name is at RVA 0x10050.
+     */
+    uint16 offset_module_name;
+
+    /**
+     * NumberOfModuleForwarderRefs
+     *
+     * Number of IMAGE_BOUND_FORWARDER_REF structures that immediately follow
+     * this descriptor.
+     *
+     * Forwarders represent DLL redirection. For example, if KERNEL32.dll
+     * forwards CreateFileA to KERNELBASE.dll, there would be a forwarder
+     * reference for KERNELBASE.dll.
+     *
+     * Usually zero (no forwarders).
+     */
+    uint16 number_of_module_forwarder_refs;
+};
+
+/**
+ * IMAGE_BOUND_FORWARDER_REF
+ *
+ * Bound forwarder reference (8 bytes).
+ *
+ * Represents a DLL that is the target of forwarded exports.
+ *
+ * Example: KERNEL32.dll might forward several functions to NTDLL.dll.
+ * In this case, KERNEL32's bound descriptor would be followed by a
+ * forwarder reference for NTDLL.dll.
+ *
+ * The forwarder references immediately follow the parent descriptor in
+ * the bound import directory.
+ */
+struct image_bound_forwarder_ref {
+    /**
+     * TimeDateStamp
+     *
+     * Timestamp of the forwarder DLL (seconds since Unix epoch).
+     * Used for validation, same as the parent descriptor.
+     */
+    uint32 time_date_stamp;
+
+    /**
+     * OffsetModuleName
+     *
+     * Offset to forwarder DLL name (relative to start of bound import directory).
+     * The name is a null-terminated ASCII string.
+     */
+    uint16 offset_module_name;
+
+    /**
+     * Reserved
+     *
+     * Reserved field, should be zero.
+     * Not used by the loader.
+     */
+    uint16 reserved;
+};

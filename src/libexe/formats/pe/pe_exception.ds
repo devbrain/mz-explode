@@ -1,0 +1,141 @@
+/**
+ * PE Exception Directory Structures
+ *
+ * Defines structures for parsing PE exception directory.
+ * Based on Microsoft PE/COFF specification, section 6.5.
+ * Data directory index: 3 (IMAGE_DIRECTORY_ENTRY_EXCEPTION)
+ *
+ * Note: Exception directory is primarily used on x64 for Structured Exception
+ * Handling (SEH). On x86, stack-based exception handling is used instead.
+ *
+ * Package: formats.pe.pe_exception
+ */
+
+package formats.pe.pe_exception;
+
+/**
+ * IMAGE_RUNTIME_FUNCTION_ENTRY (x64)
+ *
+ * Function table entry for x64 exception handling.
+ * Each entry is 12 bytes and describes exception handling for one function.
+ *
+ * The exception directory contains an array of these structures.
+ */
+struct image_runtime_function_entry {
+    /**
+     * BeginAddress
+     *
+     * RVA of the start of the function.
+     * This is the address where the function begins.
+     */
+    uint32 begin_address;
+
+    /**
+     * EndAddress
+     *
+     * RVA of the end of the function.
+     * This is the address immediately following the last byte of the function.
+     * end_address - begin_address = function size
+     */
+    uint32 end_address;
+
+    /**
+     * UnwindInfoAddress
+     *
+     * RVA to the UNWIND_INFO structure.
+     * This structure contains the unwind codes for exception handling.
+     *
+     * The UNWIND_INFO structure is not parsed by DataScript due to its
+     * variable-length nature (variable number of unwind codes).
+     * It will be parsed manually if needed.
+     */
+    uint32 unwind_info_address;
+};
+
+/**
+ * UNWIND_INFO structure header (x64)
+ *
+ * Note: This structure is variable-length due to the array of UNWIND_CODE
+ * entries. DataScript can only parse the fixed header portion (4 bytes).
+ * The complete structure must be parsed manually.
+ *
+ * Full structure layout:
+ * - BYTE Version : 3 (bits 0-2)
+ * - BYTE Flags : 5 (bits 3-7)
+ * - BYTE SizeOfProlog
+ * - BYTE CountOfCodes
+ * - BYTE FrameRegister : 4 (bits 0-3)
+ * - BYTE FrameOffset : 4 (bits 4-7)
+ * - UNWIND_CODE UnwindCode[CountOfCodes] (variable)
+ * - Optional exception handler RVA (if flags indicate)
+ * - Optional exception data (if flags indicate)
+ */
+struct unwind_info_header {
+    /**
+     * Version and Flags
+     *
+     * Bits 0-2: Version (should be 1 or 2)
+     * Bits 3-7: Flags
+     *   0x01 - UNW_FLAG_EHANDLER: Function has exception handler
+     *   0x02 - UNW_FLAG_UHANDLER: Function has termination handler
+     *   0x04 - UNW_FLAG_CHAININFO: Chained unwind info
+     */
+    uint8 version_and_flags;
+
+    /**
+     * SizeOfProlog
+     *
+     * Size of the function prolog in bytes.
+     */
+    uint8 size_of_prolog;
+
+    /**
+     * CountOfCodes
+     *
+     * Number of UNWIND_CODE entries that follow this header.
+     * Each UNWIND_CODE is 2 bytes, but some operations use multiple slots.
+     */
+    uint8 count_of_codes;
+
+    /**
+     * FrameRegister and FrameOffset
+     *
+     * Bits 0-3: Frame register number (0 = no frame register)
+     * Bits 4-7: Frame offset (scaled by 16)
+     */
+    uint8 frame_register_and_offset;
+};
+
+/**
+ * UNWIND_CODE entry (x64)
+ *
+ * Describes a single unwind operation.
+ * Each entry is 2 bytes, but some operations use multiple entries.
+ */
+struct unwind_code_entry {
+    /**
+     * CodeOffset
+     *
+     * Offset from the beginning of the prolog where the operation ends.
+     */
+    uint8 code_offset;
+
+    /**
+     * UnwindOp and OpInfo
+     *
+     * Bits 0-3: Unwind operation code
+     * Bits 4-7: Operation-specific info
+     *
+     * Unwind operation codes:
+     * 0 - UWOP_PUSH_NONVOL: Push nonvolatile register
+     * 1 - UWOP_ALLOC_LARGE: Allocate large area on stack
+     * 2 - UWOP_ALLOC_SMALL: Allocate small area on stack
+     * 3 - UWOP_SET_FPREG: Establish frame pointer
+     * 4 - UWOP_SAVE_NONVOL: Save nonvolatile register
+     * 5 - UWOP_SAVE_NONVOL_FAR: Save nonvolatile register (far)
+     * 8 - UWOP_SAVE_XMM128: Save XMM register
+     * 9 - UWOP_SAVE_XMM128_FAR: Save XMM register (far)
+     * 10 - UWOP_PUSH_MACHFRAME: Push machine frame
+     */
+    uint8 unwind_op_and_info;
+};

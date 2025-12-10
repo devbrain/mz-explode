@@ -1,0 +1,95 @@
+; ABNF for Windows Resource Script (RC) Language
+
+; Core Definitions
+ALPHA = %x41-5A / %x61-7A
+DIGIT = %x30-39
+HEXDIG = DIGIT / "A" / "B" / "C" / "D" / "E" / "F"
+CHAR = %x01-7F
+CRLF = %d13.10
+WSP = %x20 / %x09
+
+; Basic Types
+integer = 1*DIGIT
+hex-integer = "0x" 1*HEXDIG
+octal-integer = "0o" 1*("0"-"7")
+number = integer / hex-integer / octal-integer
+string = DQUOTE *CHAR DQUOTE
+identifier = ALPHA *(ALPHA / DIGIT / "_")
+filename = string
+
+; Optional Statements
+optional-statements = *(characteristics-statement / language-statement / version-statement)
+characteristics-statement = "CHARACTERISTICS" WSP dword CRLF
+language-statement = "LANGUAGE" WSP language "," WSP sublanguage CRLF
+version-statement = "VERSION" WSP dword CRLF
+dword = number
+
+; Resources
+resource-definition = accelerators-resource / bitmap-resource / cursor-resource / dialog-resource / dialogex-resource / font-resource / html-resource / icon-resource / menu-resource / menuex-resource / messagetable-resource / rcdata-resource / stringtable-resource / user-defined-resource / versioninfo-resource
+
+accelerators-resource = identifier WSP "ACCELERATORS" [optional-statements] "{" 1*(accelerator-definition) "}"
+accelerator-definition = event "," idvalue ["," WSP type] ["," WSP options] CRLF
+event = string / number
+idvalue = number
+type = "ASCII" / "VIRTKEY"
+options = "NOINVERT" / "ALT" / "SHIFT" / "CONTROL"
+
+bitmap-resource = identifier WSP "BITMAP" WSP filename
+cursor-resource = identifier WSP "CURSOR" WSP filename
+dialog-resource = identifier WSP "DIALOG" WSP number "," WSP number "," WSP number "," WSP number [optional-statements] "{" 1*(control-statement) "}"
+dialogex-resource = identifier WSP "DIALOGEX" WSP number "," WSP number "," WSP number "," WSP number ["," WSP number] [optional-statements] "{" 1*(control-statement) "}"
+font-resource = identifier WSP "FONT" WSP filename
+html-resource = identifier WSP "HTML" WSP filename
+icon-resource = identifier WSP "ICON" WSP filename
+menu-resource = identifier WSP "MENU" [optional-statements] "{" 1*(menu-item-definition) "}"
+menuex-resource = identifier WSP "MENUEX" "{" 1*(menuex-item-definition) "}"
+messagetable-resource = identifier WSP "MESSAGETABLE" WSP filename
+rcdata-resource = identifier WSP "RCDATA" [optional-statements] "{" 1*(raw-data) "}"
+raw-data = string / number
+stringtable-resource = "STRINGTABLE" [optional-statements] ("{" 1*(string-definition) "}" / "BEGIN" 1*(string-definition) "END")
+string-definition = number "," WSP string CRLF
+user-defined-resource = identifier WSP identifier WSP (filename / "{" 1*(raw-data) "}")
+versioninfo-resource = "1" WSP "VERSIONINFO" fixed-info ("{" 1*(block-statement) "}" / "BEGIN" 1*(block-statement) "END")
+fixed-info = fileversion-statement / productversion-statement / fileflagsmask-statement / fileflags-statement / fileos-statement / filetype-statement / filesubtype-statement
+fileversion-statement = "FILEVERSION" WSP version
+productversion-statement = "PRODUCTVERSION" WSP version
+fileflagsmask-statement = "FILEFLAGSMASK" WSP number
+fileflags-statement = "FILEFLAGS" WSP number
+fileos-statement = "FILEOS" WSP number
+filetype-statement = "FILETYPE" WSP number
+filesubtype-statement = "FILESUBTYPE" WSP number
+version = number "," number "," number "," number
+block-statement = "BLOCK" WSP string "BEGIN" 1*("VALUE" WSP string "," WSP (string / number)) "END"
+
+; Controls
+control-statement = auto3state-control / autocheckbox-control / autoradiobutton-control / checkbox-control / combobox-control / control-control / ctext-control / defpushbutton-control / edittext-control / groupbox-control / icon-control / listbox-control / ltext-control / pushbox-control / pushbutton-control / radiobutton-control / rtext-control / scrollbar-control / state3-control
+
+auto3state-control = "AUTO3STATE" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+autocheckbox-control = "AUTOCHECKBOX" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+autoradiobutton-control = "AUTORADIOBUTTON" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+checkbox-control = "CHECKBOX" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+combobox-control = "COMBOBOX" WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+control-control = "CONTROL" WSP string "," WSP number "," WSP string "," WSP style "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP extended-style]
+ctext-control = "CTEXT" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+defpushbutton-control = "DEFPUSHBUTTON" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+edittext-control = "EDITTEXT" WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+groupbox-control = "GROUPBOX" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+icon-control = "ICON" WSP string "," WSP number "," WSP number "," WSP number ["," WSP number "," WSP number "," WSP style] ["," WSP extended-style]
+listbox-control = "LISTBOX" WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+ltext-control = "LTEXT" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+pushbox-control = "PUSHBOX" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+pushbutton-control = "PUSHBUTTON" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+radiobutton-control = "RADIOBUTTON" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+rtext-control = "RTEXT" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+scrollbar-control = "SCROLLBAR" WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+state3-control = "STATE3" WSP string "," WSP number "," WSP number "," WSP number "," WSP number "," WSP number ["," WSP style] ["," WSP extended-style]
+
+style = 1*(identifier / "|")
+extended-style = 1*(identifier / "|")
+
+; Menu Items
+menu-item-definition = menuitem-statement / popup-resource
+menuex-item-definition = menuitem-statement / popup-resource
+menuitem-statement = "MENUITEM" WSP (string "," WSP number ["," WSP optionlist] / "SEPARATOR")
+popup-resource = "POPUP" WSP string ["," WSP optionlist] "{" 1*(menu-item-definition) "}"
+optionlist = 1*( "CHECKED" / "GRAYED" / "HELP" / "INACTIVE" / "MENUBARBREAK" / "MENUBREAK" )

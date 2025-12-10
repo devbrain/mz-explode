@@ -1,0 +1,109 @@
+/**
+ * PE Import Directory Structures
+ *
+ * Defines structures for parsing PE import tables.
+ * Based on Microsoft PE/COFF specification.
+ *
+ * Package: formats.pe.pe_imports
+ */
+
+package formats.pe.pe_imports;
+
+// PE is little-endian
+little;
+
+/**
+ * IMAGE_IMPORT_DESCRIPTOR
+ *
+ * Describes a single DLL import. The import directory is an
+ * array of these structures, terminated by a null entry (all zeros).
+ *
+ * Size: 20 bytes
+ */
+struct image_import_descriptor {
+    /**
+     * RVA to Import Lookup Table (ILT)
+     *
+     * Also called OriginalFirstThunk. Points to array of IMAGE_THUNK_DATA
+     * structures that contain RVAs to IMAGE_IMPORT_BY_NAME structures or
+     * ordinal values.
+     */
+    uint32 original_first_thunk;
+
+    /**
+     * Bind timestamp
+     *
+     * 0 if not bound. Otherwise, timestamp of DLL this was bound to.
+     */
+    uint32 time_date_stamp;
+
+    /**
+     * Forwarder chain
+     *
+     * Index of first forwarder reference. Usually 0 or -1 (no forwarders).
+     */
+    uint32 forwarder_chain;
+
+    /**
+     * RVA to DLL name
+     *
+     * Points to null-terminated ASCII string with DLL name.
+     */
+    uint32 name;
+
+    /**
+     * RVA to Import Address Table (IAT)
+     *
+     * Also called FirstThunk. Points to array of IMAGE_THUNK_DATA structures.
+     * Before binding, this is identical to ILT. After binding, contains
+     * actual function addresses.
+     */
+    uint32 first_thunk;
+};
+
+/**
+ * IMAGE_THUNK_DATA32
+ *
+ * Entry in Import Lookup Table (ILT) or Import Address Table (IAT)
+ * for PE32 (32-bit) executables.
+ *
+ * Size: 4 bytes
+ *
+ * This is a union-like structure:
+ * - If bit 31 is set: Low 16 bits contain ordinal number
+ * - If bit 31 is clear: Value is RVA to IMAGE_IMPORT_BY_NAME structure
+ */
+struct image_thunk_data32 {
+    uint32 u1;  // Union: AddressOfData or Ordinal
+};
+
+/**
+ * IMAGE_THUNK_DATA64
+ *
+ * Entry in Import Lookup Table (ILT) or Import Address Table (IAT)
+ * for PE32+ (64-bit) executables.
+ *
+ * Size: 8 bytes
+ *
+ * This is a union-like structure:
+ * - If bit 63 is set: Low 16 bits contain ordinal number
+ * - If bit 63 is clear: Value is RVA to IMAGE_IMPORT_BY_NAME structure
+ */
+struct image_thunk_data64 {
+    uint64 u1;  // Union: AddressOfData or Ordinal
+};
+
+/**
+ * IMAGE_IMPORT_BY_NAME
+ *
+ * Function name and hint for named imports.
+ * The actual structure continues with a null-terminated ASCII string
+ * that must be read separately (variable-length).
+ *
+ * Size: 2 bytes + string length + 1 (null terminator)
+ */
+struct image_import_by_name {
+    uint16 hint;  // Index into export name pointer table
+    // Note: Null-terminated ASCII name string follows immediately,
+    // must be read separately as variable-length data
+};

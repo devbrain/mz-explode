@@ -1,0 +1,280 @@
+/**
+ * New Executable (NE) Format - 16-bit Windows/OS2
+ *
+ * This module defines the NE (New Executable) format used by:
+ * - 16-bit Windows applications (Windows 1.x - 3.x)
+ * - OS/2 1.x applications
+ * - Windows 16-bit DLLs
+ *
+ * References:
+ * - ne.fmt specification
+ * - Microsoft Windows Developer's Notes
+ */
+package formats.ne.ne_header;
+
+// All Windows executable formats use little-endian byte order
+little;
+
+// NE signature constant (must be local for constraint validation)
+const uint16 NE_SIGNATURE = 0x454E;  // "NE" - New Executable
+
+// =============================================================================
+// NE Header (16-bit Windows)
+// =============================================================================
+
+/**
+ * New Executable (NE) Header - 16-bit Windows/OS2 format
+ *
+ * Per ne.fmt specification (lines 165-274)
+ */
+struct image_ne_header {
+    uint16 ne_magic: ne_magic == NE_SIGNATURE; // "NE" signature (offset 00h)
+    uint8  ne_ver;                             // Linker version (offset 02h)
+    uint8  ne_rev;                             // Linker revision (offset 03h)
+    uint16 ne_enttab;                          // Entry table offset (offset 04h)
+    uint16 ne_cbenttab;                        // Entry table size in bytes (offset 06h)
+    uint32 ne_crc;                             // File CRC (offset 08h)
+    uint16 ne_flags;                           // Flag word (offset 0Ch)
+    uint16 ne_autodata;                        // Automatic data segment number (offset 0Eh)
+    uint16 ne_heap;                            // Initial heap size in bytes (offset 10h)
+    uint16 ne_stack;                           // Initial stack size in bytes (offset 12h)
+    uint32 ne_csip;                            // Initial CS:IP (offset 14h)
+    uint32 ne_sssp;                            // Initial SS:SP (offset 18h)
+    uint16 ne_cseg;                            // Number of segment table entries (offset 1Ch)
+    uint16 ne_cmod;                            // Module reference table entries (offset 1Eh)
+    uint16 ne_cnonres;                         // Non-resident name table size (offset 20h)
+    uint16 ne_segtab;                          // Segment table offset (offset 22h)
+    uint16 ne_rsrctab;                         // Resource table offset (offset 24h)
+    uint16 ne_restab;                          // Resident name table offset (offset 26h)
+    uint16 ne_modtab;                          // Module reference table offset (offset 28h)
+    uint16 ne_imptab;                          // Imported names table offset (offset 2Ah)
+    uint32 ne_nrestab;                         // Non-resident names table offset (offset 2Ch)
+    uint16 ne_cmovent;                         // Movable entries count (offset 30h)
+    uint16 ne_align;                           // Segment alignment shift count (offset 32h)
+    uint16 ne_cres;                            // Resource segments count (offset 34h)
+    uint8  ne_exetyp;                          // Target OS (02h = Windows) (offset 36h)
+    uint8  ne_reserved[9];                     // Reserved, must be zero (offset 37h-3Fh per ne.fmt)
+                                               // Note: Some sources document these as specific fields
+                                               // but official ne.fmt spec says "Reserved, currently 0's"
+};
+
+// =============================================================================
+// NE Segment Table
+// =============================================================================
+
+/**
+ * NE Segment Table Flags
+ *
+ * Per ne.fmt (lines 294-302)
+ */
+enum uint16 ne_segment_flags {
+    NE_SEGTYPE_MASK  = 0x0007,  // Segment type field
+    NE_SEGTYPE_CODE  = 0x0000,  // Code segment
+    NE_SEGTYPE_DATA  = 0x0001,  // Data segment
+    NE_MOVEABLE      = 0x0010,  // Segment is not fixed
+    NE_PRELOAD       = 0x0040,  // Segment will be preloaded
+    NE_RELOCINFO     = 0x0100,  // Set if segment has relocation records
+    NE_DISCARD_MASK  = 0xF000   // Discard priority mask
+};
+
+/**
+ * NE Segment Table Entry
+ *
+ * Per ne.fmt (lines 285-306)
+ */
+struct ne_segment_table_entry {
+    uint16 sector_offset;   // Logical-sector offset to segment data (0 = no file data)
+    uint16 length;          // Length of segment in file (0 = 64K)
+    uint16 flags;           // Segment flags
+    uint16 min_alloc;       // Minimum allocation size (0 = 64K)
+};
+
+// =============================================================================
+// NE Resource Table
+// =============================================================================
+
+/**
+ * NE Resource Flags
+ *
+ * Per ne.fmt (lines 349-352)
+ */
+enum uint16 ne_resource_flags {
+    NE_RES_MOVEABLE = 0x0010,  // Resource is not fixed
+    NE_RES_PURE     = 0x0020,  // Resource can be shared
+    NE_RES_PRELOAD  = 0x0040   // Resource is preloaded
+};
+
+/**
+ * NE Resource Name Info (per-resource entry)
+ *
+ * Per ne.fmt (lines 340-359)
+ */
+struct ne_resource_name_info {
+    uint16 offset;     // File offset in alignment units (shift by align_shift)
+    uint16 length;     // Length in bytes
+    uint16 flags;      // Resource flags
+    uint16 id;         // Resource ID (high bit set = integer ID, else offset to string)
+    uint32 reserved;   // Reserved
+};
+
+/**
+ * NE Resource Type Info Block
+ *
+ * Per ne.fmt (lines 327-338)
+ * Note: This is followed by ne_resource_name_info entries
+ */
+struct ne_resource_type_info {
+    uint16 type_id;         // Type ID (0x8000+ = integer, else string offset, 0 = end)
+    uint16 resource_count;  // Number of resources of this type
+    uint32 reserved;        // Reserved
+};
+
+// =============================================================================
+// NE Entry Table
+// =============================================================================
+
+/**
+ * NE Entry Flags
+ *
+ * Per ne.fmt (lines 467-475, 482-486)
+ */
+enum uint8 ne_entry_flags {
+    NE_ENTRY_EXPORTED = 0x01,  // Entry is exported
+    NE_ENTRY_SHARED   = 0x02   // Entry uses global (shared) data segment
+};
+
+/**
+ * NE Fixed Segment Entry (3 bytes)
+ *
+ * Per ne.fmt (lines 463-476)
+ */
+struct ne_fixed_segment_entry {
+    uint8  flags;   // Entry flags
+    uint16 offset;  // Offset within segment to entry point
+};
+
+/**
+ * NE Moveable Segment Entry (6 bytes)
+ *
+ * Per ne.fmt (lines 478-491)
+ */
+struct ne_movable_segment_entry {
+    uint8  flags;           // Entry flags
+    uint8  int3f;           // INT 3FH instruction
+    uint8  segment_number;  // Segment number
+    uint16 offset;          // Offset within segment to entry point
+};
+
+// =============================================================================
+// NE Relocation Records
+// =============================================================================
+
+/**
+ * NE Relocation Source Types
+ *
+ * Per ne.fmt (lines 525-530)
+ */
+enum uint8 ne_reloc_source_type {
+    NE_SOURCE_MASK    = 0x0F,
+    NE_LOBYTE         = 0x00,
+    NE_SEGMENT        = 0x02,
+    NE_FAR_ADDR       = 0x03,  // 32-bit pointer
+    NE_OFFSET         = 0x05   // 16-bit offset
+};
+
+/**
+ * NE Relocation Target Types
+ *
+ * Per ne.fmt (lines 532-538)
+ */
+enum uint8 ne_reloc_target_type {
+    NE_TARGET_MASK     = 0x03,
+    NE_INTERNALREF     = 0x00,
+    NE_IMPORTORDINAL   = 0x01,
+    NE_IMPORTNAME      = 0x02,
+    NE_OSFIXUP         = 0x03,
+    NE_ADDITIVE        = 0x04
+};
+
+/**
+ * NE Relocation Record - Internal Reference Target
+ *
+ * Per ne.fmt (lines 551-559)
+ */
+struct ne_relocation_internal_ref {
+    uint8  segment_number;  // Segment number (0xFF = movable)
+    uint8  reserved;        // Must be 0
+    uint16 offset_or_ordinal;  // Offset if fixed, ordinal if movable
+};
+
+/**
+ * NE Relocation Record - Import Name Target
+ *
+ * Per ne.fmt (lines 561-567)
+ */
+struct ne_relocation_import_name {
+    uint16 module_index;    // Index into module reference table
+    uint16 name_offset;     // Offset in imported names table
+};
+
+/**
+ * NE Relocation Record - Import Ordinal Target
+ *
+ * Per ne.fmt (lines 569-573)
+ */
+struct ne_relocation_import_ordinal {
+    uint16 module_index;    // Index into module reference table
+    uint16 ordinal;         // Procedure ordinal number
+};
+
+/**
+ * NE Relocation Record - OS Fixup Target
+ *
+ * Per ne.fmt (lines 575-586)
+ */
+struct ne_relocation_os_fixup {
+    uint16 fixup_type;  // OS fixup type (floating-point fixups 0x0001-0x0006)
+    uint16 reserved;    // Must be 0
+};
+
+/**
+ * NE Relocation Record Header
+ *
+ * Per ne.fmt (lines 520-587)
+ * The target structure follows based on flags
+ */
+struct ne_relocation_record {
+    uint8  source_type;  // Source type (NE_LOBYTE, NE_SEGMENT, etc.)
+    uint8  flags;        // Target type flags
+    uint16 source_offset;  // Offset within segment of source chain
+};
+
+/*
+ * NE FORMAT USAGE:
+ *
+ * Loading a 16-bit Windows/OS2 executable:
+ *   1. Read image_dos_header (from mz.ds)
+ *   2. Validate e_lfanew points to NE header
+ *   3. Read image_ne_header at file offset e_lfanew
+ *   4. Validate ne_magic == NE_SIGNATURE (0x454E)
+ *   5. Parse segment table (ne_cseg entries at ne_segtab offset)
+ *   6. Parse resource table (if ne_rsrctab > 0)
+ *   7. Parse entry table (ne_cbenttab bytes at ne_enttab offset)
+ *
+ * Segment calculations:
+ *   - File offset = sector_offset << ne_align (from header)
+ *   - Actual size = (length == 0) ? 65536 : length
+ *   - Load address determined by Windows loader
+ *
+ * Resource table structure:
+ *   - Alignment shift count (word)
+ *   - Loop: Read ne_resource_type_info until type_id == 0
+ *     - For each type: Read resource_count * ne_resource_name_info
+ *   - String table follows (length-prefixed, NOT null-terminated)
+ *
+ * Entry table structure:
+ *   - Bundle-based format (reduces file size)
+ *   - Each bundle: count + type + entries
+ *   - Fixed entries: 3 bytes (ne_fixed_segment_entry)
+ *   - Movable entries: 6 bytes (ne_movable_segment_entry)
+ */

@@ -1,0 +1,448 @@
+/**
+ * Linear Executable (LE/LX) Format - 32-bit DOS/OS2/VxD
+ *
+ * This module defines the LE (Linear Executable) and LX (Linear eXecutable extended)
+ * formats used by:
+ * - DOS extenders (DOS/4GW, DOS/32A, PMODE/W, CauseWay, WDOSX)
+ * - Windows VxD drivers (Virtual Device Drivers)
+ * - OS/2 2.0+ executables and DLLs
+ *
+ * Key differences between LE and LX:
+ * - LE: Page table entries are 4 bytes (offset is direct)
+ * - LX: Page table entries are 8 bytes (offset is shifted by page_offset_shift)
+ *
+ * References:
+ * - 32-bit Linear eXecutable Module Format (LX) Specification.pdf (IBM, Rev 11, 2001)
+ * - lxexe.doc (IBM LX specification, 1992)
+ * - le_exe_headers.h (C structure definitions)
+ * - le-1.html (LE format reference with extended CPU types)
+ */
+package formats.le.le_header;
+
+// All LE/LX formats use little-endian byte order
+little;
+
+// LE/LX signature values (for documentation):
+// - LE_SIGNATURE = 0x454C ("LE" - Linear Executable)
+// - LX_SIGNATURE = 0x584C ("LX" - Linear eXecutable extended)
+
+// =============================================================================
+// LE/LX Header Enums
+// =============================================================================
+
+/**
+ * CPU type (header offset 0x08)
+ */
+enum uint16 le_cpu_type {
+    UNKNOWN  = 0x00,
+    I286     = 0x01,   // Intel 80286 or upwardly compatible
+    I386     = 0x02,   // Intel 80386 or upwardly compatible
+    I486     = 0x03,   // Intel 80486 or upwardly compatible
+    I586     = 0x04,   // Intel Pentium or upwardly compatible
+    I860_N10 = 0x20,   // Intel i860 (N10) or compatible
+    I860_N11 = 0x21,   // Intel i860 (N11) or compatible
+    MIPS_I   = 0x40,   // MIPS Mark I (R2000, R3000) or compatible
+    MIPS_II  = 0x41,   // MIPS Mark II (R6000) or compatible
+    MIPS_III = 0x42    // MIPS Mark III (R4000) or compatible
+};
+
+/**
+ * Target operating system (header offset 0x0A)
+ */
+enum uint16 le_os_type {
+    UNKNOWN     = 0x00,
+    OS2         = 0x01,   // OS/2
+    WINDOWS     = 0x02,   // Windows (VxD)
+    DOS4        = 0x03,   // European DOS 4.x
+    WINDOWS386  = 0x04,   // Windows 386 enhanced mode
+    MKERNEL     = 0x05    // IBM Microkernel Personality Neutral
+};
+
+/**
+ * Module type flags (header offset 0x10)
+ */
+enum uint32 le_module_flags {
+    // Per-process flags
+    PER_PROCESS_INIT    = 0x00000004,   // Per-process library initialization
+    PER_PROCESS_TERM    = 0x40000000,   // Per-process library termination
+
+    // Fixup flags
+    INTERNAL_FIXUPS     = 0x00000010,   // Internal fixups applied
+    EXTERNAL_FIXUPS     = 0x00000020,   // External fixups applied
+
+    // PM window compatibility (bits 8-9)
+    PM_INCOMPATIBLE     = 0x00000100,   // Not compatible with PM Windowing
+    PM_COMPATIBLE       = 0x00000200,   // Compatible with PM Windowing
+    PM_USES_API         = 0x00000300,   // Uses PM Windowing API
+
+    // Module type (bits 13-17)
+    NOT_LOADABLE        = 0x00002000,   // Module has errors (not loadable)
+    MODULE_TYPE_MASK    = 0x00038000,   // Module type field mask
+    PROGRAM             = 0x00000000,   // Program module (EXE)
+    LIBRARY             = 0x00008000,   // Library module (DLL)
+    PROTECTED_LIB       = 0x00018000,   // Protected memory library module
+    PHYS_DRIVER         = 0x00020000,   // Physical device driver module
+    VIRT_DRIVER         = 0x00028000,   // Virtual device driver module (VxD)
+
+    // MP safety
+    MP_UNSAFE           = 0x00080000    // Not multiprocessor safe
+};
+
+/**
+ * Object/segment flags (object table entry offset 0x08)
+ */
+enum uint32 le_object_flags {
+    READABLE            = 0x0001,   // Object is readable
+    WRITABLE            = 0x0002,   // Object is writable
+    EXECUTABLE          = 0x0004,   // Object is executable
+    RESOURCE            = 0x0008,   // Object contains resources
+    DISCARDABLE         = 0x0010,   // Object is discardable
+    SHARED              = 0x0020,   // Object is shared
+    PRELOAD             = 0x0040,   // Object should be preloaded
+    INVALID             = 0x0080,   // Object has invalid pages
+    ZEROFILL            = 0x0100,   // Object has zero-fill pages
+    RESIDENT            = 0x0200,   // Object is resident
+    RESIDENT_CONTIG     = 0x0300,   // Object is resident and contiguous
+    RESIDENT_LOCKABLE   = 0x0400,   // Object is resident long-term lockable
+    ALIAS_16_16         = 0x1000,   // 16:16 alias required
+    BIG                 = 0x2000,   // Big/Default bit setting (USE32)
+    CONFORMING          = 0x4000,   // Object is conforming for code
+    IOPL                = 0x8000    // Object requires I/O privilege level
+};
+
+/**
+ * Page flags (object page table entry)
+ */
+enum uint16 le_page_flags {
+    LEGAL               = 0x0000,   // Legal physical page in file
+    ITERATED            = 0x0001,   // Iterated data page
+    INVALID             = 0x0002,   // Invalid (not present in file)
+    ZEROFILL            = 0x0003,   // Zero-filled page
+    RANGE               = 0x0004,   // Range of pages
+    COMPRESSED          = 0x0005    // Compressed page (LX only)
+};
+
+/**
+ * Entry bundle type
+ */
+enum uint8 le_entry_type {
+    UNUSED              = 0x00,     // Empty bundle (skip)
+    ENTRY_16            = 0x01,     // 16-bit entry
+    GATE_286            = 0x02,     // 286 call gate entry
+    ENTRY_32            = 0x03,     // 32-bit entry
+    FORWARDER           = 0x04      // Forwarder entry
+};
+
+/**
+ * Fixup source type (byte 0, bits 0-3)
+ */
+enum uint8 le_fixup_source_type {
+    BYTE                = 0x00,     // 8-bit (low byte of 16:16 or 16:32 pointer)
+    UNDEFINED1          = 0x01,     // Undefined
+    SELECTOR_16         = 0x02,     // 16-bit selector fixup
+    POINTER_16_16       = 0x03,     // 16:16 far pointer fixup
+    UNDEFINED4          = 0x04,     // Undefined
+    OFFSET_16           = 0x05,     // 16-bit offset fixup
+    POINTER_16_32       = 0x06,     // 16:32 far pointer fixup
+    OFFSET_32           = 0x07,     // 32-bit offset fixup
+    RELATIVE_32         = 0x08      // 32-bit self-relative offset fixup
+};
+
+/**
+ * Fixup target type (byte 1, bits 0-1)
+ */
+enum uint8 le_fixup_target_type {
+    INTERNAL            = 0x00,     // Internal reference
+    IMPORT_ORDINAL      = 0x01,     // Import by ordinal
+    IMPORT_NAME         = 0x02,     // Import by name
+    INTERNAL_ENTRY      = 0x03      // Internal entry table reference
+};
+
+// =============================================================================
+// LE/LX Header Structure
+// =============================================================================
+
+/**
+ * Linear Executable Header
+ *
+ * Common header for both LE and LX formats (176 bytes / 0xB0)
+ * Located at offset specified by MZ header e_lfanew field
+ */
+struct image_le_header {
+    uint16 le_magic;                        // 0x00: Signature ('LE' or 'LX')
+    uint8  byte_order;                      // 0x02: Byte order (0 = little endian)
+    uint8  word_order;                      // 0x03: Word order (0 = little endian)
+    uint32 format_level;                    // 0x04: Format level (0)
+    le_cpu_type cpu_type;                   // 0x08: CPU type required
+    le_os_type os_type;                     // 0x0A: Target operating system
+    uint32 module_version;                  // 0x0C: User-defined module version
+    le_module_flags module_flags;           // 0x10: Module type flags
+    uint32 page_count;                      // 0x14: Number of memory pages
+    uint32 eip_object;                      // 0x18: Object # for initial EIP (1-based)
+    uint32 eip;                             // 0x1C: Initial EIP offset
+    uint32 esp_object;                      // 0x20: Object # for initial ESP (1-based)
+    uint32 esp;                             // 0x24: Initial ESP offset
+    uint32 page_size;                       // 0x28: Memory page size (usually 4096)
+    uint32 page_offset_shift;               // 0x2C: LX: Page offset shift, LE: last page size
+    uint32 fixup_section_size;              // 0x30: Total size of fixup section
+    uint32 fixup_section_checksum;          // 0x34: Fixup section checksum
+    uint32 loader_section_size;             // 0x38: Loader section size
+    uint32 loader_section_checksum;         // 0x3C: Loader section checksum
+    uint32 object_table_offset;             // 0x40: Object table offset (relative to header)
+    uint32 object_count;                    // 0x44: Number of objects
+    uint32 object_page_table_offset;        // 0x48: Object page table offset (relative)
+    uint32 object_iter_pages_offset;        // 0x4C: Object iterated pages offset
+    uint32 resource_table_offset;           // 0x50: Resource table offset (relative)
+    uint32 resource_count;                  // 0x54: Number of resource table entries
+    uint32 resident_name_table_offset;      // 0x58: Resident name table offset (relative)
+    uint32 entry_table_offset;              // 0x5C: Entry table offset (relative)
+    uint32 module_directives_offset;        // 0x60: Module directives offset
+    uint32 module_directives_count;         // 0x64: Number of module directives
+    uint32 fixup_page_table_offset;         // 0x68: Fixup page table offset (relative)
+    uint32 fixup_record_table_offset;       // 0x6C: Fixup record table offset (relative)
+    uint32 import_module_table_offset;      // 0x70: Import module table offset (relative)
+    uint32 import_module_count;             // 0x74: Number of import module entries
+    uint32 import_proc_table_offset;        // 0x78: Import procedure table offset (relative)
+    uint32 per_page_checksum_offset;        // 0x7C: Per-page checksum offset
+    uint32 data_pages_offset;               // 0x80: Data pages offset (ABSOLUTE file offset!)
+    uint32 preload_page_count;              // 0x84: Number of preload pages
+    uint32 nonresident_name_table_offset;   // 0x88: Non-resident names offset (ABSOLUTE!)
+    uint32 nonresident_name_table_size;     // 0x8C: Non-resident names table size
+    uint32 nonresident_name_checksum;       // 0x90: Non-resident names checksum
+    uint32 auto_data_object;                // 0x94: Auto data segment object number
+    uint32 debug_info_offset;               // 0x98: Debug info offset (ABSOLUTE file offset!)
+    uint32 debug_info_size;                 // 0x9C: Debug info size
+    uint32 instance_preload;                // 0xA0: Instance pages in preload section
+    uint32 instance_demand;                 // 0xA4: Instance pages in demand section
+    uint32 heap_size;                       // 0xA8: Heap size
+    uint32 stack_size;                      // 0xAC: Stack size (0xAC for LE, more for LX)
+};
+
+// =============================================================================
+// Object Table Entry
+// =============================================================================
+
+/**
+ * Object Table Entry (24 bytes)
+ *
+ * Describes each object (segment) in the executable
+ */
+struct le_object_table_entry {
+    uint32 virtual_size;                    // 0x00: Virtual memory size
+    uint32 base_address;                    // 0x04: Relocation base address
+    le_object_flags flags;                  // 0x08: Object flags
+    uint32 page_table_index;                // 0x0C: First page table entry (1-based)
+    uint32 page_count;                      // 0x10: Number of page table entries
+    uint32 reserved;                        // 0x14: Reserved (must be 0)
+};
+
+// =============================================================================
+// Page Table Entries
+// =============================================================================
+
+/**
+ * LE Object Page Table Entry (4 bytes)
+ *
+ * Used by LE format - direct page offset
+ */
+struct le_page_table_entry {
+    uint8 high;                             // High byte of 24-bit offset
+    uint8 med;                              // Middle byte of offset
+    uint8 low;                              // Low byte of offset
+    uint8 flags;                            // Page flags
+};
+
+/**
+ * LX Object Page Table Entry (8 bytes)
+ *
+ * Used by LX format - shifted offset with explicit size
+ */
+struct lx_page_table_entry {
+    uint32 offset;                          // Page data offset (shifted by page_offset_shift)
+    uint16 data_size;                       // Actual data size in file
+    le_page_flags flags;                    // Page flags
+};
+
+// =============================================================================
+// Resource Table Entry
+// =============================================================================
+
+/**
+ * Resource Table Entry (14 bytes)
+ */
+struct le_resource_entry {
+    uint16 type_id;                         // Resource type ID
+    uint16 name_id;                         // Resource name ID
+    uint32 size;                            // Resource size in bytes
+    uint16 object;                          // Object number containing resource
+    uint32 offset;                          // Offset within object
+};
+
+// =============================================================================
+// Entry Table Structures
+// =============================================================================
+
+/**
+ * Entry Bundle Header
+ *
+ * Entry table is organized as bundles of entries
+ */
+struct le_entry_bundle_header {
+    uint8 count;                            // Number of entries in bundle (0 = end)
+    le_entry_type type;                     // Bundle type (0=unused/skip, 1-4=entry types)
+};
+
+/**
+ * 16-bit Entry (3 bytes + 1 byte object)
+ */
+struct le_entry_16 {
+    uint8  flags;                           // Entry flags
+    uint16 offset;                          // Offset within object
+};
+
+/**
+ * 286 Call Gate Entry (5 bytes + 1 byte object)
+ */
+struct le_entry_gate286 {
+    uint8  flags;                           // Entry flags
+    uint16 offset;                          // Offset within object
+    uint16 callgate;                        // Call gate selector
+};
+
+/**
+ * 32-bit Entry (5 bytes + 2 byte object)
+ */
+struct le_entry_32 {
+    uint8  flags;                           // Entry flags
+    uint32 offset;                          // Offset within object
+};
+
+/**
+ * Forwarder Entry (variable size)
+ */
+struct le_entry_forwarder {
+    uint8  flags;                           // Entry flags (reserved, must be 0)
+    uint16 module_ordinal;                  // Module ordinal (index into import module table)
+    // Followed by: uint32 proc_name_offset OR uint32 import_ordinal
+    // depending on IMPORT_BY_ORDINAL flag
+};
+
+// =============================================================================
+// Fixup Record Structures
+// =============================================================================
+
+/**
+ * Fixup Record Header (2 bytes minimum)
+ *
+ * Source:
+ *   bits 0-3: source type (le_fixup_source_type)
+ *   bit 4: alias flag
+ *   bit 5: source list flag
+ *
+ * Target:
+ *   bits 0-1: target type (le_fixup_target_type)
+ *   bit 2: additive fixup flag
+ *   bit 3: internal chaining flag (LX)
+ *   bit 4: 32-bit target offset flag
+ *   bit 5: 32-bit additive flag
+ *   bit 6: 16-bit object/module ordinal flag
+ *   bit 7: 8-bit ordinal flag
+ */
+struct le_fixup_header {
+    uint8 source;                           // Source type and flags
+    uint8 target;                           // Target type and flags
+};
+
+// =============================================================================
+// Name Table Entry
+// =============================================================================
+
+/**
+ * Name Table Entry
+ *
+ * Used for resident and non-resident name tables
+ * Length-prefixed string followed by ordinal
+ */
+struct le_name_entry {
+    uint8 length;                           // Name length (0 = end of table)
+    uint8 name[length];                     // Name string (NOT null-terminated)
+    uint16 ordinal;                         // Associated ordinal value
+};
+
+// =============================================================================
+// Import Tables
+// =============================================================================
+
+/**
+ * Import Module Name Entry
+ *
+ * Length-prefixed module name
+ */
+struct le_import_module_entry {
+    uint8 length;                           // Module name length
+    uint8 name[length];                     // Module name (NOT null-terminated)
+};
+
+/**
+ * Import Procedure Name Entry
+ *
+ * Length-prefixed procedure name
+ */
+struct le_import_procedure_entry {
+    uint8 length;                           // Procedure name length
+    uint8 name[length];                     // Procedure name (NOT null-terminated)
+};
+
+/*
+ * LE/LX FORMAT USAGE:
+ *
+ * Loading an LE/LX executable:
+ *   1. Read image_dos_header (from mz.ds) - may be DOS extender stub
+ *   2. Get extended header offset from MZ header e_lfanew (offset 0x3C)
+ *   3. Read image_le_header at file offset e_lfanew
+ *   4. Validate le_magic == LE_SIGNATURE or LX_SIGNATURE
+ *   5. Determine format: LE (0x454C) vs LX (0x584C)
+ *   6. Parse object table (object_count entries at object_table_offset)
+ *   7. Parse object page table:
+ *      - LE: le_page_table_entry (4 bytes each)
+ *      - LX: lx_page_table_entry (8 bytes each)
+ *
+ * CRITICAL: Three offsets are ABSOLUTE file offsets (not relative to LE header):
+ *   - data_pages_offset (0x80)
+ *   - nonresident_name_table_offset (0x88)
+ *   - debug_info_offset (0x98)
+ *
+ * All other offsets are relative to the start of the LE/LX header.
+ *
+ * DOS Extender Stripping:
+ *   If bound to a DOS extender (DOS/4GW, DOS/32A, etc.), the MZ stub
+ *   can be stripped. After stripping, the three absolute file offsets
+ *   must be adjusted by subtracting the stub size.
+ *
+ * Page offset calculation:
+ *   - LE: file_offset = data_pages_offset + (page_entry.offset - 1) * page_size
+ *         (offset field contains 24-bit page number)
+ *   - LX: file_offset = data_pages_offset + (page_entry.offset << page_offset_shift)
+ *         (page_offset_shift typically 12 for 4KB pages)
+ *
+ * Object memory layout:
+ *   - Each object starts at base_address when loaded
+ *   - virtual_size determines memory allocation
+ *   - page_count * page_size gives file space (may differ from virtual_size)
+ *
+ * Entry table format:
+ *   - Series of bundles (le_entry_bundle_header followed by entries)
+ *   - Each bundle has count entries of the same type
+ *   - count=0 terminates table, type=0 skips ordinals
+ *   - Entry types have different sizes:
+ *     - Type 0 (unused): No entries, count ordinals skipped
+ *     - Type 1 (16-bit): 1 byte object# + 3 bytes per entry
+ *     - Type 2 (286 gate): 1 byte object# + 5 bytes per entry
+ *     - Type 3 (32-bit): 2 byte object# + 5 bytes per entry
+ *     - Type 4 (forwarder): variable size
+ *
+ * Common sections:
+ *   - Object 1: Usually code (EXECUTABLE | READABLE | BIG)
+ *   - Object 2: Usually data (READABLE | WRITABLE | BIG)
+ *   - Additional objects for BSS, stack, resources
+ */

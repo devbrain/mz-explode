@@ -1,0 +1,188 @@
+/**
+ * PE COM Descriptor (CLR Runtime Header) Structures
+ *
+ * Defines structures for parsing PE COM descriptor (.NET CLR metadata).
+ * Based on ECMA-335 specification (Common Language Infrastructure).
+ * Data directory index: 14 (IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR)
+ *
+ * The COM descriptor (also called CLR Runtime Header) is present in all
+ * .NET assemblies (managed code executables). It points to the CLR metadata,
+ * which contains type definitions, method signatures, IL code, and resources.
+ *
+ * The presence of this directory indicates that the executable is a .NET
+ * assembly and requires the Common Language Runtime (CLR) to execute.
+ *
+ * Package: formats.pe.pe_com_descriptor
+ */
+
+package formats.pe.pe_com_descriptor;
+
+/**
+ * IMAGE_COR20_HEADER
+ *
+ * CLR 2.0 Runtime Header (72 bytes).
+ *
+ * This structure is found in all .NET executables and describes the
+ * managed code metadata. The "COR20" name comes from "Common Object Runtime 2.0",
+ * which was the original name for the .NET CLR.
+ *
+ * The header points to:
+ * - CLR metadata (type definitions, method signatures, IL code)
+ * - Managed resources (embedded in the assembly)
+ * - Strong name signature (for signed assemblies)
+ * - VTable fixups (for COM interop scenarios)
+ *
+ * Structure layout matches ECMA-335 specification, section II.25.3.3.
+ */
+struct image_cor20_header {
+    /**
+     * cb (Count of Bytes)
+     *
+     * Size of this header in bytes.
+     * Standard value is 72 (0x48) for CLR 2.0 and later.
+     *
+     * This field allows for future extensibility - new fields could be
+     * added at the end without breaking compatibility.
+     */
+    uint32 cb;
+
+    /**
+     * MajorRuntimeVersion
+     *
+     * Major version of CLR required to run this assembly.
+     * Common values:
+     * - 2 = .NET Framework 2.0 through 3.5
+     * - 2 = .NET Framework 4.0 and later (still uses version 2.x metadata)
+     *
+     * This is the metadata format version, not the .NET Framework version.
+     * Most assemblies use version 2.x metadata regardless of .NET version.
+     */
+    uint16 major_runtime_version;
+
+    /**
+     * MinorRuntimeVersion
+     *
+     * Minor version of CLR required.
+     * Typically 0 or 5.
+     */
+    uint16 minor_runtime_version;
+
+    /**
+     * MetaData (RVA and Size)
+     *
+     * RVA and size of CLR metadata.
+     * The metadata contains:
+     * - Module definition
+     * - Type definitions (classes, interfaces, structs)
+     * - Method definitions (signatures, IL code)
+     * - Field definitions
+     * - Property and event definitions
+     * - Assembly references
+     * - Custom attributes
+     *
+     * The metadata is stored in a compact binary format defined by ECMA-335.
+     */
+    uint32 metadata_rva;
+    uint32 metadata_size;
+
+    /**
+     * Flags
+     *
+     * COMIMAGE flags that describe assembly characteristics:
+     * - 0x00000001 = COMIMAGE_FLAGS_ILONLY (assembly contains only IL code)
+     * - 0x00000002 = COMIMAGE_FLAGS_32BITREQUIRED (requires 32-bit runtime)
+     * - 0x00000004 = COMIMAGE_FLAGS_IL_LIBRARY (is a library, not executable)
+     * - 0x00000008 = COMIMAGE_FLAGS_STRONGNAMESIGNED (has strong name signature)
+     * - 0x00000010 = COMIMAGE_FLAGS_NATIVE_ENTRYPOINT (entry point is native code)
+     * - 0x00010000 = COMIMAGE_FLAGS_TRACKDEBUGDATA (track debug data)
+     * - 0x00020000 = COMIMAGE_FLAGS_PREFER_32BIT (prefers 32-bit even on 64-bit)
+     */
+    uint32 flags;
+
+    /**
+     * EntryPointToken or EntryPointRVA
+     *
+     * If COMIMAGE_FLAGS_NATIVE_ENTRYPOINT is set:
+     *   This is an RVA to native code entry point.
+     *
+     * Otherwise:
+     *   This is a metadata token for the managed entry point method.
+     *   Token format: 0x06xxxxxx (MethodDef table, row xxxxxx)
+     *
+     * For DLLs without an entry point, this is typically 0.
+     */
+    uint32 entry_point_token_or_rva;
+
+    /**
+     * Resources (RVA and Size)
+     *
+     * RVA and size of managed resources.
+     * Managed resources are embedded files (strings, images, etc.) that can
+     * be accessed via System.Resources.ResourceManager at runtime.
+     *
+     * Zero if no managed resources are present.
+     */
+    uint32 resources_rva;
+    uint32 resources_size;
+
+    /**
+     * StrongNameSignature (RVA and Size)
+     *
+     * RVA and size of strong name signature.
+     * Strong names provide:
+     * - Unique identity (based on public key)
+     * - Integrity verification (signature over assembly hash)
+     * - Protection against tampering
+     *
+     * Zero if assembly is not strong-name signed.
+     * COMIMAGE_FLAGS_STRONGNAMESIGNED flag must be set if this is non-zero.
+     */
+    uint32 strong_name_signature_rva;
+    uint32 strong_name_signature_size;
+
+    /**
+     * CodeManagerTable (RVA and Size)
+     *
+     * RVA and size of code manager table.
+     * Rarely used, almost always zero.
+     * Reserved for future use.
+     */
+    uint32 code_manager_table_rva;
+    uint32 code_manager_table_size;
+
+    /**
+     * VTableFixups (RVA and Size)
+     *
+     * RVA and size of VTable fixups.
+     * Used for COM interop scenarios where managed code implements COM interfaces.
+     * The fixups allow COM clients to call managed code through vtables.
+     *
+     * Zero if no COM interop is used.
+     */
+    uint32 vtable_fixups_rva;
+    uint32 vtable_fixups_size;
+
+    /**
+     * ExportAddressTableJumps (RVA and Size)
+     *
+     * RVA and size of export address table jumps.
+     * Rarely used, almost always zero.
+     * Reserved for future use.
+     */
+    uint32 export_address_table_jumps_rva;
+    uint32 export_address_table_jumps_size;
+
+    /**
+     * ManagedNativeHeader (RVA and Size)
+     *
+     * RVA and size of managed native header.
+     * Used for NGen (Native Image Generator) pre-JIT compiled assemblies.
+     * Points to native code image metadata.
+     *
+     * Zero for normal IL-only assemblies.
+     * Non-zero for assemblies installed in the Global Assembly Cache (GAC)
+     * that have been pre-compiled to native code.
+     */
+    uint32 managed_native_header_rva;
+    uint32 managed_native_header_size;
+};

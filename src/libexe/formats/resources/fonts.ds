@@ -1,0 +1,368 @@
+/**
+ * Windows Font Resource Structures (RT_FONT)
+ *
+ * This module defines structures for Windows font files (.FNT format)
+ * used in RT_FONT and RT_FONTDIR resources.
+ *
+ * Windows supports both raster (bitmap) and vector fonts, with different
+ * glyph entry formats depending on version and font attributes.
+ *
+ * References:
+ * - fon.txt (Windows Font File Format specification)
+ * - resfmt.txt section on font resources
+ */
+package formats.resources.fonts;
+
+import formats.common;
+
+// All Windows resource formats use little-endian byte order
+little;
+
+// =============================================================================
+// Font Type and Family Enums
+// =============================================================================
+
+/**
+ * Font type flags
+ *
+ * Indicates whether font is raster (bitmap) or vector format
+ * Per fon.txt (lines 50-68)
+ */
+enum uint16 font_type {
+    FNT_TYPE_RASTER   = 0x0000,  // Raster (bitmap) font
+    FNT_TYPE_VECTOR   = 0x0001,  // Vector font
+    FNT_TYPE_MEMORY   = 0x0004,  // Bits in memory at fixed address
+    FNT_TYPE_DEVICE   = 0x0080   // Font realized by device
+};
+
+/**
+ * Font family values
+ *
+ * Indicates the general design category of the font
+ * Per fon.txt (lines 140-149)
+ */
+enum uint8 font_family {
+    FF_DONTCARE   = 0x00,  // Don't care or don't know
+    FF_ROMAN      = 0x10,  // Proportional with serifs (Times New Roman)
+    FF_SWISS      = 0x20,  // Proportional without serifs (Arial, Helvetica)
+    FF_MODERN     = 0x30,  // Fixed-pitch (Courier, Console)
+    FF_SCRIPT     = 0x40,  // Script fonts (cursive)
+    FF_DECORATIVE = 0x50   // Decorative fonts (ornamental)
+};
+
+/**
+ * Font pitch flags
+ *
+ * Low bit of dfPitchAndFamily field
+ */
+enum uint8 font_pitch {
+    FIXED_PITCH    = 0x00,  // Fixed pitch (all characters same width)
+    VARIABLE_PITCH = 0x01   // Variable pitch (proportional spacing)
+};
+
+/**
+ * Font flags - format of glyph bitmap
+ *
+ * Indicates the glyph entry format and color depth
+ * Per fon.txt (lines 222-236)
+ */
+enum uint32 font_flags {
+    DFF_FIXED           = 0x0001,  // Fixed pitch font
+    DFF_PROPORTIONAL    = 0x0002,  // Proportional pitch font
+    DFF_ABCFIXED        = 0x0004,  // ABC fixed font (advanced spacing)
+    DFF_ABCPROPORTIONAL = 0x0008,  // ABC proportional font
+    DFF_1COLOR          = 0x0010,  // 1 color (8 pixels per byte, monochrome)
+    DFF_16COLOR         = 0x0020,  // 16 color (2 pixels per byte)
+    DFF_256COLOR        = 0x0040,  // 256 color (1 pixel per byte)
+    DFF_RGBCOLOR        = 0x0080   // RGB color (RGBquads)
+};
+
+// =============================================================================
+// Font Header
+// =============================================================================
+
+/**
+ * Windows Font File Header (.FNT file format)
+ *
+ * This structure describes both raster and vector fonts.
+ * The header is followed by glyph entries, glyph bitmaps, and optional
+ * device/face name strings.
+ *
+ * Version differences:
+ * - 0x0200: Windows 2.x format (4-byte glyph entries)
+ * - 0x0300: Windows 3.x+ format (6-byte glyph entries, adds flags and spacing)
+ *
+ * Per fon.txt specification (lines 37-264)
+ */
+struct font_header {
+    uint16 version;              // Font version: 0x0200 or 0x0300
+    uint32 size;                 // Total file size in bytes
+    uint8  copyright[60];        // Copyright string (null-terminated ASCII)
+    uint16 type;                 // Font type (FontType enum)
+    uint16 points;               // Nominal point size
+    uint16 vert_res;             // Vertical resolution in DPI
+    uint16 horiz_res;            // Horizontal resolution in DPI
+    uint16 ascent;               // Distance from top to baseline
+    uint16 internal_leading;     // Leading inside character cell
+    uint16 external_leading;     // Extra leading between rows
+    uint8  italic;               // Italic flag (0 or 1)
+    uint8  underline;            // Underline flag (0 or 1)
+    uint8  strike_out;           // Strikeout flag (0 or 1)
+    uint16 weight;               // Weight (1-1000, 400=normal, 700=bold)
+    uint8  char_set;             // Character set (ANSI=0, OEM=255, etc.)
+    uint16 pix_width;            // Character width in pixels (0=variable)
+    uint16 pix_height;           // Character height in pixels
+    uint8  pitch_and_family;     // Low 4 bits=pitch, high 4 bits=family
+    uint16 avg_width;            // Average character width
+    uint16 max_width;            // Maximum character width
+    uint8  first_char;           // First character code in font
+    uint8  last_char;            // Last character code in font
+    uint8  default_char;         // Default character (offset from first_char)
+    uint8  break_char;           // Word break character (offset from first_char)
+    uint16 width_bytes;          // Bytes per row of glyph bitmap
+    uint32 device;               // Offset to device name string
+    uint32 face;                 // Offset to typeface name string
+    uint32 bits_pointer;         // Absolute address (set by GDI at load time)
+    uint32 bits_offset;          // Offset to glyph bitmap data
+    uint8  reserved;             // Reserved byte
+    uint32 flags;                // Font flags (Windows 3.0+, FontFlags enum)
+    uint16 aspace;               // Global A space (Windows 3.0+)
+    uint16 bspace;               // Global B space (Windows 3.0+)
+    uint16 cspace;               // Global C space (Windows 3.0+)
+    uint32 color_pointer;        // Offset to color table (Windows 3.0+)
+    uint8  reserved1[16];        // Reserved (Windows 3.0+)
+};
+
+/**
+ * Complete Windows 2.x Font File
+ *
+ * Windows 2.x fonts use 4-byte glyph entries (2-byte width + 2-byte offset).
+ * The glyph table has (last_char - first_char + 2) entries:
+ *   - One entry per character in the range
+ *   - Plus one sentinel entry for absolute positioning
+ *
+ * Header size: 117 bytes (no flags, aspace, bspace, cspace, color_pointer, reserved1)
+ */
+struct font_2x {
+    // Header (117 bytes for 2.x)
+    uint16 version : version == 0x0200;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type;
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width;
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+    uint8  reserved;
+    // Note: No flags, aspace, bspace, cspace, color_pointer, reserved1 in 2.x
+
+    // Glyph table: (last_char - first_char + 2) entries
+    glyph_entry_2x glyphs[last_char - first_char + 2];
+};
+
+/**
+ * Complete Windows 3.x Font File
+ *
+ * Windows 3.x fonts use 6-byte glyph entries (2-byte width + 4-byte offset).
+ * The glyph table has (last_char - first_char + 2) entries.
+ */
+struct font_3x {
+    // Header (118 bytes)
+    uint16 version : version == 0x0300;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type;
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width;
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+    uint8  reserved;
+    uint32 flags;
+    uint16 aspace;
+    uint16 bspace;
+    uint16 cspace;
+    uint32 color_pointer;
+    uint8  reserved1[16];
+
+    // Glyph table: (last_char - first_char + 2) entries
+    glyph_entry_30 glyphs[last_char - first_char + 2];
+};
+
+// =============================================================================
+// Glyph Entry Structures
+// =============================================================================
+
+/**
+ * Windows 2.x Glyph Entry
+ *
+ * Used for Windows 2.x fonts (version 0x0200)
+ * Simple format with 16-bit offset pointer
+ *
+ * Per fon.txt (lines 362-365)
+ */
+struct glyph_entry_2x {
+    uint16 width;                // Glyph width in pixels
+    uint16 offset;               // Offset to bitmap data (16-bit)
+};
+
+/**
+ * Windows 3.0 Glyph Entry (DFF_FIXED, DFF_PROPORTIONAL)
+ *
+ * Used for standard Windows 3.0+ fonts
+ * Extended format with 32-bit offset pointer
+ *
+ * Per fon.txt (lines 375-378)
+ */
+struct glyph_entry_30 {
+    uint16 width;                // Glyph width in pixels
+    uint32 offset;               // Offset to bitmap data (32-bit)
+};
+
+/**
+ * Windows 3.0 ABC Glyph Entry (DFF_ABCFIXED, DFF_ABCPROPORTIONAL)
+ *
+ * Advanced glyph spacing format with ABC spacing values.
+ * ABC spacing provides finer control over character positioning:
+ *
+ * - A space: distance from current position to left edge of glyph
+ * - B space: width of the glyph itself
+ * - C space: distance from right edge of glyph to next position
+ *
+ * Spacing values are in 16.16 fixed-point format:
+ *   - High 16 bits: integer part
+ *   - Low 16 bits: fractional part
+ *
+ * Per fon.txt (lines 384-390)
+ */
+struct glyph_entry_abc {
+    uint16 width;                // Glyph width in pixels
+    uint32 offset;               // Offset to bitmap data
+    uint32 aspace;               // A space (16.16 fixed point)
+    uint32 bspace;               // B space (16.16 fixed point)
+    uint32 cspace;               // C space (16.16 fixed point)
+};
+
+/**
+ * Windows 3.0 Color Glyph Entry (DFF_1COLOR through DFF_RGBCOLOR)
+ *
+ * Glyph entry for color fonts (16-color, 256-color, or RGB)
+ * Includes height field in addition to ABC spacing
+ *
+ * Per fon.txt (lines 402-409)
+ */
+struct glyph_entry_color {
+    uint16 width;                // Glyph width in pixels
+    uint32 offset;               // Offset to bitmap data
+    uint16 height;               // Glyph height in pixels (for color fonts)
+    uint32 aspace;               // A space (16.16 fixed point)
+    uint32 bspace;               // B space (16.16 fixed point)
+    uint32 cspace;               // C space (16.16 fixed point)
+};
+
+// =============================================================================
+// Usage Notes
+// =============================================================================
+
+/*
+ * FONT RESOURCE USAGE:
+ *
+ * Font resources in Windows executables consist of:
+ *
+ * 1. RT_FONTDIR resource:
+ *    - Directory of all fonts in the resource
+ *    - Contains FontHeader for each font
+ *    - Used by AddFontResource API
+ *
+ * 2. RT_FONT resources:
+ *    - Individual font data
+ *    - One resource per font
+ *    - Contains complete .FNT file data
+ *
+ * PARSING WORKFLOW:
+ *
+ * 1. Read FontHeader (117 bytes)
+ * 2. Determine glyph entry format from flags field:
+ *    - Version 0x0200: Use GlyphEntry2x
+ *    - DFF_1COLOR through DFF_RGBCOLOR: Use GlyphEntryColor
+ *    - DFF_ABCFIXED or DFF_ABCPROPORTIONAL: Use GlyphEntryABC
+ *    - DFF_FIXED or DFF_PROPORTIONAL: Use GlyphEntry30
+ *
+ * 3. Read glyph table:
+ *    - Number of glyphs = (last_char - first_char + 1)
+ *    - Array of glyph entries follows header
+ *
+ * 4. Read glyph bitmaps:
+ *    - Each glyph entry has offset field
+ *    - Offset is relative to start of font file
+ *    - Bitmap format depends on font type and color depth
+ *
+ * 5. Read optional strings:
+ *    - Device name at offset 'device' (if non-zero)
+ *    - Typeface name at offset 'face' (if non-zero)
+ *
+ * CHARACTER SET VALUES:
+ *
+ * Common char_set values:
+ *   - 0: ANSI character set
+ *   - 2: Symbol character set
+ *   - 128: Shift-JIS (Japanese)
+ *   - 129: Hangul (Korean)
+ *   - 134: GB2312 (Chinese simplified)
+ *   - 136: ChineseBig5 (Chinese traditional)
+ *   - 255: OEM character set
+ *
+ * WEIGHT VALUES:
+ *
+ * Standard weight values (dfWeight field):
+ *   - 100: Thin
+ *   - 200: Extra Light
+ *   - 300: Light
+ *   - 400: Normal/Regular
+ *   - 500: Medium
+ *   - 600: Semi-Bold
+ *   - 700: Bold
+ *   - 800: Extra Bold
+ *   - 900: Black/Heavy
+ */
