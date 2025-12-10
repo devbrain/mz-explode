@@ -42,7 +42,6 @@ TEST_CASE("LX OS2CHESS.EXE: has iterated pages") {
     }
 
     CHECK(found_iterated);
-    MESSAGE("OS2CHESS.EXE has iterated (EXEPACK1) pages");
 }
 
 TEST_CASE("LX OS2CHESS.EXE: read object with iterated pages") {
@@ -65,8 +64,6 @@ TEST_CASE("LX OS2CHESS.EXE: read object with iterated pages") {
             CHECK_FALSE(data.empty());
             // Decompressed size should match or be close to virtual_size
             CHECK(data.size() <= obj.virtual_size);
-            MESSAGE("Object ", obj.index, ": virtual_size=", obj.virtual_size,
-                   ", decompressed=", data.size());
             break;
         }
     }
@@ -85,7 +82,6 @@ TEST_CASE("LX STRACE.EXE: read object with iterated pages") {
                 found_iterated = true;
                 auto data = le.read_object_data(obj.index);
                 CHECK_FALSE(data.empty());
-                MESSAGE("STRACE.EXE object ", obj.index, ": decompressed ", data.size(), " bytes");
                 break;
             }
         }
@@ -117,7 +113,6 @@ TEST_CASE("LX CMD.EXE: has compressed pages") {
     }
 
     CHECK(found_compressed);
-    MESSAGE("CMD.EXE has compressed (EXEPACK2) pages");
 }
 
 TEST_CASE("LX CMD.EXE: read object with compressed pages") {
@@ -139,8 +134,6 @@ TEST_CASE("LX CMD.EXE: read object with compressed pages") {
             auto data = le.read_object_data(obj.index);
             CHECK_FALSE(data.empty());
             CHECK(data.size() <= obj.virtual_size);
-            MESSAGE("CMD.EXE object ", obj.index, ": virtual_size=", obj.virtual_size,
-                   ", decompressed=", data.size());
             break;
         }
     }
@@ -159,8 +152,6 @@ TEST_CASE("LX 7z.exe: read object with compressed pages") {
                 found_compressed = true;
                 auto data = le.read_object_data(obj.index);
                 CHECK_FALSE(data.empty());
-                MESSAGE("7z.exe object ", obj.index, ": virtual_size=", obj.virtual_size,
-                       ", decompressed=", data.size());
                 break;
             }
         }
@@ -189,5 +180,4 @@ TEST_CASE("LX OS2CHESS.EXE: read resource from compressed object") {
     CHECK_FALSE(data.empty());
     CHECK(data.size() == bmp->size);
 
-    MESSAGE("Read bitmap resource: ", data.size(), " bytes from object ", bmp->object);
 }

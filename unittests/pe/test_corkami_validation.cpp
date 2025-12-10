@@ -368,23 +368,16 @@ TEST_CASE("Debug dllfwloop.dll diagnostics") {
     // Check exports
     auto exports = pe.exports();
     if (exports) {
-        MESSAGE("Export module name: ", exports->module_name);
-        MESSAGE("Export count: ", exports->export_count());
         for (const auto& exp : exports->exports) {
             if (exp.is_forwarder) {
-                MESSAGE("  Forwarder: ", exp.name, " -> ", exp.forwarder_name);
             } else {
-                MESSAGE("  Export: ", exp.name, " @ 0x", std::hex, exp.rva);
             }
         }
     } else {
-        MESSAGE("No exports");
     }
 
     // Print diagnostics count
-    MESSAGE("Diagnostic count: ", pe.diagnostics().count());
     for (const auto& d : pe.diagnostics().all()) {
-        MESSAGE("  ", d.to_string());
     }
 }
 

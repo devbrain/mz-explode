@@ -39,34 +39,28 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         // Modern Windows executables should have ASLR enabled
         // Check DllCharacteristics for DYNAMIC_BASE (0x0040)
         bool has_aslr = pe.has_aslr();
-        MESSAGE("ASLR enabled: ", has_aslr);
         // Most modern PEs have ASLR, but test data may vary
     }
 
     SUBCASE("High-entropy ASLR detection") {
         // 64-bit PEs can use high-entropy ASLR for better randomization
         bool has_he_aslr = pe.has_high_entropy_aslr();
-        MESSAGE("High-entropy ASLR enabled: ", has_he_aslr);
     }
 
     SUBCASE("DEP/NX detection") {
         // NX_COMPAT (0x0100) - Data Execution Prevention
         bool has_dep = pe.has_dep();
-        MESSAGE("DEP/NX enabled: ", has_dep);
     }
 
     SUBCASE("CFG detection") {
         // GUARD_CF (0x4000) - Control Flow Guard
         bool has_cfg = pe.has_cfg();
-        MESSAGE("CFG enabled: ", has_cfg);
     }
 
     SUBCASE("SEH analysis") {
         // NO_SEH flag or SafeSEH via load config
         bool no_seh = pe.has_no_seh();
         bool safe_seh = pe.has_safe_seh();
-        MESSAGE("NO_SEH flag: ", no_seh);
-        MESSAGE("SafeSEH enabled: ", safe_seh);
 
         // 64-bit executables don't use SafeSEH (it's 32-bit only)
         CHECK(pe.is_64bit());
@@ -75,12 +69,10 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
 
     SUBCASE("Authenticode signature detection") {
         bool has_sig = pe.has_authenticode();
-        MESSAGE("Authenticode signature present: ", has_sig);
     }
 
     SUBCASE(".NET assembly detection") {
         bool is_dotnet = pe.is_dotnet();
-        MESSAGE("Is .NET assembly: ", is_dotnet);
         // TCMADM64 is native code, not .NET
         CHECK_FALSE(is_dotnet);
     }
@@ -89,8 +81,6 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         bool is_dll = pe.is_dll();
         bool is_laa = pe.is_large_address_aware();
 
-        MESSAGE("Is DLL: ", is_dll);
-        MESSAGE("Large Address Aware: ", is_laa);
 
         // TCMADM64 is an executable, not a DLL
         CHECK_FALSE(is_dll);
@@ -102,13 +92,10 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         bool is_appcontainer = pe.is_appcontainer();
         bool is_ts_aware = pe.is_terminal_server_aware();
 
-        MESSAGE("AppContainer: ", is_appcontainer);
-        MESSAGE("Terminal Server Aware: ", is_ts_aware);
     }
 
     SUBCASE("Force integrity") {
         bool force_integrity = pe.has_force_integrity();
-        MESSAGE("Force Integrity: ", force_integrity);
     }
 
     SUBCASE("Subsystem detection") {
@@ -117,10 +104,6 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         bool is_native = pe.is_native();
         bool is_efi = pe.is_efi();
 
-        MESSAGE("Is GUI: ", is_gui);
-        MESSAGE("Is Console: ", is_console);
-        MESSAGE("Is Native: ", is_native);
-        MESSAGE("Is EFI: ", is_efi);
 
         // TCMADM64.EXE is a GUI application
         CHECK(is_gui);
@@ -166,18 +149,15 @@ TEST_CASE("PE Import Analysis: TCMADM64.EXE") {
 
     SUBCASE("Imported DLLs list") {
         auto dlls = pe.imported_dlls();
-        MESSAGE("Number of imported DLLs: ", dlls.size());
 
         CHECK(dlls.size() > 0);
 
         for (const auto& dll : dlls) {
-            MESSAGE("  Imports from: ", dll);
         }
     }
 
     SUBCASE("Import function count") {
         size_t count = pe.imported_function_count();
-        MESSAGE("Total imported functions: ", count);
         CHECK(count > 0);
     }
 
@@ -187,7 +167,6 @@ TEST_CASE("PE Import Analysis: TCMADM64.EXE") {
         bool imports_kernel32_upper = pe.imports_dll("KERNEL32.DLL");
         bool imports_kernel32_mixed = pe.imports_dll("Kernel32.dll");
 
-        MESSAGE("Imports kernel32.dll: ", imports_kernel32);
 
         // Case-insensitive comparison should work
         CHECK(imports_kernel32 == imports_kernel32_upper);
@@ -199,23 +178,16 @@ TEST_CASE("PE Import Analysis: TCMADM64.EXE") {
         bool imports_exitprocess = pe.imports_function("ExitProcess");
         bool imports_getlasterror = pe.imports_function("GetLastError");
 
-        MESSAGE("Imports ExitProcess: ", imports_exitprocess);
-        MESSAGE("Imports GetLastError: ", imports_getlasterror);
     }
 
     SUBCASE("Check for function from specific DLL") {
         // More precise check: function from specific DLL
         bool exitprocess_from_kernel32 = pe.imports_function("kernel32.dll", "ExitProcess");
-        MESSAGE("ExitProcess from kernel32.dll: ", exitprocess_from_kernel32);
     }
 
     SUBCASE("Full import directory access") {
         auto imports = pe.imports();
         if (imports) {
-            MESSAGE("Import directory parsed successfully");
-            MESSAGE("  DLL count: ", imports->dll_count());
-            MESSAGE("  Total imports: ", imports->total_imports());
-            MESSAGE("  Has bound imports: ", imports->has_bound_imports());
 
             CHECK(imports->dll_count() == pe.imported_dlls().size());
         }
@@ -232,28 +204,19 @@ TEST_CASE("PE Export Analysis: TCMADM64.EXE") {
 
     SUBCASE("Exported functions list") {
         auto exports = pe.exported_functions();
-        MESSAGE("Number of exported functions: ", exports.size());
 
         // TCMADM64.EXE is an executable, may not have exports
         for (const auto& name : exports) {
-            MESSAGE("  Exports: ", name);
         }
     }
 
     SUBCASE("Export function count") {
         size_t count = pe.exported_function_count();
-        MESSAGE("Total exported functions: ", count);
     }
 
     SUBCASE("Full export directory access") {
         auto exports = pe.exports();
         if (exports && exports->export_count() > 0) {
-            MESSAGE("Export directory parsed successfully");
-            MESSAGE("  Module name: ", exports->module_name);
-            MESSAGE("  Export count: ", exports->export_count());
-            MESSAGE("  Named exports: ", exports->named_export_count());
-            MESSAGE("  Forwarder count: ", exports->forwarder_count());
-            MESSAGE("  Ordinal base: ", exports->ordinal_base);
         }
     }
 }
@@ -266,41 +229,10 @@ TEST_CASE("PE Security Report: comprehensive analysis") {
     auto data = load_tcmadm64();
     auto pe = pe_file::from_memory(data);
 
-    MESSAGE("=== Security Analysis Report ===");
-    MESSAGE("File: TCMADM64.EXE");
-    MESSAGE("Format: ", pe.format_name());
-    MESSAGE("");
 
-    MESSAGE("Security Features:");
-    MESSAGE("  ASLR:              ", pe.has_aslr() ? "Enabled" : "Disabled");
-    MESSAGE("  High-Entropy ASLR: ", pe.has_high_entropy_aslr() ? "Enabled" : "Disabled");
-    MESSAGE("  DEP/NX:            ", pe.has_dep() ? "Enabled" : "Disabled");
-    MESSAGE("  CFG:               ", pe.has_cfg() ? "Enabled" : "Disabled");
-    MESSAGE("  SafeSEH:           ", pe.has_safe_seh() ? "Enabled" : "N/A (64-bit)");
-    MESSAGE("  NO_SEH:            ", pe.has_no_seh() ? "Yes" : "No");
-    MESSAGE("  Force Integrity:   ", pe.has_force_integrity() ? "Yes" : "No");
-    MESSAGE("  Authenticode:      ", pe.has_authenticode() ? "Present" : "Not present");
-    MESSAGE("");
 
-    MESSAGE("File Properties:");
-    MESSAGE("  Is DLL:            ", pe.is_dll() ? "Yes" : "No");
-    MESSAGE("  Is .NET:           ", pe.is_dotnet() ? "Yes" : "No");
-    MESSAGE("  Large Addr Aware:  ", pe.is_large_address_aware() ? "Yes" : "No");
-    MESSAGE("  AppContainer:      ", pe.is_appcontainer() ? "Yes" : "No");
-    MESSAGE("  TS Aware:          ", pe.is_terminal_server_aware() ? "Yes" : "No");
-    MESSAGE("");
 
-    MESSAGE("Subsystem:");
-    MESSAGE("  Is GUI:            ", pe.is_gui() ? "Yes" : "No");
-    MESSAGE("  Is Console:        ", pe.is_console() ? "Yes" : "No");
-    MESSAGE("  Is Native:         ", pe.is_native() ? "Yes" : "No");
-    MESSAGE("  Is EFI:            ", pe.is_efi() ? "Yes" : "No");
-    MESSAGE("");
 
-    MESSAGE("Import/Export Summary:");
-    MESSAGE("  Imported DLLs:     ", pe.imported_dlls().size());
-    MESSAGE("  Imported functions:", pe.imported_function_count());
-    MESSAGE("  Exported functions:", pe.exported_function_count());
 
     // Basic sanity checks
     CHECK(pe.is_64bit());
@@ -318,7 +250,6 @@ TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
 
     SUBCASE("File entropy") {
         double entropy = pe.file_entropy();
-        MESSAGE("File entropy: ", entropy, " bits");
 
         // File entropy should be reasonable (not empty, not random)
         CHECK(entropy > 0.0);
@@ -328,10 +259,9 @@ TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
     SUBCASE("Section entropies") {
         auto section_entropies = pe.all_section_entropies();
 
-        MESSAGE("Section entropies:");
         for (const auto& [name, entropy] : section_entropies) {
-            MESSAGE("  ", name, ": ", entropy, " bits (",
-                   entropy_calculator::classify(entropy), ")");
+            (void)name;
+            (void)entropy;
         }
 
         CHECK(section_entropies.size() > 0);
@@ -340,7 +270,6 @@ TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
     SUBCASE("Individual section entropy") {
         // .text section typically has moderate entropy (compiled code)
         double text_entropy = pe.section_entropy(".text");
-        MESSAGE(".text entropy: ", text_entropy, " bits");
 
         // Code typically has entropy between 5-7
         if (text_entropy > 0.0) {
@@ -351,7 +280,6 @@ TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
 
     SUBCASE("High entropy detection") {
         bool has_high = pe.has_high_entropy_sections();
-        MESSAGE("Has high entropy sections: ", has_high);
 
         // TCMADM64 is a normal executable, should not have very high entropy
         // (If it does, it might have embedded resources or data)
@@ -359,7 +287,6 @@ TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
 
     SUBCASE("Packing detection") {
         bool likely_packed = pe.is_likely_packed();
-        MESSAGE("Likely packed: ", likely_packed);
 
         // TCMADM64 is a normal executable, should not be detected as packed
         CHECK_FALSE(likely_packed);
@@ -376,7 +303,6 @@ TEST_CASE("Entropy Calculator: Unit Tests") {
     SUBCASE("Single byte repeated") {
         std::vector<uint8_t> uniform(1000, 0x00);
         double entropy = entropy_calculator::calculate(uniform);
-        MESSAGE("Uniform data entropy: ", entropy);
         CHECK(entropy == 0.0);  // All same bytes = 0 entropy
     }
 
@@ -387,7 +313,6 @@ TEST_CASE("Entropy Calculator: Unit Tests") {
             two_values.push_back(0xFF);
         }
         double entropy = entropy_calculator::calculate(two_values);
-        MESSAGE("Two values entropy: ", entropy);
         CHECK(entropy == doctest::Approx(1.0).epsilon(0.01));  // log2(2) = 1
     }
 
@@ -398,7 +323,6 @@ TEST_CASE("Entropy Calculator: Unit Tests") {
             uniform_dist.push_back(static_cast<uint8_t>(i));
         }
         double entropy = entropy_calculator::calculate(uniform_dist);
-        MESSAGE("Uniform distribution entropy: ", entropy);
         CHECK(entropy == doctest::Approx(8.0).epsilon(0.01));  // log2(256) = 8
     }
 
@@ -421,12 +345,8 @@ TEST_CASE("PE Overlay Analysis: TCMADM64.EXE") {
 
     SUBCASE("Overlay detection") {
         bool has_overlay = pe.has_overlay();
-        MESSAGE("Has overlay: ", has_overlay);
 
         if (has_overlay) {
-            MESSAGE("Overlay offset: ", pe.overlay_offset());
-            MESSAGE("Overlay size: ", pe.overlay_size(), " bytes");
-            MESSAGE("Overlay entropy: ", pe.overlay_entropy(), " bits");
 
             auto overlay = pe.overlay_data();
             CHECK(overlay.size() == pe.overlay_size());
@@ -438,9 +358,6 @@ TEST_CASE("PE Overlay Analysis: TCMADM64.EXE") {
         uint64_t size = pe.overlay_size();
         double entropy = pe.overlay_entropy();
 
-        MESSAGE("Overlay offset: ", offset);
-        MESSAGE("Overlay size: ", size);
-        MESSAGE("Overlay entropy: ", entropy);
 
         // If no overlay, these should be 0
         if (!pe.has_overlay()) {
@@ -460,11 +377,9 @@ TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
 
     SUBCASE("Authenticode presence") {
         bool has_sig = pe.has_authenticode();
-        MESSAGE("Has Authenticode signature: ", has_sig);
 
         // TCMADM64.EXE should be signed
         if (has_sig) {
-            MESSAGE("  Security directory size: ", pe.data_directory_size(directory_entry::SECURITY));
         }
     }
 
@@ -472,24 +387,14 @@ TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
         auto info = pe.authenticode_info();
 
         if (info) {
-            MESSAGE("Authenticode signature parsed successfully");
-            MESSAGE("  Content type: ", info->content_type);
-            MESSAGE("  Digest algorithm: ", hash_algorithm_name(info->digest_algorithm));
-            MESSAGE("  Version: ", info->version);
-            MESSAGE("  Signers: ", info->signers.size());
-            MESSAGE("  Certificates: ", info->certificates.size());
-            MESSAGE("  Has timestamp: ", info->has_timestamp());
 
             if (info->is_valid()) {
-                MESSAGE("  Signature is valid Authenticode");
             }
 
             // Check for deprecated algorithms
             if (info->uses_deprecated_algorithm()) {
-                MESSAGE("  WARNING: Uses deprecated algorithm (MD5/SHA1)");
             }
         } else {
-            MESSAGE("No Authenticode signature or parsing failed");
         }
     }
 
@@ -497,18 +402,12 @@ TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
         auto info = pe.authenticode_info();
 
         if (info && !info->certificates.empty()) {
-            MESSAGE("Certificate chain:");
             for (size_t i = 0; i < info->certificates.size(); ++i) {
                 const auto& cert = info->certificates[i];
-                MESSAGE("  [", i, "] Subject: ", cert.subject.to_string());
-                MESSAGE("       Issuer:  ", cert.issuer.to_string());
-                MESSAGE("       Serial:  ", cert.serial_number);
 
                 if (cert.is_self_signed()) {
-                    MESSAGE("       (ROOT CERTIFICATE)");
                 }
                 if (cert.is_expired()) {
-                    MESSAGE("       (EXPIRED)");
                 }
             }
 
@@ -521,15 +420,10 @@ TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
         auto info = pe.authenticode_info();
 
         if (info && !info->signers.empty()) {
-            MESSAGE("Signers:");
             for (size_t i = 0; i < info->signers.size(); ++i) {
                 const auto& signer = info->signers[i];
-                MESSAGE("  [", i, "] Issuer: ", signer.issuer.to_string());
-                MESSAGE("       Serial: ", signer.serial_number);
-                MESSAGE("       Digest: ", hash_algorithm_name(signer.digest_algorithm));
 
                 if (signer.uses_deprecated_algorithm()) {
-                    MESSAGE("       WARNING: Deprecated algorithm");
                 }
             }
         }
@@ -539,17 +433,12 @@ TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
         auto info = pe.authenticode_info();
 
         if (info && info->has_timestamp()) {
-            MESSAGE("Timestamp: ", info->timestamp->to_string());
-            MESSAGE("  RFC 3161: ", info->timestamp->is_rfc3161);
-            MESSAGE("  Digest: ", hash_algorithm_name(info->timestamp->digest_algorithm));
         } else {
-            MESSAGE("No timestamp in signature");
         }
     }
 
     SUBCASE("Security summary") {
         std::string summary = pe.authenticode_security_summary();
-        MESSAGE("Security Summary:\n", summary);
     }
 
     SUBCASE("Helper method consistency") {
@@ -557,7 +446,6 @@ TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
 
         // Verify helper methods match parsed info
         authenticode_hash_algorithm alg = pe.authenticode_digest_algorithm();
-        MESSAGE("Digest algorithm via helper: ", hash_algorithm_name(alg));
 
         if (info) {
             CHECK(alg == info->digest_algorithm);

@@ -364,9 +364,6 @@ TEST_CASE("LE DOOM.EXE: header fields") {
     CHECK(le.page_size() == 4096);
     CHECK(le.stub_size() > 0);
 
-    MESSAGE("DOOM.EXE stub size: ", le.stub_size());
-    MESSAGE("DOOM.EXE objects: ", le.objects().size());
-    MESSAGE("DOOM.EXE page count: ", le.page_count());
 }
 
 TEST_CASE("LE DOOM.EXE: strip extender") {
@@ -376,7 +373,6 @@ TEST_CASE("LE DOOM.EXE: strip extender") {
     REQUIRE(le.is_bound());
 
     uint32_t stub_size = le.stub_size();
-    MESSAGE("Stripping ", stub_size, " bytes of DOS extender stub");
 
     auto stripped = le.strip_extender();
     REQUIRE(!stripped.empty());
@@ -388,8 +384,6 @@ TEST_CASE("LE DOOM.EXE: strip extender") {
     CHECK(stripped[0] == 0x4C);  // 'L'
     CHECK(stripped[1] == 0x45);  // 'E'
 
-    MESSAGE("Original size: ", data::doom_le_len);
-    MESSAGE("Stripped size: ", stripped.size());
 }
 
 TEST_CASE("LE DOOM.EXE: stripped file is valid LE") {
@@ -430,5 +424,4 @@ TEST_CASE("LE DOOM.EXE: offset adjustments are correct") {
 
     // Module name should still be accessible
     auto name = raw_le.module_name();
-    MESSAGE("Module name: ", name);
 }

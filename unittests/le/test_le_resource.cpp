@@ -53,9 +53,6 @@ TEST_CASE("LX MAKEINI.EXE: resource properties") {
     // Object should be valid (1 or 2 typically)
     CHECK(res.object > 0);
     CHECK(res.object <= le.objects().size());
-
-    MESSAGE("Resource: type=", res.type_id, " name=", res.name_id,
-            " size=", res.size, " obj=", res.object, " offset=0x", std::hex, res.offset);
 }
 
 TEST_CASE("LX MAKEINI.EXE: resource by type lookup") {
@@ -96,7 +93,6 @@ TEST_CASE("LX MAKEINI.EXE: read resource data") {
     auto data = le.read_resource_data(*res);
 
     // Resource size should match (or be close - may be limited by object size)
-    MESSAGE("Resource size claimed: ", res->size, ", data read: ", data.size());
     CHECK_FALSE(data.empty());
     CHECK(data.size() <= res->size);
 }
@@ -205,7 +201,6 @@ TEST_CASE("LX OS2CHESS.EXE: read bitmap resource data") {
     CHECK_FALSE(data.empty());
     CHECK(data.size() <= bmp->size);
 
-    MESSAGE("Bitmap resource: claimed size=", bmp->size, ", read size=", data.size());
 }
 
 // =============================================================================
