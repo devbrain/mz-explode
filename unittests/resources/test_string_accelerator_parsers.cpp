@@ -44,13 +44,10 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
         CHECK_FALSE(string_resources.empty());
         CHECK(string_resources.size() == 9);  // PROGMAN has 9 string blocks
 
-        INFO("String table blocks found: ", string_resources.size());
         for (size_t i = 0; i < string_resources.size(); i++) {
             const auto& res = string_resources[i];
             CHECK(res.standard_type() == resource_type::RT_STRING);
             CHECK(res.size() > 0);
-            INFO("  Block ", i, " - ID: ", res.id().value_or(0),
-                 ", Size: ", res.size(), " bytes");
         }
     }
 
@@ -70,8 +67,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
 
             CHECK(string_table.has_value());
             if (string_table.has_value()) {
-                INFO("Block ", block_idx, " (ID: ", string_table->block_id, ")");
-
                 // Verify block ID matches resource ID
                 CHECK(string_table->block_id == res.id().value());
 
@@ -85,9 +80,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
 
                 CHECK(block_string_count > 0);
                 CHECK(block_string_count <= 16);  // Max 16 strings per block
-
-                INFO("  String count: ", block_string_count);
-                INFO("  Base ID: ", expected_base);
 
                 // Verify each string
                 for (const auto& [string_id, text] : string_table->strings) {
@@ -103,8 +95,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
 
                     // get_string() should return the same text
                     CHECK(string_table->get_string(string_id) == text);
-
-                    INFO("    String ", string_id, ": \"", text, "\"");
                 }
 
                 // Test get_string() with non-existent ID
@@ -115,7 +105,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
         }
 
         CHECK(total_strings > 0);
-        INFO("Total strings across all blocks: ", total_strings);
     }
 
     SUBCASE("Use convenience method as_string_table()") {
@@ -129,10 +118,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
         if (string_table.has_value()) {
             CHECK(string_table->block_id == first_block.id().value());
             CHECK_FALSE(string_table->strings.empty());
-
-            INFO("First block via convenience method:");
-            INFO("  Block ID: ", string_table->block_id);
-            INFO("  String count: ", string_table->strings.size());
         }
     }
 
@@ -146,10 +131,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
             CHECK(res.standard_type() == resource_type::RT_ACCELERATOR);
             CHECK(res.size() > 0);
             CHECK((res.size() % 8) == 0);  // Each entry is 8 bytes
-
-            size_t expected_entries = res.size() / 8;
-            INFO("Accelerator table found - Size: ", res.size(),
-                 " bytes, Expected entries: ", expected_entries);
         }
     }
 
@@ -164,8 +145,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
         if (accel_table.has_value()) {
             CHECK_FALSE(accel_table->empty());
             CHECK(accel_table->count() > 0);
-
-            INFO("Accelerator table entries: ", accel_table->count());
 
             // Verify each accelerator entry
             for (const auto& entry : accel_table->entries) {
@@ -189,9 +168,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
                 if (has_modifiers) {
                     CHECK(key_combo.find('+') != std::string::npos);
                 }
-
-                INFO("  ", key_combo, " -> Command ", entry.command_id,
-                     " (flags: 0x", std::hex, entry.flags, std::dec, ")");
             }
 
             // Test find_by_command()
@@ -220,9 +196,6 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
         CHECK(accel_table.has_value());
         if (accel_table.has_value()) {
             CHECK_FALSE(accel_table->empty());
-
-            INFO("Accelerator table via convenience method:");
-            INFO("  Entry count: ", accel_table->count());
         }
     }
 
@@ -282,15 +255,9 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
             if (a) CHECK(str.find("Alt") != std::string::npos);
         }
 
-        INFO("Modifier combinations:");
-        INFO("  Ctrl: ", ctrl_only);
-        INFO("  Shift: ", shift_only);
-        INFO("  Alt: ", alt_only);
-        INFO("  Ctrl+Shift: ", ctrl_shift);
-        INFO("  Ctrl+Alt: ", ctrl_alt);
-        INFO("  Shift+Alt: ", shift_alt);
-        INFO("  All modifiers: ", all_mods);
-        INFO("  No modifiers: ", no_mods);
+        // Just verify we found some entries
+        CHECK((ctrl_only + shift_only + alt_only + ctrl_shift + ctrl_alt +
+               shift_alt + all_mods + no_mods) == accel_table->count());
     }
 }
 

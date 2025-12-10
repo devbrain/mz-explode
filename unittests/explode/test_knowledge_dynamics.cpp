@@ -50,13 +50,6 @@ TEST_CASE("Knowledge Dynamics decompression: full decompression") {
             // Verify result structure
             CHECK(result.code.size() > 0);
 
-            INFO("Decompressed size: ", result.code.size());
-            INFO("Initial CS: ", result.initial_cs);
-            INFO("Initial IP: ", result.initial_ip);
-            INFO("Initial SS: ", result.initial_ss);
-            INFO("Initial SP: ", result.initial_sp);
-            INFO("Min extra paragraphs: ", result.min_extra_paragraphs);
-
             // Basic sanity checks
             CHECK(result.code.size() > 1000);  // Should be substantial
             CHECK(result.code.size() < 1000000);  // But reasonable

@@ -76,15 +76,6 @@ TEST_CASE("PKLITE decompression: full decompression") {
             // Verify result structure
             CHECK(result.code.size() > 0);
 
-            INFO("Decompressed size: ", result.code.size());
-            INFO("Relocations found: ", result.relocations.size());
-            INFO("Initial CS: ", result.initial_cs);
-            INFO("Initial IP: ", result.initial_ip);
-            INFO("Initial SS: ", result.initial_ss);
-            INFO("Initial SP: ", result.initial_sp);
-            INFO("Min extra paragraphs: ", result.min_extra_paragraphs);
-            INFO("Checksum: ", result.checksum);
-
             // Basic sanity checks
             CHECK(result.code.size() > 1000);  // Should be substantial
             CHECK(result.code.size() < 1000000);  // But reasonable
@@ -118,8 +109,6 @@ TEST_CASE("PKLITE decompression: full decompression") {
             CHECK(result.code.size() > 0);
             CHECK(result.code.size() > 1000);
             CHECK(result.initial_sp > 0);
-
-            INFO("Extra compression - Decompressed size: ", result.code.size());
         }());
     }
 }
@@ -259,10 +248,8 @@ static std::vector<uint8_t> build_exe_file(
 static void test_pklite_md5(
     const unsigned char* data, size_t len,
     const char* expected_digest,
-    const char* test_name)
+    [[maybe_unused]] const char* test_name)
 {
-    INFO("Testing: ", test_name);
-
     std::span<const uint8_t> input(data, len);
 
     // Parse the compressed file
@@ -289,12 +276,6 @@ static void test_pklite_md5(
     MD5_Final(digest, &ctx);
 
     std::string actual = md5_to_string(digest);
-
-    INFO("Expected: ", expected_digest);
-    INFO("Actual:   ", actual);
-    INFO("Output size: ", output.size());
-    INFO("Code size: ", result.code.size());
-    INFO("Relocations: ", result.relocations.size());
 
     CHECK(actual == expected_digest);
 }
