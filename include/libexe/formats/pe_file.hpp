@@ -175,6 +175,22 @@ namespace libexe {
             [[nodiscard]] bool is_large_address_aware() const;
 
             // =========================================================================
+            // Subsystem Detection
+            // =========================================================================
+
+            /// Check if this is a GUI application (WINDOWS_GUI subsystem)
+            [[nodiscard]] bool is_gui() const;
+
+            /// Check if this is a console application (WINDOWS_CUI subsystem)
+            [[nodiscard]] bool is_console() const;
+
+            /// Check if this is a native application (NATIVE subsystem, e.g., drivers)
+            [[nodiscard]] bool is_native() const;
+
+            /// Check if this is an EFI application or driver
+            [[nodiscard]] bool is_efi() const;
+
+            // =========================================================================
             // Import/Export Analysis
             // =========================================================================
 

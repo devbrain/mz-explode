@@ -1630,6 +1630,30 @@ bool pe_file::is_large_address_aware() const {
 }
 
 // =============================================================================
+// Subsystem Detection
+// =============================================================================
+
+bool pe_file::is_gui() const {
+    return subsystem_ == static_cast<uint16_t>(pe_subsystem::WINDOWS_GUI);
+}
+
+bool pe_file::is_console() const {
+    return subsystem_ == static_cast<uint16_t>(pe_subsystem::WINDOWS_CUI);
+}
+
+bool pe_file::is_native() const {
+    return subsystem_ == static_cast<uint16_t>(pe_subsystem::NATIVE) ||
+           subsystem_ == static_cast<uint16_t>(pe_subsystem::NATIVE_WINDOWS);
+}
+
+bool pe_file::is_efi() const {
+    return subsystem_ == static_cast<uint16_t>(pe_subsystem::EFI_APPLICATION) ||
+           subsystem_ == static_cast<uint16_t>(pe_subsystem::EFI_BOOT_SERVICE_DRIVER) ||
+           subsystem_ == static_cast<uint16_t>(pe_subsystem::EFI_RUNTIME_DRIVER) ||
+           subsystem_ == static_cast<uint16_t>(pe_subsystem::EFI_ROM);
+}
+
+// =============================================================================
 // Import/Export Analysis
 // =============================================================================
 

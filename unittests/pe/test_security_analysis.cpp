@@ -109,6 +109,27 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         bool force_integrity = pe.has_force_integrity();
         MESSAGE("Force Integrity: ", force_integrity);
     }
+
+    SUBCASE("Subsystem detection") {
+        bool is_gui = pe.is_gui();
+        bool is_console = pe.is_console();
+        bool is_native = pe.is_native();
+        bool is_efi = pe.is_efi();
+
+        MESSAGE("Is GUI: ", is_gui);
+        MESSAGE("Is Console: ", is_console);
+        MESSAGE("Is Native: ", is_native);
+        MESSAGE("Is EFI: ", is_efi);
+
+        // TCMADM64.EXE is a GUI application
+        CHECK(is_gui);
+        CHECK_FALSE(is_console);
+        CHECK_FALSE(is_native);
+        CHECK_FALSE(is_efi);
+
+        // Subsystem enum value should match
+        CHECK(pe.subsystem() == pe_subsystem::WINDOWS_GUI);
+    }
 }
 
 TEST_CASE("PE Security Analysis: DllCharacteristics flags") {
@@ -266,6 +287,13 @@ TEST_CASE("PE Security Report: comprehensive analysis") {
     MESSAGE("  Large Addr Aware:  ", pe.is_large_address_aware() ? "Yes" : "No");
     MESSAGE("  AppContainer:      ", pe.is_appcontainer() ? "Yes" : "No");
     MESSAGE("  TS Aware:          ", pe.is_terminal_server_aware() ? "Yes" : "No");
+    MESSAGE("");
+
+    MESSAGE("Subsystem:");
+    MESSAGE("  Is GUI:            ", pe.is_gui() ? "Yes" : "No");
+    MESSAGE("  Is Console:        ", pe.is_console() ? "Yes" : "No");
+    MESSAGE("  Is Native:         ", pe.is_native() ? "Yes" : "No");
+    MESSAGE("  Is EFI:            ", pe.is_efi() ? "Yes" : "No");
     MESSAGE("");
 
     MESSAGE("Import/Export Summary:");
