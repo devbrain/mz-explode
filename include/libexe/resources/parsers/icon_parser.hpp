@@ -2,6 +2,7 @@
 #define LIBEXE_ICON_PARSER_HPP
 
 #include <libexe/export.hpp>
+#include <libexe/resources/parsers/bitmap_parser.hpp>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -49,16 +50,6 @@ struct LIBEXE_EXPORT dib_header {
         }
         return num_colors * 4;  // Each entry is 4 bytes (RGBQUAD)
     }
-};
-
-/**
- * RGBQUAD color table entry.
- */
-struct LIBEXE_EXPORT rgb_quad {
-    uint8_t blue;
-    uint8_t green;
-    uint8_t red;
-    uint8_t reserved;
 };
 
 /**
