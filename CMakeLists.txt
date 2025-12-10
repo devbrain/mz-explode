@@ -10,8 +10,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 # Build options
 option(BUILD_SHARED_LIBS "Build shared library instead of static" ON)
-option(BUILD_TESTING "Build unit tests" ON)
-option(BUILD_TOOLS "Build command-line tools" OFF)
+option(MZEXPLODE_BUILD_TESTING "Build unit tests" ON)
+option(MZEXPLODE_BUILD_TOOLS "Build command-line tools" OFF)
 
 # Symbol visibility (hide all by default, like Windows)
 set(CMAKE_CXX_VISIBILITY_PRESET hidden)
@@ -36,7 +36,7 @@ add_subdirectory(src/libexe)
 # Tools (Command-line utilities)
 # =============================================================================
 
-if(BUILD_TOOLS)
+if(MZEXPLODE_BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
@@ -45,7 +45,7 @@ endif()
 # Unit Tests
 # =============================================================================
 
-if(BUILD_TESTING)
+if(MZEXPLODE_BUILD_TESTING)
     enable_testing()
     add_subdirectory(unittests)
 endif()
@@ -54,9 +54,9 @@ endif()
 # Documentation (Doxygen)
 # =============================================================================
 
-option(BUILD_DOCS "Build documentation (requires Doxygen)" OFF)
+option(MZEXPLODE_BUILD_DOCS "Build documentation (requires Doxygen)" OFF)
 
-if(BUILD_DOCS)
+if(MZEXPLODE_BUILD_DOCS)
     find_package(Doxygen REQUIRED)
 
     # Set Doxygen configuration variables
@@ -69,17 +69,17 @@ if(BUILD_DOCS)
 
     # Configure Doxyfile from template
     configure_file(
-        ${CMAKE_SOURCE_DIR}/Doxyfile.in
-        ${CMAKE_BINARY_DIR}/Doxyfile
-        @ONLY
+            ${CMAKE_SOURCE_DIR}/Doxyfile.in
+            ${CMAKE_BINARY_DIR}/Doxyfile
+            @ONLY
     )
 
     # Add documentation target
     add_custom_target(docs
-        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
-        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-        COMMENT "Generating API documentation with Doxygen"
-        VERBATIM
+            COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+            WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+            COMMENT "Generating API documentation with Doxygen"
+            VERBATIM
     )
 
     message(STATUS "Doxygen found: ${DOXYGEN_EXECUTABLE}")
@@ -102,7 +102,7 @@ message(STATUS "  Version:        ${PROJECT_VERSION}")
 message(STATUS "  C++ Standard:   C++${CMAKE_CXX_STANDARD}")
 message(STATUS "  Build type:     ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Library type:   ${BUILD_SHARED_LIBS}")
-message(STATUS "  Build tools:    ${BUILD_TOOLS}")
-message(STATUS "  Build tests:    ${BUILD_TESTING}")
-message(STATUS "  Build docs:     ${BUILD_DOCS}")
+message(STATUS "  Build tools:    ${MZEXPLODE_BUILD_TOOLS}")
+message(STATUS "  Build tests:    ${MZEXPLODE_BUILD_TESTING}")
+message(STATUS "  Build docs:     ${MZEXPLODE_BUILD_DOCS}")
 message(STATUS "")
