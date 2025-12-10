@@ -1,4 +1,4 @@
-# libexe
+# libexe (mz-explode)
 
 **Modern C++20 library for analyzing Windows executable files**
 
@@ -400,7 +400,7 @@ Diagnostic categories include:
 
 | Dependency | Type | Purpose |
 |------------|------|---------|
-| [failsafe](https://github.com/devbrain/failsafe) | Header-only | Logging and exceptions |
+| [Datascript](https://github.com/devbrain/datascript) | Code generator | Code generator for parsers |
 | [doctest](https://github.com/doctest/doctest) | Test only | Unit testing framework |
 | [Doxygen](https://www.doxygen.nl/) | Optional | Documentation generation |
 
