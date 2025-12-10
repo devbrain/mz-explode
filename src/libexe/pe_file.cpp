@@ -325,6 +325,102 @@ void pe_file::parse_pe_headers() {
         }
     }
 
+    // =========================================================================
+    // PE/COFF Spec-based validations
+    // =========================================================================
+
+    // Check for deprecated COFF characteristics flags (per PE/COFF spec)
+    // These flags should be zero in modern PE files
+    {
+        constexpr uint16_t IMAGE_FILE_LINE_NUMS_STRIPPED = 0x0004;   // Deprecated
+        constexpr uint16_t IMAGE_FILE_LOCAL_SYMS_STRIPPED = 0x0008; // Deprecated
+        constexpr uint16_t IMAGE_FILE_AGGRESSIVE_WS_TRIM = 0x0010;  // Obsolete, must be zero
+        constexpr uint16_t IMAGE_FILE_BYTES_REVERSED_LO = 0x0080;   // Deprecated, should be zero
+        constexpr uint16_t IMAGE_FILE_BYTES_REVERSED_HI = 0x8000;   // Deprecated, should be zero
+
+        uint16_t deprecated_flags = characteristics_ &
+            (IMAGE_FILE_LINE_NUMS_STRIPPED | IMAGE_FILE_LOCAL_SYMS_STRIPPED |
+             IMAGE_FILE_AGGRESSIVE_WS_TRIM | IMAGE_FILE_BYTES_REVERSED_LO |
+             IMAGE_FILE_BYTES_REVERSED_HI);
+
+        if (deprecated_flags != 0) {
+            std::string flag_names;
+            if (deprecated_flags & IMAGE_FILE_LINE_NUMS_STRIPPED)
+                flag_names += "LINE_NUMS_STRIPPED ";
+            if (deprecated_flags & IMAGE_FILE_LOCAL_SYMS_STRIPPED)
+                flag_names += "LOCAL_SYMS_STRIPPED ";
+            if (deprecated_flags & IMAGE_FILE_AGGRESSIVE_WS_TRIM)
+                flag_names += "AGGRESSIVE_WS_TRIM ";
+            if (deprecated_flags & IMAGE_FILE_BYTES_REVERSED_LO)
+                flag_names += "BYTES_REVERSED_LO ";
+            if (deprecated_flags & IMAGE_FILE_BYTES_REVERSED_HI)
+                flag_names += "BYTES_REVERSED_HI ";
+
+            diagnostics_.info(diagnostic_code::COFF_DEPRECATED_FLAG,
+                "Deprecated COFF characteristic flags set: " + flag_names,
+                pe_offset_ + 22);
+        }
+    }
+
+    // Check for COFF symbol table (deprecated for images, should be zero)
+    {
+        // Re-read COFF header to get PointerToSymbolTable and NumberOfSymbols
+        const uint8_t* coff_check_ptr = data_.data() + pe_offset_ + 4;
+        auto coff_check = formats::pe::pe_header::image_file_header::read(coff_check_ptr, end);
+
+        if (coff_check.PointerToSymbolTable != 0 || coff_check.NumberOfSymbols != 0) {
+            diagnostics_.info(diagnostic_code::COFF_SYMBOL_TABLE_PRESENT,
+                "COFF symbol table present (deprecated for images) - "
+                "PointerToSymbolTable: 0x" + std::to_string(coff_check.PointerToSymbolTable) +
+                ", NumberOfSymbols: " + std::to_string(coff_check.NumberOfSymbols),
+                pe_offset_ + 12);
+        }
+    }
+
+    // Check FileAlignment range (per PE/COFF spec: must be 512-64K)
+    if (file_alignment_ != 0 && (file_alignment_ < 512 || file_alignment_ > 65536)) {
+        diagnostics_.warning(diagnostic_code::OPT_FILE_ALIGNMENT_RANGE,
+            "FileAlignment (0x" + std::to_string(file_alignment_) +
+            ") outside spec range 512-64K (0x200-0x10000)",
+            optional_header_offset_);
+    }
+
+    // Check SectionAlignment >= FileAlignment (per PE/COFF spec)
+    if (section_alignment_ != 0 && file_alignment_ != 0 &&
+        section_alignment_ < file_alignment_) {
+        diagnostics_.warning(diagnostic_code::OPT_SECTION_LT_FILE_ALIGN,
+            "SectionAlignment (0x" + std::to_string(section_alignment_) +
+            ") is less than FileAlignment (0x" + std::to_string(file_alignment_) + ")",
+            optional_header_offset_);
+    }
+
+    // Check SizeOfImage is multiple of SectionAlignment (per PE/COFF spec)
+    if (section_alignment_ != 0 && (size_of_image_ % section_alignment_) != 0) {
+        diagnostics_.warning(diagnostic_code::OPT_SIZE_OF_IMAGE_UNALIGNED,
+            "SizeOfImage (0x" + std::to_string(size_of_image_) +
+            ") is not a multiple of SectionAlignment (0x" + std::to_string(section_alignment_) + ")",
+            optional_header_offset_);
+    }
+
+    // Check SizeOfHeaders is multiple of FileAlignment (per PE/COFF spec)
+    if (file_alignment_ != 0 && (size_of_headers_ % file_alignment_) != 0) {
+        diagnostics_.warning(diagnostic_code::OPT_SIZE_OF_HEADERS_UNALIGNED,
+            "SizeOfHeaders (0x" + std::to_string(size_of_headers_) +
+            ") is not a multiple of FileAlignment (0x" + std::to_string(file_alignment_) + ")",
+            optional_header_offset_);
+    }
+
+    // Check for reserved DllCharacteristics bits (0x0001-0x0008 must be zero)
+    {
+        constexpr uint16_t RESERVED_DLL_CHAR_MASK = 0x000F;  // Bits 0-3 are reserved
+        uint16_t reserved_bits = dll_characteristics_ & RESERVED_DLL_CHAR_MASK;
+        if (reserved_bits != 0) {
+            diagnostics_.warning(diagnostic_code::OPT_RESERVED_DLL_CHAR,
+                "Reserved DllCharacteristics bits set: 0x" + std::to_string(reserved_bits),
+                optional_header_offset_);
+        }
+    }
+
     // Check for overlapping data directories
     detect_overlapping_directories();
 

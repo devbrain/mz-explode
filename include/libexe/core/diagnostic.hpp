@@ -80,6 +80,8 @@ enum class diagnostic_code : uint32_t {
     COFF_ZERO_SECTIONS          = 0x0301,  // NumberOfSections = 0
     COFF_EXCESSIVE_SECTIONS     = 0x0302,  // NumberOfSections > 96
     COFF_RELOCS_STRIPPED_IGNORED = 0x0303, // Flag set but relocs present
+    COFF_DEPRECATED_FLAG        = 0x0304,  // Deprecated characteristic flag set
+    COFF_SYMBOL_TABLE_PRESENT   = 0x0305,  // PointerToSymbolTable/NumberOfSymbols non-zero
 
     // =========================================================================
     // Optional Header (0x04xx)
@@ -92,6 +94,13 @@ enum class diagnostic_code : uint32_t {
     OPT_LOW_ALIGNMENT           = 0x0406,  // FileAlignment == SectionAlignment <= 0x200
     OPT_OVERSIZED_OPTIONAL_HDR  = 0x0407,  // SizeOfOptionalHeader > expected
     OPT_NON_POWER2_ALIGNMENT    = 0x0408,  // Alignment not power of 2
+    OPT_RESERVED_NONZERO        = 0x0409,  // Reserved field (Win32VersionValue/LoaderFlags) non-zero
+    OPT_FILE_ALIGNMENT_RANGE    = 0x040A,  // FileAlignment outside 512-64K range
+    OPT_SECTION_LT_FILE_ALIGN   = 0x040B,  // SectionAlignment < FileAlignment
+    OPT_SIZE_OF_IMAGE_UNALIGNED = 0x040C,  // SizeOfImage not multiple of SectionAlignment
+    OPT_SIZE_OF_HEADERS_UNALIGNED = 0x040D, // SizeOfHeaders not multiple of FileAlignment
+    OPT_CHECKSUM_MISMATCH       = 0x040E,  // Checksum field doesn't match calculated
+    OPT_RESERVED_DLL_CHAR       = 0x040F,  // Reserved DllCharacteristics bits set
 
     // =========================================================================
     // Section Table (0x05xx)
