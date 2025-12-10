@@ -1,85 +1,97 @@
-# DataScript Format Specifications - Modular Structure
+# DataScript Format Specifications
 
-This directory contains the modular DataScript specifications for Windows executable formats (MZ, NE, PE/PE+) and resource types.
+This directory contains the modular DataScript specifications for Windows executable formats (MZ, NE, LE/LX, PE/PE32+) and resource types.
 
 ## Directory Structure
 
 ```
 src/libexe/formats/
-├── common.ds                    ✅ Shared type aliases and constants
-│                                   (DOS_SIGNATURE, NE_SIGNATURE, PE_SIGNATURE, etc.)
+├── common.ds                    Shared type aliases and constants
+│                                (DOS_SIGNATURE, NE_SIGNATURE, PE_SIGNATURE, etc.)
 │
-├── mz.ds                        ✅ DOS MZ header format
-│                                   (image_dos_header structure)
+├── mz.ds                        DOS MZ header format
+│                                (image_dos_header structure)
+│
+├── le/
+│   └── le_header.ds             LE/LX headers for DOS extenders and OS/2 2.x
+│                                (Linear Executable format)
 │
 ├── ne/
-│   └── ne_header.ds             ✅ NE 16-bit Windows/OS2 headers
-│                                   (Segments, resources, entries, relocations)
+│   └── ne_header.ds             NE 16-bit Windows/OS2 headers
+│                                (Segments, resources, entries, relocations)
 │
 ├── pe/
-│   └── pe_header.ds             ✅ PE 32/64-bit Windows headers
-│                                   (COFF headers, optional headers, sections)
+│   ├── pe_header.ds             PE 32/64-bit Windows headers
+│   │                            (COFF headers, optional headers, sections)
+│   ├── pe_imports.ds            Import directory structures
+│   ├── pe_exports.ds            Export directory structures
+│   ├── pe_relocations.ds        Base relocation structures
+│   ├── pe_debug.ds              Debug directory structures
+│   ├── pe_tls.ds                Thread Local Storage structures
+│   ├── pe_load_config.ds        Load configuration structures
+│   ├── pe_bound_imports.ds      Bound import structures
+│   ├── pe_delay_imports.ds      Delay-load import structures
+│   ├── pe_iat.ds                Import Address Table structures
+│   ├── pe_exception.ds          Exception handling structures
+│   ├── pe_security.ds           Security/Authenticode structures
+│   └── pe_com_descriptor.ds     CLR/.NET metadata structures
 │
 └── resources/
-    ├── basic.ds                 ✅ Icons, cursors, bitmaps
-    │                               (RT_ICON, RT_GROUP_ICON, RT_CURSOR, RT_BITMAP)
-    ├── dialogs.ds               ✅ Dialog templates & controls
-    │                               (RT_DIALOG, includes DIALOGEX extended format)
-    ├── fonts.ds                 ✅ Font resources & glyph tables
-    │                               (RT_FONT, RT_FONTDIR, multiple glyph formats)
-    ├── menus.ds                 ✅ Menu resources
-    │                               (RT_MENU - header + flags, items need manual parsing)
-    ├── tables.ds                ✅ String, accelerator, message tables
-    │                               (RT_STRING, RT_ACCELERATORS, RT_MESSAGETABLE)
-    └── version.ds               ✅ Version information structures
-                                    (RT_VERSION, VS_FIXEDFILEINFO)
+    ├── basic.ds                 Icons, cursors, bitmaps
+    │                            (RT_ICON, RT_GROUP_ICON, RT_CURSOR, RT_BITMAP)
+    ├── dialogs.ds               Dialog templates and controls
+    │                            (RT_DIALOG, includes DIALOGEX extended format)
+    ├── fonts.ds                 Font resources and glyph tables
+    │                            (RT_FONT, RT_FONTDIR, multiple glyph formats)
+    ├── menus.ds                 Menu resources
+    │                            (RT_MENU - header + flags, items need manual parsing)
+    ├── tables.ds                String, accelerator, message tables
+    │                            (RT_STRING, RT_ACCELERATORS, RT_MESSAGETABLE)
+    ├── version.ds               Version information structures
+    │                            (RT_VERSION, VS_FIXEDFILEINFO)
+    └── os2.ds                   OS/2-specific resource structures
 ```
 
-**Status Legend:**
-- ✅ Complete and tested
+## Format Parsers
 
-## Completed Modularization
+### Executable Headers
 
-### Executable Format Parsers
+| File | Package | Description |
+|------|---------|-------------|
+| `common.ds` | `formats.common` | Type aliases (DWORD, WORD), magic constants |
+| `mz.ds` | `formats.mz` | DOS MZ header (image_dos_header) |
+| `le/le_header.ds` | `formats.le.le_header` | LE/LX headers for DOS extenders, OS/2 2.x |
+| `ne/ne_header.ds` | `formats.ne.ne_header` | NE headers, segments, resources, entries |
+| `pe/pe_header.ds` | `formats.pe.pe_header` | COFF headers, PE32/PE32+ optional headers |
 
-| File | Package | Structures | Status |
-|------|---------|-----------|--------|
-| `common.ds` | `formats.common` | Type aliases, constants | ✅ Complete |
-| `mz.ds` | `formats.mz` | `image_dos_header` | ✅ Complete |
-| `ne/ne_header.ds` | `formats.ne.ne_header` | NE headers, segments, resources, entries, relocations | ✅ Complete |
-| `pe/pe_header.ds` | `formats.pe.pe_header` | COFF headers, PE32/PE32+ optional headers, sections | ✅ Complete |
+### PE Data Directories
 
-### Resource Format Parsers
+| File | Package | Data Directory |
+|------|---------|----------------|
+| `pe/pe_imports.ds` | `formats.pe.pe_imports` | Import Directory (1) |
+| `pe/pe_exports.ds` | `formats.pe.pe_exports` | Export Directory (0) |
+| `pe/pe_relocations.ds` | `formats.pe.pe_relocations` | Base Relocation (5) |
+| `pe/pe_debug.ds` | `formats.pe.pe_debug` | Debug Directory (6) |
+| `pe/pe_tls.ds` | `formats.pe.pe_tls` | TLS Directory (9) |
+| `pe/pe_load_config.ds` | `formats.pe.pe_load_config` | Load Config (10) |
+| `pe/pe_bound_imports.ds` | `formats.pe.pe_bound_imports` | Bound Import (11) |
+| `pe/pe_iat.ds` | `formats.pe.pe_iat` | IAT Directory (12) |
+| `pe/pe_delay_imports.ds` | `formats.pe.pe_delay_imports` | Delay Import (13) |
+| `pe/pe_com_descriptor.ds` | `formats.pe.pe_com_descriptor` | CLR Runtime (14) |
+| `pe/pe_exception.ds` | `formats.pe.pe_exception` | Exception Directory (3) |
+| `pe/pe_security.ds` | `formats.pe.pe_security` | Security/Certificates (4) |
 
-| File | Package | Resource Types | Structures | Status |
-|------|---------|---------------|-----------|--------|
-| `resources/basic.ds` | `formats.resources.basic` | RT_ICON, RT_CURSOR, RT_BITMAP | `icon_dir_entry`, `icon_group`, `cursor_hotspot`, `bitmap_info_header`, `bitmap_core_header`, `rgb_quad`, `rgb_triple` | ✅ Complete |
-| `resources/dialogs.ds` | `formats.resources.dialogs` | RT_DIALOG | `dialog_template`, `dialog_item`, `dialog_template_ex`, `dialog_item_ex`, `resource_name_or_id` | ✅ Complete |
-| `resources/fonts.ds` | `formats.resources.fonts` | RT_FONT, RT_FONTDIR | `font_header`, `glyph_entry_2x`, `glyph_entry_30`, `glyph_entry_abc`, `glyph_entry_color` | ✅ Complete |
-| `resources/menus.ds` | `formats.resources.menus` | RT_MENU | `menu_header`, `menu_flags` | ✅ Complete* |
-| `resources/tables.ds` | `formats.resources.tables` | RT_STRING, RT_ACCELERATORS, RT_MESSAGETABLE | `string_table_entry`, `ne_string_table_entry`, `accel_table_entry`, `message_resource_data`, `message_resource_block`, `message_resource_entry` | ✅ Complete |
-| `resources/version.ds` | `formats.resources.version` | RT_VERSION | `vs_fixed_file_info`, `vs_version_info`, `version_info_node_header`, `version_info_string` | ✅ Complete |
+### Resource Formats
 
-\* Menu items require manual parsing due to variable-length structure (documented in file)
-
-## Generated Parsers
-
-**Total Generated Files**: 10 modular parsers (220KB total)
-
-All parsers are auto-generated by DataScript at build time and placed in `build/generated/`.
-
-| Generated File | Size | Source File |
-|---------------|------|-------------|
-| `libexe_format_common.hh` | 12KB | `common.ds` |
-| `libexe_format_mz.hh` | 14KB | `mz.ds` |
-| `libexe_format_ne.hh` | 29KB | `ne/ne_header.ds` |
-| `libexe_format_pe.hh` | 36KB | `pe/pe_header.ds` |
-| `libexe_format_basic.hh` | 20KB | `resources/basic.ds` |
-| `libexe_format_dialogs.hh` | 23KB | `resources/dialogs.ds` |
-| `libexe_format_fonts.hh` | 24KB | `resources/fonts.ds` |
-| `libexe_format_menus.hh` | 14KB | `resources/menus.ds` |
-| `libexe_format_tables.hh` | 20KB | `resources/tables.ds` |
-| `libexe_format_version.hh` | 28KB | `resources/version.ds` |
+| File | Package | Resource Types |
+|------|---------|----------------|
+| `resources/basic.ds` | `formats.resources.basic` | RT_ICON, RT_CURSOR, RT_BITMAP, RT_GROUP_ICON |
+| `resources/dialogs.ds` | `formats.resources.dialogs` | RT_DIALOG, RT_DIALOGEX |
+| `resources/fonts.ds` | `formats.resources.fonts` | RT_FONT, RT_FONTDIR |
+| `resources/menus.ds` | `formats.resources.menus` | RT_MENU, RT_MENUEX |
+| `resources/tables.ds` | `formats.resources.tables` | RT_STRING, RT_ACCELERATORS, RT_MESSAGETABLE |
+| `resources/version.ds` | `formats.resources.version` | RT_VERSION (VS_FIXEDFILEINFO) |
+| `resources/os2.ds` | `formats.resources.os2` | OS/2-specific resource types |
 
 ## Naming Conventions
 
@@ -88,49 +100,46 @@ All parsers are auto-generated by DataScript at build time and placed in `build/
 All DataScript identifiers use **snake_case**:
 
 ```datascript
-// ✅ CORRECT
+// Correct
 struct dialog_template { ... }
 struct icon_dir_entry { ... }
 enum menu_flags { ... }
 choice resource_name_or_id : uint16 { ... }
 
-// ❌ WRONG
+// Wrong - do not use
 struct DialogTemplate { ... }         // PascalCase
 struct IconDirEntry { ... }           // PascalCase
-enum MenuFlags { ... }                // PascalCase
 ```
 
 **Exception**: Enum values use **UPPER_SNAKE_CASE**:
 ```datascript
 enum uint16 menu_flags {
-    MF_GRAYED       = 0x0001,  // ✅ Correct
-    MF_POPUP        = 0x0010,  // ✅ Correct
+    MF_GRAYED       = 0x0001,
+    MF_POPUP        = 0x0010,
 };
 ```
 
 ### Package Naming
 
-Packages match directory structure **relative to formats/ directory**:
+Packages match directory structure relative to formats/ directory:
 
 ```datascript
 // File: src/libexe/formats/mz.ds
-package formats.mz;              // ✅ Correct (relative to formats/)
+package formats.mz;
 
 // File: src/libexe/formats/ne/ne_header.ds
-package formats.ne.ne_header;    // ✅ Correct
+package formats.ne.ne_header;
+
+// File: src/libexe/formats/pe/pe_imports.ds
+package formats.pe.pe_imports;
 
 // File: src/libexe/formats/resources/dialogs.ds
-package formats.resources.dialogs;  // ✅ Correct
-
-// ❌ WRONG - Don't include "src/libexe" in package name
-package src.libexe.formats.mz;
+package formats.resources.dialogs;
 ```
 
-## DataScript Features Used
+## DataScript Features
 
-### 1. Choice Types (Discriminated Unions)
-
-**Syntax** (as of December 2025): Requires explicit discriminator type
+### Choice Types (Discriminated Unions)
 
 ```datascript
 choice resource_name_or_id : uint16 {
@@ -141,9 +150,7 @@ choice resource_name_or_id : uint16 {
 };
 ```
 
-**Usage**: Dialog menus, classes, control text (0xFFFF = ordinal marker)
-
-### 2. Optional Fields
+### Optional Fields
 
 ```datascript
 struct dialog_template {
@@ -154,17 +161,16 @@ struct dialog_template {
 };
 ```
 
-### 3. Constraints (Validation)
+### Constraints (Validation)
 
 ```datascript
 struct vs_fixed_file_info {
     // Validates magic number at parse time
     uint32 signature : signature == 0xFEEF04BD;
-    // ... other fields
 };
 ```
 
-### 4. Variable-Length Arrays
+### Variable-Length Arrays
 
 ```datascript
 struct icon_group {
@@ -173,131 +179,58 @@ struct icon_group {
 };
 ```
 
-### 5. DWORD Alignment
+### DWORD Alignment
 
 ```datascript
 struct dialog_template {
     uint32 style;
-    // ... other fields
-
     align(4):  // Ensure DWORD boundary
     resource_name_or_id menu;
-
-    align(4):
-    resource_name_or_id window_class;
 };
-```
-
-### 6. Unicode Strings
-
-```datascript
-little;  // Global endianness
-
-struct dialog_template {
-    // UTF-16LE null-terminated string
-    little u16string title;
-};
-```
-
-## Import System
-
-### No Imports Needed (Current Design)
-
-All our resource files are **self-contained** - they don't import other files:
-
-```datascript
-package formats.resources.dialogs;
-
-// No imports needed - standalone file
-little;
-
-struct dialog_template { ... }
-```
-
-**Why?**
-- Each file uses only primitive types (uint8, uint16, uint32, u16string)
-- Common constants (like `DOS_SIGNATURE`) are defined locally where used
-- Avoids complex dependency management
-
-### If Imports Were Needed (Future)
-
-```datascript
-package formats.resources.dialogs;
-
-import formats.common;  // Import single file
-
-// OR for directory
-import formats.common.*;  // Import all files in directory (not currently used)
 ```
 
 ## Code Generation
 
-### Single File Compilation
+### CMake Integration
+
+DataScript parsers are generated at build time using `datascript_generate()`:
+
+```cmake
+datascript_generate(
+    TARGET libexe_parsers
+    SCHEMAS
+        # Common types
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/common.ds
+        # Executable format parsers
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/mz.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/ne/ne_header.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_header.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/le/le_header.ds
+        # PE data directory parsers
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_imports.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_exports.ds
+        # ... etc
+        # Resource format parsers
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/dialogs.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/version.ds
+        # ... etc
+    OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
+    IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+    INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
+    PRESERVE_PACKAGE_DIRS ON
+)
+```
+
+This creates an INTERFACE library `libexe_parsers` that the main library links against.
+Generated headers are placed in `build/src/libexe/generated/`.
+
+### Manual Generation
 
 ```bash
-# Generate C++ parser for one DataScript file
-ds src/libexe/formats/resources/dialogs.ds -t cpp \
+ds src/libexe/formats/pe/pe_imports.ds -t cpp \
    -o build/generated/ \
    -I src/libexe/formats
 ```
-
-### CMake Integration (Automated)
-
-Our CMakeLists.txt uses `add_datascript_parser()` function:
-
-```cmake
-# Executable format parsers
-add_datascript_parser(formats/mz.ds libexe_format_mz.hh)
-add_datascript_parser(formats/ne/ne_header.ds libexe_format_ne.hh)
-add_datascript_parser(formats/pe/pe_header.ds libexe_format_pe.hh)
-
-# Resource format parsers
-add_datascript_parser(formats/resources/dialogs.ds libexe_format_dialogs.hh)
-add_datascript_parser(formats/resources/version.ds libexe_format_version.hh)
-# ... etc
-```
-
-**Build Command**:
-```bash
-cmake --build build
-```
-
-## Known Limitations
-
-### 1. Variable-Length Menu Items
-
-**Problem**: Menu items have different structures based on runtime flags:
-- Popup item: `WORD flags + WCHAR text[]`
-- Normal item: `WORD flags + WORD id + WCHAR text[]`
-
-**Solution**: DataScript models header and flags; C++ code manually parses items.
-
-**Reference**: See detailed parsing algorithm in `resources/menus.ds`
-
-### 2. Font Structure Alignment
-
-**Important**: Font structures are **NOT** DWORD-aligned per Microsoft specification exception.
-
-**Reason**: Font files (.FNT) are copied directly from external files.
-
-**Implementation**: `fonts.ds` has no `align(4):` directives.
-
-### 3. Dialog Creation Data
-
-**Problem**: Control creation data is application-specific variable-length.
-
-**Solution**: DataScript provides `creation_data_size` field; C++ reads data separately.
-
-## Compliance Verification
-
-Our DataScript implementations have been field-by-field verified against:
-- **resfmt.txt** - Microsoft Win32 Binary Resource Formats
-- **pecoff.docx** - Microsoft PE/COFF Specification
-- **ne.fmt** - NE format specification
-
-**See**: `docs/DATASCRIPT_RESFMT_COMPLIANCE.md` for detailed verification report.
-
-**Result**: ✅ **100% specification-compliant**
 
 ## Usage Examples
 
@@ -313,25 +246,26 @@ const uint8_t* end = ptr + file_data.size();
 auto dos_header = formats::mz::image_dos_header::read(ptr, end);
 
 if (dos_header.e_lfanew > 0) {
-    // Extended format (NE/PE)
+    // Extended format (NE/LE/PE)
     ptr = file_data.data() + dos_header.e_lfanew;
-    // Read NE or PE header...
+    // Read signature and appropriate header...
 }
 ```
 
-### Parsing Dialog Resources
+### Parsing PE Import Directory
 
 ```cpp
-#include "libexe_format_dialogs.hh"
+#include "libexe_format_pe_imports.hh"
 
-const uint8_t* dlg_data = ...; // Resource data
-const uint8_t* end = dlg_data + size;
+const uint8_t* import_data = ...;
+const uint8_t* end = import_data + size;
 
-auto dialog = formats::resources::dialogs::dialog_template::read(dlg_data, end);
+auto import_desc = formats::pe::pe_imports::import_descriptor::read(import_data, end);
 
-std::cout << "Dialog items: " << dialog.item_count << "\n";
-std::cout << "Position: (" << dialog.x << ", " << dialog.y << ")\n";
-std::cout << "Size: " << dialog.cx << " x " << dialog.cy << "\n";
+// Process import descriptor
+if (import_desc.name_rva != 0) {
+    // Valid import entry
+}
 ```
 
 ### Parsing Version Info
@@ -344,7 +278,6 @@ const uint8_t* end = ver_data + size;
 
 auto fixed_info = formats::resources::version::vs_fixed_file_info::read(ver_data, end);
 
-// Signature is automatically validated (constraint)
 std::cout << "File version: "
           << (fixed_info.file_version_ms >> 16) << "."
           << (fixed_info.file_version_ms & 0xFFFF) << "."
@@ -352,82 +285,38 @@ std::cout << "File version: "
           << (fixed_info.file_version_ls & 0xFFFF) << "\n";
 ```
 
-## Migration Status
+## Known Limitations
 
-### ✅ Migration Complete (Phase 1-6)
+### Variable-Length Menu Items
 
-All phases of the DataScript modularization have been successfully completed:
+Menu items have different structures based on runtime flags. DataScript models header and flags; C++ code manually parses items. See `resources/menus.ds` for details.
 
-✅ All resource types modularized
-✅ MZ, NE, PE headers extracted
-✅ CMake integration complete
-✅ All parsers compile and generate successfully
-✅ **C++ code migrated to use modular headers**
-✅ **100% resource type coverage (21/21 practical types)**
-✅ **All tests passing (62/62 tests, 2,146 assertions)**
+### Font Structure Alignment
 
-### Completed C++ Integration
+Font structures are NOT DWORD-aligned per Microsoft specification. Font files (.FNT) are copied directly from external files.
 
-All C++ files now use modular DataScript headers:
-- `mz_file.cpp` → uses `libexe_format_mz.hh`
-- `ne_file.cpp` → uses `libexe_format_ne.hh`
-- `pe_file.cpp` → uses `libexe_format_pe.hh`
-- `ne_resource_directory.cpp` → uses `libexe_format_ne.hh`
-- `pe_resource_directory.cpp` → uses `libexe_format_pe.hh`
-- All resource parsers → use `libexe_format_*.hh`
+### Dialog Creation Data
 
-### Further Modularization (Optional Future Work)
+Control creation data is application-specific variable-length. DataScript provides `creation_data_size` field; C++ reads data separately.
 
-Additional refinements could include:
-- Extract PE import/export tables to separate files
-- Extract PE relocation structures
-- Split NE structures into more granular files
+## Compliance
+
+DataScript implementations are verified against:
+- **resfmt.txt** - Microsoft Win32 Binary Resource Formats
+- **pecoff.docx** - Microsoft PE/COFF Specification
+- **ne.fmt** - NE format specification
 
 ## References
 
 **Documentation**:
-- `docs/DATASCRIPT_REFACTORING_PLAN.md` - Original refactoring strategy
-- `docs/RESOURCE_FORMAT_COVERAGE.md` - Coverage analysis vs resfmt.txt
-- `docs/DATASCRIPT_RESFMT_COMPLIANCE.md` - Field-by-field compliance verification
-
-**Specifications**:
+- `docs/programmers_guide.md` - Library usage guide
 - `docs/resfmt.txt` - Microsoft Win32 Binary Resource Formats
 - `docs/pecoff.docx` - PE/COFF Specification
 - `docs/ne.fmt` - NE Format Specification
 
-**DataScript Language**:
-- `_deps/datascript-src/docs/LANGUAGE_GUIDE.md` - Language reference
-- `_deps/datascript-src/docs/CHANGELOG.md` - Recent language changes
-
-## Notes
-
-### Type Aliases
-
-DataScript now supports type aliases via `typedef` (as of December 2025):
-
-```datascript
-typedef dword = uint32;
-typedef word = uint16;
-```
-
-**Current Status**: We define these in `common.ds` but don't import them (files use primitive types directly for simplicity).
-
-### Performance
-
-Generated parsers are **zero-cost abstractions**:
-- No runtime overhead vs hand-written C++
-- Inline functions for primitive reads
-- Compiler optimization friendly
-
-### Validation
-
-DataScript constraints provide **compile-time structure validation**:
-- Magic number verification
-- Field interdependencies
-- Invalid data rejection at parse time
+**DataScript**:
+- https://github.com/devbrain/datascript - DataScript language and compiler
 
 ---
 
-**Last Updated**: 2025-12-08
-**Status**: ✅ Migration Complete - 10 modular parsers, 100% resource coverage, all C++ code migrated
-**Maintainer**: mz-explode project team
+**Last Updated**: 2025-12-10

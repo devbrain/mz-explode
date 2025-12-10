@@ -159,12 +159,6 @@ target_include_directories(libexe
         ${CMAKE_CURRENT_SOURCE_DIR}
 )
 
-## Link dependencies
-#target_link_libraries(libexe
-#        PRIVATE
-#        failsafe
-#)
-
 # Library properties
 set_target_properties(libexe PROPERTIES
         OUTPUT_NAME exe

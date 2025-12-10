@@ -1,6 +1,44 @@
 // libexe - Modern executable file analysis library
 // Copyright (c) 2024
 
+/**
+ * @file pe_file.hpp
+ * @brief PE (Portable Executable) file parser for Windows executables.
+ *
+ * This header provides the pe_file class for parsing and analyzing PE format
+ * executables. PE is the standard executable format for Windows operating systems,
+ * including:
+ * - Windows applications (.exe)
+ * - Dynamic Link Libraries (.dll)
+ * - Windows drivers (.sys)
+ * - ActiveX controls (.ocx)
+ *
+ * @par Format Support:
+ * - **PE32**: 32-bit Windows executables (IMAGE_NT_OPTIONAL_HDR32_MAGIC)
+ * - **PE32+**: 64-bit Windows executables (IMAGE_NT_OPTIONAL_HDR64_MAGIC)
+ *
+ * @par Key Features:
+ * - Complete header parsing (DOS, COFF, Optional headers)
+ * - Section table analysis
+ * - All 16 data directories supported
+ * - Import/Export analysis
+ * - Security feature detection (ASLR, DEP, CFG, etc.)
+ * - Entropy analysis for packer detection
+ * - Authenticode signature parsing
+ * - Rich header extraction
+ * - Overlay detection
+ *
+ * @par Anomaly Detection:
+ * The parser generates diagnostics for specification violations and
+ * suspicious patterns often used by malware:
+ * - Header anomalies (overlapping sections, invalid alignments)
+ * - Import/Export anomalies
+ * - Relocation anomalies
+ * - Entry point anomalies
+ *
+ * @see mz_file, ne_file, executable_factory, diagnostic_collector
+ */
+
 #ifndef LIBEXE_FORMATS_PE_FILE_HPP
 #define LIBEXE_FORMATS_PE_FILE_HPP
 
@@ -39,38 +77,203 @@ namespace libexe {
     struct architecture_directory;
     struct reserved_directory;
 
-    /// PE (Portable Executable) file - Windows PE32/PE32+
-    class LIBEXE_EXPORT pe_file final : public executable_file {
-        public:
-            /// Load PE file from filesystem
-            [[nodiscard]] static pe_file from_file(const std::filesystem::path& path);
+/**
+ * @brief PE (Portable Executable) file parser for Windows PE32/PE32+.
+ *
+ * Parses PE format executables and provides comprehensive access to all
+ * PE structures including headers, sections, data directories, imports,
+ * exports, resources, and security information.
+ *
+ * @par PE Structure Overview:
+ * - DOS MZ stub header (compatibility for DOS)
+ * - PE signature ("PE\\0\\0") at offset specified by e_lfanew
+ * - COFF File Header (machine type, section count, characteristics)
+ * - Optional Header (entry point, image base, alignments, data directories)
+ * - Section Table (code, data, resources, etc.)
+ * - Data Directories (imports, exports, resources, relocations, etc.)
+ *
+ * @par Example Usage:
+ * @code
+ * auto pe = libexe::pe_file::from_file("program.exe");
+ *
+ * // Basic info
+ * std::cout << "Format: " << pe.format_name()
+ *           << "\nMachine: " << static_cast<int>(pe.machine_type())
+ *           << "\nEntry: 0x" << std::hex << pe.entry_point_rva() << std::endl;
+ *
+ * // Security features
+ * std::cout << "ASLR: " << (pe.has_aslr() ? "Yes" : "No")
+ *           << "\nDEP: " << (pe.has_dep() ? "Yes" : "No")
+ *           << "\nCFG: " << (pe.has_cfg() ? "Yes" : "No") << std::endl;
+ *
+ * // Import analysis
+ * for (const auto& dll : pe.imported_dlls()) {
+ *     std::cout << "Imports: " << dll << std::endl;
+ * }
+ *
+ * // Check for anomalies
+ * if (pe.has_anomalies()) {
+ *     for (const auto& diag : pe.diagnostics().anomalies()) {
+ *         std::cout << "ANOMALY: " << diag.message << std::endl;
+ *     }
+ * }
+ * @endcode
+ *
+ * @see pe_section, pe_machine_type, pe_subsystem, diagnostic_collector
+ */
+class LIBEXE_EXPORT pe_file final : public executable_file {
+    public:
+        // =====================================================================
+        // Factory Methods
+        // =====================================================================
 
-            /// Load PE file from memory
-            [[nodiscard]] static pe_file from_memory(std::span <const uint8_t> data);
+        /**
+         * @brief Load PE file from filesystem.
+         *
+         * @param path Path to the PE executable file.
+         * @return Parsed pe_file object.
+         * @throws std::runtime_error If file cannot be read or is not valid PE format.
+         */
+        [[nodiscard]] static pe_file from_file(const std::filesystem::path& path);
 
-            // Implement base class interface
-            [[nodiscard]] format_type get_format() const override;
-            [[nodiscard]] std::string_view format_name() const override;
-            [[nodiscard]] std::span <const uint8_t> code_section() const override;
+        /**
+         * @brief Load PE file from memory buffer.
+         *
+         * @param data Span containing the raw PE file data.
+         * @return Parsed pe_file object.
+         * @throws std::runtime_error If data is not valid PE format.
+         */
+        [[nodiscard]] static pe_file from_memory(std::span <const uint8_t> data);
 
-            /// Check if this is PE32+ (64-bit) vs PE32 (32-bit)
-            [[nodiscard]] bool is_64bit() const;
+        // =====================================================================
+        // Base Class Interface Implementation
+        // =====================================================================
 
-            /// COFF File Header accessors
-            [[nodiscard]] pe_machine_type machine_type() const;
-            [[nodiscard]] uint16_t section_count() const;
-            [[nodiscard]] uint32_t timestamp() const;
-            [[nodiscard]] pe_file_characteristics characteristics() const;
+        /// @copydoc executable_file::get_format()
+        [[nodiscard]] format_type get_format() const override;
 
-            /// Optional Header accessors
-            [[nodiscard]] uint64_t image_base() const;
-            [[nodiscard]] uint32_t entry_point_rva() const;
-            [[nodiscard]] uint32_t section_alignment() const;
-            [[nodiscard]] uint32_t file_alignment() const;
-            [[nodiscard]] uint32_t size_of_image() const;
-            [[nodiscard]] uint32_t size_of_headers() const;
-            [[nodiscard]] pe_subsystem subsystem() const;
-            [[nodiscard]] pe_dll_characteristics dll_characteristics() const;
+        /// @copydoc executable_file::format_name()
+        [[nodiscard]] std::string_view format_name() const override;
+
+        /// @copydoc executable_file::code_section()
+        [[nodiscard]] std::span <const uint8_t> code_section() const override;
+
+        // =====================================================================
+        // Format Identification
+        // =====================================================================
+
+        /**
+         * @brief Check if this is PE32+ (64-bit) vs PE32 (32-bit).
+         *
+         * PE32+ uses different structure sizes for addresses (64-bit vs 32-bit).
+         *
+         * @return true if PE32+ (64-bit), false if PE32 (32-bit).
+         */
+        [[nodiscard]] bool is_64bit() const;
+
+        // =====================================================================
+        // COFF File Header Accessors
+        // =====================================================================
+
+        /**
+         * @brief Get target machine (CPU) type.
+         * @return pe_machine_type identifying the target architecture.
+         */
+        [[nodiscard]] pe_machine_type machine_type() const;
+
+        /**
+         * @brief Get number of sections in the section table.
+         * @return Section count.
+         */
+        [[nodiscard]] uint16_t section_count() const;
+
+        /**
+         * @brief Get file creation timestamp (Unix epoch).
+         * @return Timestamp as seconds since January 1, 1970.
+         */
+        [[nodiscard]] uint32_t timestamp() const;
+
+        /**
+         * @brief Get file characteristics flags.
+         * @return Bitmask of pe_file_characteristics values.
+         */
+        [[nodiscard]] pe_file_characteristics characteristics() const;
+
+        // =====================================================================
+        // Optional Header Accessors
+        // =====================================================================
+
+        /**
+         * @brief Get preferred image base address.
+         *
+         * The address where the executable prefers to be loaded. If this
+         * address is unavailable, the loader will relocate the image.
+         *
+         * @return Preferred base address (64-bit for PE32+, 32-bit for PE32).
+         */
+        [[nodiscard]] uint64_t image_base() const;
+
+        /**
+         * @brief Get entry point RVA.
+         *
+         * Relative Virtual Address of the entry point function.
+         * This is where execution begins when the image is loaded.
+         *
+         * @return Entry point RVA, or 0 for DLLs without entry points.
+         */
+        [[nodiscard]] uint32_t entry_point_rva() const;
+
+        /**
+         * @brief Get section alignment in memory.
+         *
+         * Sections are aligned to this boundary when loaded into memory.
+         * Must be >= FileAlignment, typically 4096 (0x1000).
+         *
+         * @return Section alignment in bytes.
+         */
+        [[nodiscard]] uint32_t section_alignment() const;
+
+        /**
+         * @brief Get file alignment for raw section data.
+         *
+         * Raw data in sections is aligned to this boundary in the file.
+         * Typically 512 (0x200) or 4096 (0x1000).
+         *
+         * @return File alignment in bytes.
+         */
+        [[nodiscard]] uint32_t file_alignment() const;
+
+        /**
+         * @brief Get total size of loaded image.
+         *
+         * Size of the image in memory, including headers and all sections,
+         * rounded up to SectionAlignment.
+         *
+         * @return Size of image in bytes.
+         */
+        [[nodiscard]] uint32_t size_of_image() const;
+
+        /**
+         * @brief Get size of all headers.
+         *
+         * Combined size of DOS header, PE signature, COFF header, optional
+         * header, and section headers, rounded up to FileAlignment.
+         *
+         * @return Size of headers in bytes.
+         */
+        [[nodiscard]] uint32_t size_of_headers() const;
+
+        /**
+         * @brief Get Windows subsystem type.
+         * @return pe_subsystem identifying the required subsystem.
+         */
+        [[nodiscard]] pe_subsystem subsystem() const;
+
+        /**
+         * @brief Get DLL characteristics flags.
+         * @return Bitmask of pe_dll_characteristics values.
+         */
+        [[nodiscard]] pe_dll_characteristics dll_characteristics() const;
 
             // =========================================================================
             // Edge Case Detection Methods

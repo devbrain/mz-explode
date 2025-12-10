@@ -40,12 +40,6 @@ if(BUILD_TOOLS)
     add_subdirectory(tools)
 endif()
 
-# Tools disabled - legacy code uses old 'explode' library
-# TODO: Rewrite mzexplode/mzdump to use modern libexe API
-# if(BUILD_TOOLS)
-#     add_subdirectory(src/mzexplode)
-#     add_subdirectory(src/mzdump)
-# endif()
 
 # =============================================================================
 # Unit Tests
@@ -54,6 +48,48 @@ endif()
 if(BUILD_TESTING)
     enable_testing()
     add_subdirectory(unittests)
+endif()
+
+# =============================================================================
+# Documentation (Doxygen)
+# =============================================================================
+
+option(BUILD_DOCS "Build documentation (requires Doxygen)" OFF)
+
+if(BUILD_DOCS)
+    find_package(Doxygen REQUIRED)
+
+    # Set Doxygen configuration variables
+    set(DOXYGEN_PROJECT_NAME "${PROJECT_NAME}")
+    set(DOXYGEN_PROJECT_VERSION "${PROJECT_VERSION}")
+    set(DOXYGEN_PROJECT_BRIEF "Modern C++20 library for analyzing Windows executable files")
+    set(DOXYGEN_INPUT_DIR "${CMAKE_SOURCE_DIR}/include")
+    set(DOXYGEN_OUTPUT_DIR "${CMAKE_BINARY_DIR}/docs")
+    set(DOXYGEN_MAIN_PAGE "${CMAKE_SOURCE_DIR}/README.md")
+
+    # Configure Doxyfile from template
+    configure_file(
+        ${CMAKE_SOURCE_DIR}/Doxyfile.in
+        ${CMAKE_BINARY_DIR}/Doxyfile
+        @ONLY
+    )
+
+    # Add documentation target
+    add_custom_target(docs
+        COMMAND ${DOXYGEN_EXECUTABLE} ${CMAKE_BINARY_DIR}/Doxyfile
+        WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+        COMMENT "Generating API documentation with Doxygen"
+        VERBATIM
+    )
+
+    message(STATUS "Doxygen found: ${DOXYGEN_EXECUTABLE}")
+    message(STATUS "Documentation target 'docs' available")
+else()
+    # Check if Doxygen is available even if not requested
+    find_package(Doxygen QUIET)
+    if(DOXYGEN_FOUND)
+        message(STATUS "Doxygen found but BUILD_DOCS=OFF. Use -DBUILD_DOCS=ON to enable.")
+    endif()
 endif()
 
 # =============================================================================
@@ -68,4 +104,5 @@ message(STATUS "  Build type:     ${CMAKE_BUILD_TYPE}")
 message(STATUS "  Library type:   ${BUILD_SHARED_LIBS}")
 message(STATUS "  Build tools:    ${BUILD_TOOLS}")
 message(STATUS "  Build tests:    ${BUILD_TESTING}")
+message(STATUS "  Build docs:     ${BUILD_DOCS}")
 message(STATUS "")
