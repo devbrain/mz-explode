@@ -11,6 +11,7 @@
 #include <libexe/pe/section.hpp>
 #include <libexe/pe/rich_header.hpp>
 #include <libexe/pe/overlay.hpp>
+#include <libexe/pe/authenticode.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
@@ -150,6 +151,19 @@ namespace libexe {
             /// Check if Authenticode signature is present
             /// True if security directory (data directory index 4) is non-empty
             [[nodiscard]] bool has_authenticode() const;
+
+            /// Get parsed Authenticode signature information
+            /// Returns nullopt if no signature or parsing fails
+            [[nodiscard]] std::optional<authenticode_signature> authenticode_info() const;
+
+            /// Get digest algorithm used in Authenticode signature
+            [[nodiscard]] authenticode_hash_algorithm authenticode_digest_algorithm() const;
+
+            /// Check if Authenticode signature uses deprecated algorithms (MD5, SHA1)
+            [[nodiscard]] bool authenticode_uses_deprecated_algorithm() const;
+
+            /// Get Authenticode signature security summary
+            [[nodiscard]] std::string authenticode_security_summary() const;
 
             /// Check if this is a .NET/CLR assembly
             /// True if COM descriptor directory (data directory index 14) is non-empty

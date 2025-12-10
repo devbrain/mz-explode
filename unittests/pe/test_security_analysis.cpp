@@ -449,3 +449,210 @@ TEST_CASE("PE Overlay Analysis: TCMADM64.EXE") {
         }
     }
 }
+
+// =============================================================================
+// Authenticode Signature Analysis Tests
+// =============================================================================
+
+TEST_CASE("PE Authenticode Analysis: TCMADM64.EXE") {
+    auto data = load_tcmadm64();
+    auto pe = pe_file::from_memory(data);
+
+    SUBCASE("Authenticode presence") {
+        bool has_sig = pe.has_authenticode();
+        MESSAGE("Has Authenticode signature: ", has_sig);
+
+        // TCMADM64.EXE should be signed
+        if (has_sig) {
+            MESSAGE("  Security directory size: ", pe.data_directory_size(directory_entry::SECURITY));
+        }
+    }
+
+    SUBCASE("Authenticode info parsing") {
+        auto info = pe.authenticode_info();
+
+        if (info) {
+            MESSAGE("Authenticode signature parsed successfully");
+            MESSAGE("  Content type: ", info->content_type);
+            MESSAGE("  Digest algorithm: ", hash_algorithm_name(info->digest_algorithm));
+            MESSAGE("  Version: ", info->version);
+            MESSAGE("  Signers: ", info->signers.size());
+            MESSAGE("  Certificates: ", info->certificates.size());
+            MESSAGE("  Has timestamp: ", info->has_timestamp());
+
+            if (info->is_valid()) {
+                MESSAGE("  Signature is valid Authenticode");
+            }
+
+            // Check for deprecated algorithms
+            if (info->uses_deprecated_algorithm()) {
+                MESSAGE("  WARNING: Uses deprecated algorithm (MD5/SHA1)");
+            }
+        } else {
+            MESSAGE("No Authenticode signature or parsing failed");
+        }
+    }
+
+    SUBCASE("Certificate chain analysis") {
+        auto info = pe.authenticode_info();
+
+        if (info && !info->certificates.empty()) {
+            MESSAGE("Certificate chain:");
+            for (size_t i = 0; i < info->certificates.size(); ++i) {
+                const auto& cert = info->certificates[i];
+                MESSAGE("  [", i, "] Subject: ", cert.subject.to_string());
+                MESSAGE("       Issuer:  ", cert.issuer.to_string());
+                MESSAGE("       Serial:  ", cert.serial_number);
+
+                if (cert.is_self_signed()) {
+                    MESSAGE("       (ROOT CERTIFICATE)");
+                }
+                if (cert.is_expired()) {
+                    MESSAGE("       (EXPIRED)");
+                }
+            }
+
+            // Verify chain has expected properties
+            CHECK(info->certificate_chain_depth() > 0);
+        }
+    }
+
+    SUBCASE("Signer information") {
+        auto info = pe.authenticode_info();
+
+        if (info && !info->signers.empty()) {
+            MESSAGE("Signers:");
+            for (size_t i = 0; i < info->signers.size(); ++i) {
+                const auto& signer = info->signers[i];
+                MESSAGE("  [", i, "] Issuer: ", signer.issuer.to_string());
+                MESSAGE("       Serial: ", signer.serial_number);
+                MESSAGE("       Digest: ", hash_algorithm_name(signer.digest_algorithm));
+
+                if (signer.uses_deprecated_algorithm()) {
+                    MESSAGE("       WARNING: Deprecated algorithm");
+                }
+            }
+        }
+    }
+
+    SUBCASE("Timestamp analysis") {
+        auto info = pe.authenticode_info();
+
+        if (info && info->has_timestamp()) {
+            MESSAGE("Timestamp: ", info->timestamp->to_string());
+            MESSAGE("  RFC 3161: ", info->timestamp->is_rfc3161);
+            MESSAGE("  Digest: ", hash_algorithm_name(info->timestamp->digest_algorithm));
+        } else {
+            MESSAGE("No timestamp in signature");
+        }
+    }
+
+    SUBCASE("Security summary") {
+        std::string summary = pe.authenticode_security_summary();
+        MESSAGE("Security Summary:\n", summary);
+    }
+
+    SUBCASE("Helper method consistency") {
+        auto info = pe.authenticode_info();
+
+        // Verify helper methods match parsed info
+        authenticode_hash_algorithm alg = pe.authenticode_digest_algorithm();
+        MESSAGE("Digest algorithm via helper: ", hash_algorithm_name(alg));
+
+        if (info) {
+            CHECK(alg == info->digest_algorithm);
+            CHECK(pe.authenticode_uses_deprecated_algorithm() == info->uses_deprecated_algorithm());
+        }
+    }
+}
+
+TEST_CASE("Authenticode Analyzer: ASN.1 Parsing") {
+    SUBCASE("is_pkcs7_signed_data - empty data") {
+        std::vector<uint8_t> empty;
+        CHECK_FALSE(authenticode_analyzer::is_pkcs7_signed_data(empty));
+    }
+
+    SUBCASE("is_pkcs7_signed_data - too small") {
+        std::vector<uint8_t> small = {0x30, 0x03, 0x01, 0x02, 0x03};
+        CHECK_FALSE(authenticode_analyzer::is_pkcs7_signed_data(small));
+    }
+
+    SUBCASE("algorithm_from_oid") {
+        CHECK(authenticode_analyzer::algorithm_from_oid("1.2.840.113549.2.5") ==
+              authenticode_hash_algorithm::MD5);
+        CHECK(authenticode_analyzer::algorithm_from_oid("1.3.14.3.2.26") ==
+              authenticode_hash_algorithm::SHA1);
+        CHECK(authenticode_analyzer::algorithm_from_oid("2.16.840.1.101.3.4.2.1") ==
+              authenticode_hash_algorithm::SHA256);
+        CHECK(authenticode_analyzer::algorithm_from_oid("2.16.840.1.101.3.4.2.2") ==
+              authenticode_hash_algorithm::SHA384);
+        CHECK(authenticode_analyzer::algorithm_from_oid("2.16.840.1.101.3.4.2.3") ==
+              authenticode_hash_algorithm::SHA512);
+        CHECK(authenticode_analyzer::algorithm_from_oid("unknown") ==
+              authenticode_hash_algorithm::UNKNOWN);
+    }
+
+    SUBCASE("hash_algorithm_name") {
+        CHECK(std::string(hash_algorithm_name(authenticode_hash_algorithm::MD5)) == "MD5");
+        CHECK(std::string(hash_algorithm_name(authenticode_hash_algorithm::SHA1)) == "SHA1");
+        CHECK(std::string(hash_algorithm_name(authenticode_hash_algorithm::SHA256)) == "SHA256");
+        CHECK(std::string(hash_algorithm_name(authenticode_hash_algorithm::SHA384)) == "SHA384");
+        CHECK(std::string(hash_algorithm_name(authenticode_hash_algorithm::SHA512)) == "SHA512");
+        CHECK(std::string(hash_algorithm_name(authenticode_hash_algorithm::UNKNOWN)) == "Unknown");
+    }
+}
+
+TEST_CASE("x509_name: String formatting") {
+    x509_name name;
+
+    SUBCASE("Empty name") {
+        CHECK(name.empty());
+        CHECK(name.to_string() == "");
+    }
+
+    SUBCASE("Single component") {
+        name.common_name = "Test Company";
+        CHECK_FALSE(name.empty());
+        CHECK(name.to_string() == "CN=Test Company");
+    }
+
+    SUBCASE("Multiple components") {
+        name.common_name = "Code Signer";
+        name.organization = "Test Corp";
+        name.country = "US";
+
+        std::string str = name.to_string();
+        CHECK(str.find("CN=Code Signer") != std::string::npos);
+        CHECK(str.find("O=Test Corp") != std::string::npos);
+        CHECK(str.find("C=US") != std::string::npos);
+    }
+}
+
+TEST_CASE("authenticode_signer_info: Deprecated algorithm detection") {
+    authenticode_signer_info signer;
+
+    SUBCASE("MD5 is deprecated") {
+        signer.digest_algorithm = authenticode_hash_algorithm::MD5;
+        CHECK(signer.uses_deprecated_algorithm());
+    }
+
+    SUBCASE("SHA1 is deprecated") {
+        signer.digest_algorithm = authenticode_hash_algorithm::SHA1;
+        CHECK(signer.uses_deprecated_algorithm());
+    }
+
+    SUBCASE("SHA256 is not deprecated") {
+        signer.digest_algorithm = authenticode_hash_algorithm::SHA256;
+        CHECK_FALSE(signer.uses_deprecated_algorithm());
+    }
+
+    SUBCASE("SHA384 is not deprecated") {
+        signer.digest_algorithm = authenticode_hash_algorithm::SHA384;
+        CHECK_FALSE(signer.uses_deprecated_algorithm());
+    }
+
+    SUBCASE("SHA512 is not deprecated") {
+        signer.digest_algorithm = authenticode_hash_algorithm::SHA512;
+        CHECK_FALSE(signer.uses_deprecated_algorithm());
+    }
+}

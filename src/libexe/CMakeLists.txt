@@ -111,6 +111,7 @@ add_library(libexe
         com_descriptor.cpp
         # PE utilities
         pe/overlay.cpp
+        pe/authenticode.cpp
         # Resources
         resources/resource.cpp
         resources/pe_resource_directory.cpp

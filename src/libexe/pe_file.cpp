@@ -1607,6 +1607,50 @@ bool pe_file::has_authenticode() const {
            data_directory_size(directory_entry::SECURITY) > 0;
 }
 
+std::optional<authenticode_signature> pe_file::authenticode_info() const {
+    if (!has_authenticode()) {
+        return std::nullopt;
+    }
+
+    auto sec = security();
+    if (!sec || sec->empty()) {
+        return std::nullopt;
+    }
+
+    // Find the first Authenticode certificate
+    const security_certificate* auth_cert = sec->get_authenticode();
+    if (!auth_cert) {
+        return std::nullopt;
+    }
+
+    // Parse the PKCS#7 SignedData structure
+    return authenticode_analyzer::parse(auth_cert->data());
+}
+
+authenticode_hash_algorithm pe_file::authenticode_digest_algorithm() const {
+    auto info = authenticode_info();
+    if (info) {
+        return info->digest_algorithm;
+    }
+    return authenticode_hash_algorithm::UNKNOWN;
+}
+
+bool pe_file::authenticode_uses_deprecated_algorithm() const {
+    auto info = authenticode_info();
+    if (info) {
+        return info->uses_deprecated_algorithm();
+    }
+    return false;
+}
+
+std::string pe_file::authenticode_security_summary() const {
+    auto info = authenticode_info();
+    if (info) {
+        return info->security_summary();
+    }
+    return "No Authenticode signature present";
+}
+
 bool pe_file::is_dotnet() const {
     return has_data_directory(directory_entry::COM_DESCRIPTOR) &&
            data_directory_size(directory_entry::COM_DESCRIPTOR) > 0;
