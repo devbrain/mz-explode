@@ -117,7 +117,7 @@ The library provides the `mzexplode::libexe` namespaced target (or `libexe` with
 
 int main() {
     // Automatic format detection
-    auto exe = libexe::executable_factory::from_file("program.exe");
+    auto exe = libexe::executable_factory::load("program.exe");
 
     std::cout << "Format: " << exe->format_name() << "\n";
     std::cout << "Type: ";
