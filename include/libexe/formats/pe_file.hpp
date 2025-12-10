@@ -10,6 +10,7 @@
 #include <libexe/pe/types.hpp>
 #include <libexe/pe/section.hpp>
 #include <libexe/pe/rich_header.hpp>
+#include <libexe/pe/overlay.hpp>
 #include <filesystem>
 #include <vector>
 #include <span>
@@ -191,6 +192,44 @@ namespace libexe {
             [[nodiscard]] bool is_efi() const;
 
             // =========================================================================
+            // Entropy Analysis (Packing Detection)
+            // =========================================================================
+
+            /// Calculate entropy of entire file
+            [[nodiscard]] double file_entropy() const;
+
+            /// Calculate entropy of a specific section by name
+            [[nodiscard]] double section_entropy(const std::string& section_name) const;
+
+            /// Get entropy analysis for all sections
+            [[nodiscard]] std::vector<std::pair<std::string, double>> all_section_entropies() const;
+
+            /// Check if any section has high entropy (likely packed/compressed)
+            [[nodiscard]] bool has_high_entropy_sections() const;
+
+            /// Check if file appears to be packed (heuristic based on entropy + other indicators)
+            [[nodiscard]] bool is_likely_packed() const;
+
+            // =========================================================================
+            // Overlay Detection
+            // =========================================================================
+
+            /// Check if file has an overlay (data after last section)
+            [[nodiscard]] bool has_overlay() const;
+
+            /// Get overlay offset (0 if no overlay)
+            [[nodiscard]] uint64_t overlay_offset() const;
+
+            /// Get overlay size in bytes (0 if no overlay)
+            [[nodiscard]] uint64_t overlay_size() const;
+
+            /// Get overlay data as span (empty if no overlay)
+            [[nodiscard]] std::span<const uint8_t> overlay_data() const;
+
+            /// Get overlay entropy (0.0 if no overlay)
+            [[nodiscard]] double overlay_entropy() const;
+
+            // =========================================================================
             // Import/Export Analysis
             // =========================================================================
 
@@ -290,6 +329,13 @@ namespace libexe {
             // Rich header cache
             mutable bool rich_header_parsed_ = false;
             mutable std::optional<rich_header> rich_header_;
+
+            // Overlay cache
+            mutable bool overlay_parsed_ = false;
+            mutable overlay_info overlay_info_;
+
+            // Size of optional header (needed for overlay detection)
+            uint16_t optional_header_size_ = 0;
 
             // Diagnostics collector (mutable because diagnostics can be added during lazy parsing)
             mutable diagnostic_collector diagnostics_;

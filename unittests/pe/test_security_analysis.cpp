@@ -5,6 +5,7 @@
 #include <libexe/pe/directories/import.hpp>
 #include <libexe/pe/directories/export.hpp>
 #include <libexe/pe/directories/load_config.hpp>
+#include <libexe/core/entropy.hpp>
 #include <vector>
 
 using namespace libexe;
@@ -305,4 +306,146 @@ TEST_CASE("PE Security Report: comprehensive analysis") {
     CHECK(pe.is_64bit());
     CHECK_FALSE(pe.is_dll());
     CHECK_FALSE(pe.is_dotnet());
+}
+
+// =============================================================================
+// Entropy Analysis Tests
+// =============================================================================
+
+TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
+    auto data = load_tcmadm64();
+    auto pe = pe_file::from_memory(data);
+
+    SUBCASE("File entropy") {
+        double entropy = pe.file_entropy();
+        MESSAGE("File entropy: ", entropy, " bits");
+
+        // File entropy should be reasonable (not empty, not random)
+        CHECK(entropy > 0.0);
+        CHECK(entropy <= 8.0);
+    }
+
+    SUBCASE("Section entropies") {
+        auto section_entropies = pe.all_section_entropies();
+
+        MESSAGE("Section entropies:");
+        for (const auto& [name, entropy] : section_entropies) {
+            MESSAGE("  ", name, ": ", entropy, " bits (",
+                   entropy_calculator::classify(entropy), ")");
+        }
+
+        CHECK(section_entropies.size() > 0);
+    }
+
+    SUBCASE("Individual section entropy") {
+        // .text section typically has moderate entropy (compiled code)
+        double text_entropy = pe.section_entropy(".text");
+        MESSAGE(".text entropy: ", text_entropy, " bits");
+
+        // Code typically has entropy between 5-7
+        if (text_entropy > 0.0) {
+            CHECK(text_entropy >= 4.0);
+            CHECK(text_entropy <= 8.0);
+        }
+    }
+
+    SUBCASE("High entropy detection") {
+        bool has_high = pe.has_high_entropy_sections();
+        MESSAGE("Has high entropy sections: ", has_high);
+
+        // TCMADM64 is a normal executable, should not have very high entropy
+        // (If it does, it might have embedded resources or data)
+    }
+
+    SUBCASE("Packing detection") {
+        bool likely_packed = pe.is_likely_packed();
+        MESSAGE("Likely packed: ", likely_packed);
+
+        // TCMADM64 is a normal executable, should not be detected as packed
+        CHECK_FALSE(likely_packed);
+    }
+}
+
+TEST_CASE("Entropy Calculator: Unit Tests") {
+    SUBCASE("Empty data") {
+        std::vector<uint8_t> empty;
+        double entropy = entropy_calculator::calculate(empty);
+        CHECK(entropy == 0.0);
+    }
+
+    SUBCASE("Single byte repeated") {
+        std::vector<uint8_t> uniform(1000, 0x00);
+        double entropy = entropy_calculator::calculate(uniform);
+        MESSAGE("Uniform data entropy: ", entropy);
+        CHECK(entropy == 0.0);  // All same bytes = 0 entropy
+    }
+
+    SUBCASE("Two byte values") {
+        std::vector<uint8_t> two_values;
+        for (int i = 0; i < 500; ++i) {
+            two_values.push_back(0x00);
+            two_values.push_back(0xFF);
+        }
+        double entropy = entropy_calculator::calculate(two_values);
+        MESSAGE("Two values entropy: ", entropy);
+        CHECK(entropy == doctest::Approx(1.0).epsilon(0.01));  // log2(2) = 1
+    }
+
+    SUBCASE("Maximum entropy (random)") {
+        // Perfectly uniform distribution of all 256 byte values
+        std::vector<uint8_t> uniform_dist;
+        for (int i = 0; i < 256; ++i) {
+            uniform_dist.push_back(static_cast<uint8_t>(i));
+        }
+        double entropy = entropy_calculator::calculate(uniform_dist);
+        MESSAGE("Uniform distribution entropy: ", entropy);
+        CHECK(entropy == doctest::Approx(8.0).epsilon(0.01));  // log2(256) = 8
+    }
+
+    SUBCASE("Classification") {
+        CHECK(std::string(entropy_calculator::classify(0.0)) == "Very Low (sparse/empty)");
+        CHECK(std::string(entropy_calculator::classify(4.0)) == "Low (text/sparse data)");
+        CHECK(std::string(entropy_calculator::classify(6.0)) == "Normal (code/data)");
+        CHECK(std::string(entropy_calculator::classify(7.5)) == "High (packed/compressed)");
+        CHECK(std::string(entropy_calculator::classify(7.95)) == "Very High (encrypted/random)");
+    }
+}
+
+// =============================================================================
+// Overlay Detection Tests
+// =============================================================================
+
+TEST_CASE("PE Overlay Analysis: TCMADM64.EXE") {
+    auto data = load_tcmadm64();
+    auto pe = pe_file::from_memory(data);
+
+    SUBCASE("Overlay detection") {
+        bool has_overlay = pe.has_overlay();
+        MESSAGE("Has overlay: ", has_overlay);
+
+        if (has_overlay) {
+            MESSAGE("Overlay offset: ", pe.overlay_offset());
+            MESSAGE("Overlay size: ", pe.overlay_size(), " bytes");
+            MESSAGE("Overlay entropy: ", pe.overlay_entropy(), " bits");
+
+            auto overlay = pe.overlay_data();
+            CHECK(overlay.size() == pe.overlay_size());
+        }
+    }
+
+    SUBCASE("Overlay properties") {
+        uint64_t offset = pe.overlay_offset();
+        uint64_t size = pe.overlay_size();
+        double entropy = pe.overlay_entropy();
+
+        MESSAGE("Overlay offset: ", offset);
+        MESSAGE("Overlay size: ", size);
+        MESSAGE("Overlay entropy: ", entropy);
+
+        // If no overlay, these should be 0
+        if (!pe.has_overlay()) {
+            CHECK(size == 0);
+            CHECK(entropy == 0.0);
+        }
+    }
 }

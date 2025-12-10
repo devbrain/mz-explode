@@ -76,6 +76,7 @@ datascript_generate(
 add_library(libexe
         # Core files
         core/diagnostic.cpp
+        core/entropy.cpp
         executable_file.cpp
         executable_factory.cpp
         mz_file.cpp
@@ -108,6 +109,8 @@ add_library(libexe
         bound_import_directory.cpp
         security_directory.cpp
         com_descriptor.cpp
+        # PE utilities
+        pe/overlay.cpp
         # Resources
         resources/resource.cpp
         resources/pe_resource_directory.cpp
