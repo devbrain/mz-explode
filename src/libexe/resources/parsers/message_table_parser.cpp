@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/message_table_parser.hpp>
-#include "libexe_format_tables.hh"
+#include <formats/resources/tables/tables.hh>
 #include "../../core/utf_convert.hpp"
 
 namespace libexe {

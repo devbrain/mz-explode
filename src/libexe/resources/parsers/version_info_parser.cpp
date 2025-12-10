@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/version_info_parser.hpp>
-#include "libexe_format_version.hh"  // Generated DataScript parser (modular)
+#include <formats/resources/version/version.hh>  // Generated DataScript parser (modular)
 #include "../../core/utf_convert.hpp"
 #include <sstream>
 #include <cstring>

@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/resources/pe_resource_directory.hpp>
-#include "libexe_format_pe.hh"  // Generated DataScript parser (modular)
+#include <formats/pe/pe_header/pe_header.hh>  // Generated DataScript parser (modular)
 #include <algorithm>
 #include <stdexcept>
 #include <cstring>

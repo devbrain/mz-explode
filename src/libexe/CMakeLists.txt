@@ -8,106 +8,66 @@ include(FetchContent)
 
 # DataScript - binary format parser generator
 # Guard: only fetch if not already available (could be provided by parent project)
-if(NOT TARGET ds)
+if (NOT TARGET ds)
     message(STATUS "DataScript not found, fetching from GitHub...")
 
-    include(FetchContent)
+    set(DATASCRIPT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+
     FetchContent_Declare(
             datascript
             GIT_REPOSITORY https://github.com/devbrain/datascript.git
             GIT_TAG master
     )
 
-    # Check if already populated by parent project
-    FetchContent_GetProperties(datascript)
-    if(NOT datascript_POPULATED)
-        FetchContent_MakeAvailable(datascript)
-    endif()
-else()
+    FetchContent_MakeAvailable(datascript)
+else ()
     message(STATUS "Using existing DataScript (provided by parent project)")
-endif()
-## Failsafe - header-only logging and exception handling
-#FetchContent_Declare(
-#    failsafe
-#    GIT_REPOSITORY https://github.com/devbrain/failsafe.git
-#    GIT_TAG master
-#)
-#
-#FetchContent_MakeAvailable(datascript failsafe)
-
-
+endif ()
 
 # =============================================================================
-# DataScript Code Generation
+# DataScript Code Generation using datascript_generate()
 # =============================================================================
 
-function(add_datascript_parser SCHEMA_FILE OUTPUT_NAME)
-    get_filename_component(SCHEMA_NAME ${SCHEMA_FILE} NAME_WE)
-    get_filename_component(OUTPUT_NAME_WE ${OUTPUT_NAME} NAME_WE)
-    set(GENERATED_HEADER "${CMAKE_BINARY_DIR}/generated/${OUTPUT_NAME}")
+# Generate parsers from all DataScript schema files
+# The datascript_generate() function creates an INTERFACE library with proper
+# include directories and automatic dependency tracking
+datascript_generate(
+        TARGET libexe_parsers
+        SCHEMAS
+        # Common types (no dependencies)
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/common.ds
+        # Executable format parsers
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/mz.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/ne/ne_header.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_header.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/le/le_header.ds
+        # PE data directory parsers
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_imports.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_exports.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_relocations.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_tls.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_debug.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_load_config.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_exception.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_delay_imports.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_bound_imports.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_security.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_com_descriptor.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/pe/pe_iat.ds
+        # Resource format parsers
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/dialogs.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/version.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/basic.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/tables.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/fonts.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/menus.ds
+        ${CMAKE_CURRENT_SOURCE_DIR}/formats/resources/os2.ds
 
-    add_custom_command(
-            OUTPUT ${GENERATED_HEADER}
-            COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_BINARY_DIR}/generated
-            COMMAND ds ${CMAKE_CURRENT_SOURCE_DIR}/${SCHEMA_FILE} -t cpp -o ${CMAKE_BINARY_DIR}/generated/ --cpp-output-name=${OUTPUT_NAME_WE} -I ${CMAKE_CURRENT_SOURCE_DIR}/formats
-            DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/${SCHEMA_FILE}
-            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-            COMMENT "Generating C++ parser from ${SCHEMA_FILE}"
-            VERBATIM
-    )
-
-    # Create a custom target to ensure generation happens
-    add_custom_target(generate_${SCHEMA_NAME}_parser
-            DEPENDS ${GENERATED_HEADER}
-    )
-
-    set(GENERATED_PARSER_HEADER ${GENERATED_HEADER} PARENT_SCOPE)
-endfunction()
-
-# =============================================================================
-# Generate Parsers from Modular DataScript Files
-# =============================================================================
-
-# Generate parsers from modular specifications
-# Common types (no dependencies, generate first)
-add_datascript_parser(formats/common.ds libexe_format_common.hh)
-
-# Executable format parsers (independent, no dependencies)
-add_datascript_parser(formats/mz.ds libexe_format_mz.hh)
-add_datascript_parser(formats/ne/ne_header.ds libexe_format_ne.hh)
-add_datascript_parser(formats/pe/pe_header.ds libexe_format_pe.hh)
-add_datascript_parser(formats/le/le_header.ds libexe_format_le.hh)
-
-# PE data directory parsers
-add_datascript_parser(formats/pe/pe_imports.ds libexe_format_pe_imports.hh)
-add_datascript_parser(formats/pe/pe_exports.ds libexe_format_pe_exports.hh)
-add_datascript_parser(formats/pe/pe_relocations.ds libexe_format_pe_relocations.hh)
-add_datascript_parser(formats/pe/pe_tls.ds libexe_format_pe_tls.hh)
-add_datascript_parser(formats/pe/pe_debug.ds libexe_format_pe_debug.hh)
-add_datascript_parser(formats/pe/pe_load_config.ds libexe_format_pe_load_config.hh)
-add_datascript_parser(formats/pe/pe_exception.ds libexe_format_pe_exception.hh)
-add_datascript_parser(formats/pe/pe_delay_imports.ds libexe_format_pe_delay_imports.hh)
-add_datascript_parser(formats/pe/pe_bound_imports.ds libexe_format_pe_bound_imports.hh)
-add_datascript_parser(formats/pe/pe_security.ds libexe_format_pe_security.hh)
-add_datascript_parser(formats/pe/pe_com_descriptor.ds libexe_format_pe_com_descriptor.hh)
-add_datascript_parser(formats/pe/pe_iat.ds libexe_format_pe_iat.hh)
-
-# Resource format parsers (depend on common.ds)
-add_datascript_parser(formats/resources/dialogs.ds libexe_format_dialogs.hh)
-add_datascript_parser(formats/resources/version.ds libexe_format_version.hh)
-add_datascript_parser(formats/resources/basic.ds libexe_format_basic.hh)
-add_datascript_parser(formats/resources/tables.ds libexe_format_tables.hh)
-add_datascript_parser(formats/resources/fonts.ds libexe_format_fonts.hh)
-add_datascript_parser(formats/resources/menus.ds libexe_format_menus.hh)
-add_datascript_parser(formats/resources/os2.ds libexe_format_os2.hh)
-
-# Set up dependencies: resource parsers depend on common being generated first
-add_dependencies(generate_dialogs_parser generate_common_parser)
-add_dependencies(generate_version_parser generate_common_parser)
-add_dependencies(generate_basic_parser generate_common_parser)
-add_dependencies(generate_tables_parser generate_common_parser)
-add_dependencies(generate_fonts_parser generate_common_parser)
-add_dependencies(generate_menus_parser generate_common_parser)
+        OUTPUT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated
+        IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}
+        INCLUDE_DIRS ${CMAKE_CURRENT_BINARY_DIR}
+        PRESERVE_PACKAGE_DIRS ON
+)
 
 # =============================================================================
 # Main Library
@@ -173,34 +133,9 @@ add_library(libexe
         resources/parsers/dialog_parser.cpp
 )
 
-# Make library depend on parser generation
-add_dependencies(libexe
-    # Modular parsers
-    generate_common_parser
-    generate_mz_parser
-    generate_ne_header_parser
-    generate_pe_header_parser
-    generate_le_header_parser
-    generate_pe_imports_parser
-    generate_pe_exports_parser
-    generate_pe_relocations_parser
-    generate_pe_tls_parser
-    generate_pe_debug_parser
-    generate_pe_load_config_parser
-    generate_pe_exception_parser
-    generate_pe_delay_imports_parser
-    generate_pe_bound_imports_parser
-    generate_pe_security_parser
-    generate_pe_com_descriptor_parser
-    generate_pe_iat_parser
-    generate_dialogs_parser
-    generate_version_parser
-    generate_basic_parser
-    generate_tables_parser
-    generate_fonts_parser
-    generate_menus_parser
-    generate_os2_parser
-)
+# Link against the generated parsers INTERFACE library
+# This automatically adds the include directories and triggers code generation
+target_link_libraries(libexe PRIVATE libexe_parsers)
 
 # Generate portable export header
 generate_export_header(libexe
@@ -209,15 +144,14 @@ generate_export_header(libexe
 )
 
 # Include directories
+# Note: ${CMAKE_BINARY_DIR}/generated is provided by libexe_parsers INTERFACE library
 target_include_directories(libexe
         PUBLIC
         $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:include>
         PRIVATE
-        ${CMAKE_BINARY_DIR}/generated
         ${CMAKE_CURRENT_SOURCE_DIR}
-        ${CMAKE_SOURCE_DIR}/third-party
 )
 
 ## Link dependencies

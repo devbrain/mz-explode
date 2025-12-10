@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/font_parser.hpp>
-#include "libexe_format_fonts.hh"
+#include <formats/resources/fonts/fonts.hh>
 #include <cstring>
 
 namespace libexe {

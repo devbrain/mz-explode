@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/pe/directories/delay_import.hpp>
-#include <libexe_format_pe_delay_imports.hh>
+#include <formats/pe/pe_delay_imports/pe_delay_imports.hh>
 #include <stdexcept>
 #include <cstring>
 

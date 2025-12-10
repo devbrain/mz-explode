@@ -3,7 +3,7 @@
 
 #include <libexe/pe/directories/debug.hpp>
 #include <libexe/pe/section_parser.hpp>
-#include "libexe_format_pe_debug.hh"  // Generated DataScript parser
+#include <formats/pe/pe_debug/pe_debug.hh>  // Generated DataScript parser
 #include <stdexcept>
 #include <cstring>
 

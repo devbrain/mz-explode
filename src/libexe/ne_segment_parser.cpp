@@ -1,5 +1,5 @@
 #include <libexe/ne/segment_parser.hpp>
-#include "libexe_format_ne.hh"  // Generated DataScript parser
+#include <formats/ne/ne_header/ne_header.hh>  // Generated DataScript parser
 #include <algorithm>
 #include <stdexcept>
 

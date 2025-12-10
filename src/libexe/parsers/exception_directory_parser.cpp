@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/pe/directories/exception.hpp>
-#include <libexe_format_pe_exception.hh>
+#include <formats/pe/pe_exception/pe_exception.hh>
 #include <stdexcept>
 #include <cstring>
 

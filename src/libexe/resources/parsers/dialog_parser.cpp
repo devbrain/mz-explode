@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/dialog_parser.hpp>
-#include "libexe_format_dialogs.hh"
+#include <formats/resources/dialogs/dialogs.hh>
 #include "../../core/utf_convert.hpp"
 #include <cstring>
 
@@ -9,9 +9,9 @@ namespace {
 
 // Convert DataScript resource_name_or_id to libexe name_or_id
 name_or_id convert_resource_name_or_id(const formats::resources::dialogs::resource_name_or_id& src) {
-    if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(src).as_ordinal()) {
+    if (auto* ordinal = src.as_ordinal()) {
         return ordinal->value;
-    } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(src).as_name()) {
+    } else if (auto* name = src.as_name()) {
         return utf16_to_utf8(name->value);
     }
     return std::string("");
@@ -19,9 +19,9 @@ name_or_id convert_resource_name_or_id(const formats::resources::dialogs::resour
 
 // Convert DataScript ne_name_or_id to libexe name_or_id
 name_or_id convert_ne_name_or_id(const formats::resources::dialogs::ne_name_or_id& src) {
-    if (auto* ordinal = const_cast<formats::resources::dialogs::ne_name_or_id&>(src).as_ordinal_value()) {
+    if (auto* ordinal = src.as_ordinal_value()) {
         return ordinal->value.ordinal;
-    } else if (auto* str_val = const_cast<formats::resources::dialogs::ne_name_or_id&>(src).as_string_value()) {
+    } else if (auto* str_val = src.as_string_value()) {
         return std::string(str_val->value.chars.begin(), str_val->value.chars.end());
     }
     return std::string("");
@@ -46,9 +46,9 @@ std::variant<control_class, std::string> convert_ne_control_class(
 
 // Convert DataScript ne_control_text to libexe name_or_id
 name_or_id convert_ne_control_text(const formats::resources::dialogs::ne_control_text& src) {
-    if (auto* ordinal = const_cast<formats::resources::dialogs::ne_control_text&>(src).as_ordinal_value()) {
+    if (auto* ordinal = src.as_ordinal_value()) {
         return ordinal->value.ordinal;
-    } else if (auto* str_val = const_cast<formats::resources::dialogs::ne_control_text&>(src).as_text()) {
+    } else if (auto* str_val = src.as_text()) {
         return str_val->value;  // Already a std::string
     }
     return std::string("");
@@ -72,9 +72,9 @@ std::optional<dialog_template> parse_pe_dialog_ex(std::span<const uint8_t> data)
         result.menu = convert_resource_name_or_id(ds_dialog.menu);
 
         // Convert window class
-        if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_ordinal()) {
+        if (auto* ordinal = ds_dialog.window_class.as_ordinal()) {
             result.window_class = "Class_" + std::to_string(ordinal->value);
-        } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_name()) {
+        } else if (auto* name = ds_dialog.window_class.as_name()) {
             result.window_class = utf16_to_utf8(name->value);
         }
 
@@ -108,14 +108,14 @@ std::optional<dialog_template> parse_pe_dialog_ex(std::span<const uint8_t> data)
                 control.style = ds_item.style;
 
                 // Convert control class
-                if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_ordinal()) {
+                if (auto* ordinal = ds_item.window_class.as_ordinal()) {
                     uint16_t class_ord = ordinal->value;
                     if (class_ord >= 0x80 && class_ord <= 0x85) {
                         control.control_class_id = static_cast<control_class>(class_ord);
                     } else {
                         control.control_class_id = std::string("Class_") + std::to_string(class_ord);
                     }
-                } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_name()) {
+                } else if (auto* name = ds_item.window_class.as_name()) {
                     control.control_class_id = utf16_to_utf8(name->value);
                 }
 
@@ -155,9 +155,9 @@ std::optional<dialog_template> parse_pe_dialog_standard(std::span<const uint8_t>
         result.menu = convert_resource_name_or_id(ds_dialog.menu);
 
         // Convert window class
-        if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_ordinal()) {
+        if (auto* ordinal = ds_dialog.window_class.as_ordinal()) {
             result.window_class = "Class_" + std::to_string(ordinal->value);
-        } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_dialog.window_class).as_name()) {
+        } else if (auto* name = ds_dialog.window_class.as_name()) {
             result.window_class = utf16_to_utf8(name->value);
         }
 
@@ -191,14 +191,14 @@ std::optional<dialog_template> parse_pe_dialog_standard(std::span<const uint8_t>
                 control.style = ds_item.style;
 
                 // Convert control class
-                if (auto* ordinal = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_ordinal()) {
+                if (auto* ordinal = ds_item.window_class.as_ordinal()) {
                     uint16_t class_ord = ordinal->value;
                     if (class_ord >= 0x80 && class_ord <= 0x85) {
                         control.control_class_id = static_cast<control_class>(class_ord);
                     } else {
                         control.control_class_id = std::string("Class_") + std::to_string(class_ord);
                     }
-                } else if (auto* name = const_cast<formats::resources::dialogs::resource_name_or_id&>(ds_item.window_class).as_name()) {
+                } else if (auto* name = ds_item.window_class.as_name()) {
                     control.control_class_id = utf16_to_utf8(name->value);
                 }
 

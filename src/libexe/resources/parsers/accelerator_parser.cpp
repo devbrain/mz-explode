@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/accelerator_parser.hpp>
-#include "libexe_format_tables.hh"  // Generated DataScript parser (modular)
+#include <formats/resources/tables/tables.hh>  // Generated DataScript parser (modular)
 #include <sstream>
 
 namespace libexe {

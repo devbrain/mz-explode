@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/bitmap_parser.hpp>
-#include "libexe_format_basic.hh"
+#include <formats/resources/basic/basic.hh>
 
 namespace libexe {
 

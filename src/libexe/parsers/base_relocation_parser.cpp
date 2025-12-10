@@ -1,6 +1,6 @@
 #include <libexe/pe/directories/relocation.hpp>
 #include <libexe/pe/section_parser.hpp>
-#include "libexe_format_pe_relocations.hh"
+#include <formats/pe/pe_relocations/pe_relocations.hh>
 #include <stdexcept>
 
 namespace libexe {

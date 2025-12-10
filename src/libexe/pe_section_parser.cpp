@@ -1,6 +1,6 @@
 #include <libexe/pe/section_parser.hpp>
-#include "libexe_format_pe.hh"  // Generated DataScript parser
-#include "libexe_format_mz.hh"  // For DOS header
+#include <formats/pe/pe_header/pe_header.hh>  // Generated DataScript parser
+#include <formats/mz/mz.hh>  // For DOS header
 #include <algorithm>
 #include <cstring>
 #include <stdexcept>

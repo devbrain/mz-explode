@@ -2,7 +2,7 @@
 // Copyright (c) 2024
 
 #include <libexe/resources/ne_resource_directory.hpp>
-#include "libexe_format_ne.hh"  // Generated DataScript parser (modular)
+#include <formats/ne/ne_header/ne_header.hh>  // Generated DataScript parser (modular)
 #include <algorithm>
 #include <stdexcept>
 #include <cstring>

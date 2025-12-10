@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/icon_group_parser.hpp>
-#include "libexe_format_basic.hh"  // Generated DataScript parser (modular)
+#include <formats/resources/basic/basic.hh>  // Generated DataScript parser (modular)
 #include <stdexcept>
 
 namespace libexe {

@@ -1,6 +1,6 @@
 #include <libexe/pe/directories/tls.hpp>
 #include <libexe/pe/section_parser.hpp>
-#include "libexe_format_pe_tls.hh"  // Generated DataScript parser
+#include <formats/pe/pe_tls/pe_tls.hh>  // Generated DataScript parser
 #include <stdexcept>
 
 namespace libexe {

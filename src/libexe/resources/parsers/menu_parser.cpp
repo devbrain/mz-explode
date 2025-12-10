@@ -1,5 +1,5 @@
 #include <libexe/resources/parsers/menu_parser.hpp>
-#include "libexe_format_menus.hh"
+#include <formats/resources/menus/menus.hh>
 #include "../../core/utf_convert.hpp"
 
 namespace libexe {

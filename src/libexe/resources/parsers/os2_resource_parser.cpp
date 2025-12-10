@@ -4,7 +4,7 @@
 // OS/2 Presentation Manager resource parsers
 
 #include <libexe/resources/parsers/os2_resource_parser.hpp>
-#include "libexe_format_os2.hh"
+#include <formats/resources/os2/os2.hh>
 #include <cstring>
 
 namespace libexe {

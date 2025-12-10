@@ -1,6 +1,6 @@
 #include <libexe/pe/directories/import.hpp>
 #include <libexe/pe/section_parser.hpp>
-#include "libexe_format_pe_imports.hh"  // Generated DataScript parser
+#include <formats/pe/pe_imports/pe_imports.hh>  // Generated DataScript parser
 #include <stdexcept>
 #include <algorithm>
 #include <cstring>  // For memchr

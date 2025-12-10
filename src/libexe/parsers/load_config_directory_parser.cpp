@@ -3,7 +3,7 @@
 
 #include <libexe/pe/directories/load_config.hpp>
 #include <libexe/pe/section_parser.hpp>
-#include "libexe_format_pe_load_config.hh"  // Generated DataScript parser
+#include <formats/pe/pe_load_config/pe_load_config.hh>  // Generated DataScript parser
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
