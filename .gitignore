@@ -19,3 +19,6 @@ cmake-build-debug/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Test data (extracted from testdata.tar.gz at build time)
+unittests/testdata/

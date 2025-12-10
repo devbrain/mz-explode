@@ -202,7 +202,7 @@ if (pe.has_resources()) {
 ### Requirements
 
 - C++20 compatible compiler (GCC 10+, Clang 12+, MSVC 2019+)
-- CMake 3.20 or later
+- CMake 3.20 or later (uses `file(ARCHIVE_EXTRACT)` for portable test data decompression)
 
 ### Build Options
 

@@ -1,4 +1,31 @@
 # =============================================================================
+# Extract compressed test data
+# =============================================================================
+# Test data is stored compressed to keep repository small (~5MB vs ~200MB)
+# CMake's file(ARCHIVE_EXTRACT) is portable across Windows/Linux/macOS
+
+set(TESTDATA_ARCHIVE "${CMAKE_CURRENT_SOURCE_DIR}/testdata.tar.gz")
+set(TESTDATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/testdata")
+set(TESTDATA_STAMP "${CMAKE_CURRENT_BINARY_DIR}/testdata.stamp")
+
+if(EXISTS "${TESTDATA_ARCHIVE}")
+    # Check if we need to extract (stamp file tracks extraction)
+    if(NOT EXISTS "${TESTDATA_STAMP}" OR "${TESTDATA_ARCHIVE}" IS_NEWER_THAN "${TESTDATA_STAMP}")
+        message(STATUS "Extracting test data from ${TESTDATA_ARCHIVE}...")
+        file(ARCHIVE_EXTRACT
+            INPUT "${TESTDATA_ARCHIVE}"
+            DESTINATION "${CMAKE_CURRENT_SOURCE_DIR}"
+        )
+        file(TOUCH "${TESTDATA_STAMP}")
+        message(STATUS "Test data extracted to ${TESTDATA_DIR}")
+    else()
+        message(STATUS "Test data already extracted (up to date)")
+    endif()
+else()
+    message(WARNING "Test data archive not found: ${TESTDATA_ARCHIVE}")
+endif()
+
+# =============================================================================
 # Fetch doctest if not already available
 # =============================================================================
 
