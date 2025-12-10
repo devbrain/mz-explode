@@ -13,6 +13,31 @@
 #include <memory>
 
 namespace libexe {
+
+    // =============================================================================
+    // Windows Resource Format Discriminator
+    // =============================================================================
+
+    /**
+     * Windows resource format discriminator for parsing.
+     *
+     * Different Windows executable formats use different binary layouts for the
+     * same resource types. This enum allows parsers to select the correct format
+     * without resorting to fragile heuristics.
+     *
+     * - PE: 32/64-bit Windows (UTF-16 strings, DWORD alignment)
+     * - NE: 16-bit Windows (ANSI strings, WORD alignment)
+     *
+     * Note: OS/2 resources (NE OS/2, LE, LX) have completely different structures
+     * and should use the dedicated OS/2 parsers in os2_resource_parser.hpp instead.
+     * OS/2 resource formats are identical across NE OS/2 and LX, so no discriminator
+     * is needed for them.
+     */
+    enum class windows_resource_format {
+        PE,   ///< PE/PE32+ (Windows 32/64-bit) - UTF-16 strings
+        NE,   ///< NE Windows 16-bit - ANSI strings
+    };
+
     // =============================================================================
     // Resource Type Enumeration (Standard Windows Resource Types)
     // =============================================================================
@@ -266,7 +291,8 @@ namespace libexe {
                 std::optional <std::string> name,
                 uint16_t language,
                 uint32_t codepage,
-                std::span <const uint8_t> data
+                std::span <const uint8_t> data,
+                windows_resource_format format = windows_resource_format::PE
             );
 
         private:
@@ -393,6 +419,20 @@ namespace libexe {
             // =========================================================================
             // Metadata
             // =========================================================================
+
+            /**
+             * Get the Windows resource format for this directory.
+             *
+             * This is the PREFERRED way to determine how to parse resources.
+             * Use this instead of heuristics when parsing dialog, menu, string table,
+             * and other format-dependent resources.
+             *
+             * Note: This interface is for Windows resources only (PE, NE Windows).
+             * OS/2 resources use separate parsers in os2_resource_parser.hpp.
+             *
+             * @return Windows resource format (PE or NE)
+             */
+            [[nodiscard]] virtual windows_resource_format format() const = 0;
 
             /**
              * Get resource directory timestamp

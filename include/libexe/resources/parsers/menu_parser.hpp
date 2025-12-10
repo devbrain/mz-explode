@@ -2,6 +2,7 @@
 #define LIBEXE_MENU_PARSER_HPP
 
 #include <libexe/export.hpp>
+#include <libexe/resources/resource.hpp>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -113,19 +114,20 @@ private:
 };
 
 /**
- * Parser for RT_MENU resources.
+ * Parser for RT_MENU resources (Windows formats only).
  *
- * Parses menu templates from Windows executables (both NE and PE formats
- * use the same menu resource structure).
+ * Parses menu templates from Windows executables.
+ * PE uses UTF-16 strings, NE Windows uses ANSI strings.
  *
- * The parser handles hierarchical menu structures with nested popups.
- * Menu items are parsed recursively based on the MF_POPUP and MF_END flags.
+ * For OS/2 menus (NE OS/2, LE, LX), use parse_os2_menu() from
+ * os2_resource_parser.hpp instead, as OS/2 menus have a completely
+ * different binary structure.
  *
  * Example:
  * @code
  * auto menu_resources = resources->resources_by_type(resource_type::RT_MENU);
  * if (!menu_resources.empty()) {
- *     auto menu = menu_parser::parse(menu_resources[0].data());
+ *     auto menu = menu_parser::parse(menu_resources[0].data(), windows_resource_format::PE);
  *     if (menu.has_value()) {
  *         for (const auto& item : menu->items) {
  *             std::cout << "Menu: " << item.text << "\n";
@@ -142,12 +144,19 @@ private:
 class LIBEXE_EXPORT menu_parser {
 public:
     /**
-     * Parse a menu template resource.
+     * Parse a Windows menu template resource.
+     *
+     * Uses the specified format discriminator to select the correct
+     * string encoding (UTF-16 for PE, ANSI for NE).
      *
      * @param data Raw resource data from RT_MENU resource
+     * @param format Windows resource format (PE or NE)
      * @return Parsed menu template on success, std::nullopt on parse error
+     *
+     * @note For OS/2 menus (NE OS/2, LE, LX), use parse_os2_menu() from
+     *       os2_resource_parser.hpp instead.
      */
-    static std::optional<menu_template> parse(std::span<const uint8_t> data);
+    static std::optional<menu_template> parse(std::span<const uint8_t> data, windows_resource_format format);
 };
 
 } // namespace libexe

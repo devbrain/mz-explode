@@ -6,34 +6,43 @@
 
 #include <libexe/export.hpp>
 #include <libexe/resources/resource.hpp>
+#include <libexe/ne/types.hpp>
+#include <libexe/pe/section.hpp>  // For ne_segment
 #include <span>
 #include <memory>
+#include <vector>
 
 namespace libexe {
 
 /**
  * NE (New Executable) Resource Directory Implementation
  *
- * Parses the NE resource table format used in Windows 3.x executables.
+ * Parses NE resource table format for both Windows and OS/2 executables.
  *
- * NE Resource Table Structure (per docs/ne.fmt lines 308-370):
+ * Windows NE Resource Table Structure (per docs/ne.fmt lines 308-370):
  * - Alignment shift count (2 bytes)
  * - Resource type information blocks (variable):
  *   - Type ID (2 bytes) - 0x8000+ = integer, else string offset, 0 = end
  *   - Resource count (2 bytes)
  *   - Reserved (4 bytes)
- *   - Resource entries (8 bytes each):
+ *   - Resource entries (12 bytes each):
  *     - Offset (2 bytes) in alignment shift units
- *     - Length (2 bytes) in bytes
+ *     - Length (2 bytes) in alignment shift units
  *     - Flags (2 bytes) - MOVEABLE, PURE, PRELOAD
  *     - ID (2 bytes) - 0x8000+ = integer, else string offset
- *     - Reserved (4 bytes)
+ *     - Handle (2 bytes) - reserved
+ *     - Usage (2 bytes) - reserved
  * - Type and name strings (length-prefixed, NOT null-terminated)
+ *
+ * OS/2 NE Resource Table Structure (compact format):
+ * - Alignment shift count (2 bytes)
+ * - (Resource ID, Type ID) pairs (4 bytes each) until end of table
+ * - Resource data is stored in segments, not embedded in resource area
  */
 class LIBEXE_EXPORT ne_resource_directory final : public resource_directory {
 public:
     /**
-     * Construct NE resource directory from resource table data
+     * Construct NE resource directory from resource table data (Windows format)
      *
      * @param rsrc_table_data Resource table data (starting at alignment shift count)
      * @param file_data Full file data (for reading resource data at calculated offsets)
@@ -43,6 +52,23 @@ public:
         std::span<const uint8_t> rsrc_table_data,
         std::span<const uint8_t> file_data,
         uint32_t ne_offset
+    );
+
+    /**
+     * Construct NE resource directory with target OS and segment info (OS/2 support)
+     *
+     * @param rsrc_table_data Resource table data (starting at alignment shift count)
+     * @param file_data Full file data
+     * @param ne_offset Offset to NE header in file
+     * @param target_os Target operating system (OS2, WINDOWS, etc.)
+     * @param segments Segment table (for OS/2 resource data lookup)
+     */
+    ne_resource_directory(
+        std::span<const uint8_t> rsrc_table_data,
+        std::span<const uint8_t> file_data,
+        uint32_t ne_offset,
+        ne_target_os target_os,
+        const std::vector<ne_segment>& segments
     );
 
     ~ne_resource_directory() override;
@@ -55,6 +81,7 @@ public:
     // Metadata
     // =========================================================================
 
+    [[nodiscard]] windows_resource_format format() const override;
     [[nodiscard]] uint32_t timestamp() const override;
     [[nodiscard]] size_t resource_count() const override;
 

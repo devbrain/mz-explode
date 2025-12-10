@@ -2,6 +2,7 @@
 #define LIBEXE_STRING_TABLE_PARSER_HPP
 
 #include <libexe/export.hpp>
+#include <libexe/resources/resource.hpp>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -63,16 +64,21 @@ struct LIBEXE_EXPORT string_table {
 };
 
 /**
- * Parser for RT_STRING resources.
+ * Parser for RT_STRING resources (Windows formats only).
  *
  * Parses string table blocks from Windows executables.
- * Each block contains up to 16 strings, stored as length-prefixed Unicode strings.
+ * - PE format: Length-prefixed UTF-16 strings (16 strings per block)
+ * - NE Windows format: Length-prefixed ANSI strings (16 strings per block)
+ *
+ * For OS/2 string tables (NE OS/2, LE, LX), use parse_os2_string_table()
+ * from os2_resource_parser.hpp instead, as OS/2 string tables have a
+ * different binary structure.
  *
  * Example:
  * @code
  * auto string_blocks = resources->resources_by_type(resource_type::RT_STRING);
  * for (const auto& block_entry : string_blocks) {
- *     auto table = string_table_parser::parse(block_entry.data(), block_entry.id().value());
+ *     auto table = string_table_parser::parse(block_entry.data(), block_entry.id().value(), windows_resource_format::PE);
  *     if (table.has_value()) {
  *         std::cout << "Block " << table->block_id
  *                   << " (" << table->count() << " strings):\n";
@@ -87,13 +93,17 @@ struct LIBEXE_EXPORT string_table {
 class LIBEXE_EXPORT string_table_parser {
 public:
     /**
-     * Parse a string table resource block.
+     * Parse a Windows string table resource block.
+     *
+     * Uses the specified format discriminator to select the correct
+     * string encoding (UTF-16 for PE, ANSI for NE).
      *
      * @param data Raw resource data from RT_STRING resource
      * @param block_id Resource ID of this block (used to calculate string IDs)
+     * @param format Windows resource format (PE or NE)
      * @return Parsed string table on success, std::nullopt on parse error
      */
-    static std::optional<string_table> parse(std::span<const uint8_t> data, uint16_t block_id);
+    static std::optional<string_table> parse(std::span<const uint8_t> data, uint16_t block_id, windows_resource_format format);
 };
 
 } // namespace libexe

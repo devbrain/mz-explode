@@ -38,6 +38,7 @@ public:
     // Metadata
     // =========================================================================
 
+    [[nodiscard]] windows_resource_format format() const override;
     [[nodiscard]] uint32_t timestamp() const override;
     [[nodiscard]] size_t resource_count() const override;
 

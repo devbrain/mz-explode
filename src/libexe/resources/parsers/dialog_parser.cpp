@@ -272,49 +272,30 @@ std::optional<dialog_template> parse_ne_dialog(std::span<const uint8_t> data) {
 
 } // anonymous namespace
 
-std::optional<dialog_template> dialog_parser::parse(std::span<const uint8_t> data) {
+std::optional<dialog_template> dialog_parser::parse(std::span<const uint8_t> data, windows_resource_format format) {
     if (data.size() < 18) {
         return std::nullopt;  // Too small for any dialog format
     }
 
-    // Check for DLGTEMPLATEEX signature (PE extended format)
-    // Signature is: version (WORD) = 1, signature (WORD) = 0xFFFF
-    const uint8_t* ptr = data.data();
-    uint16_t version = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
-    uint16_t signature = static_cast<uint16_t>(ptr[2]) | (static_cast<uint16_t>(ptr[3]) << 8);
+    switch (format) {
+        case windows_resource_format::PE: {
+            // Check for DLGTEMPLATEEX signature (PE extended format)
+            // Signature is: version (WORD) = 1, signature (WORD) = 0xFFFF
+            const uint8_t* ptr = data.data();
+            uint16_t version = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
+            uint16_t signature = static_cast<uint16_t>(ptr[2]) | (static_cast<uint16_t>(ptr[3]) << 8);
 
-    if (version == 1 && signature == 0xFFFF) {
-        // PE extended format (DLGTEMPLATEEX)
-        return parse_pe_dialog_ex(data);
-    }
-
-    // Check if this looks like a PE standard dialog (DLGTEMPLATE)
-    // PE dialogs have extended_style at offset 4, while NE dialogs have item_count (byte) at offset 4
-    // PE dialogs typically have small values in the first DWORD (style), and the second DWORD
-    // (extended_style) is often 0 or small. We can also check if the item_count field
-    // (at offset 8 for PE) makes sense.
-
-    // Simple heuristic: check if bytes 4-7 look like extended_style (usually 0 or small)
-    // and byte 8-9 look like a reasonable item count
-    uint32_t second_dword = static_cast<uint32_t>(ptr[4]) |
-                           (static_cast<uint32_t>(ptr[5]) << 8) |
-                           (static_cast<uint32_t>(ptr[6]) << 16) |
-                           (static_cast<uint32_t>(ptr[7]) << 24);
-
-    // For NE format, byte 4 is item_count (0-255), bytes 5-12 are x,y,cx,cy
-    // For PE format, bytes 4-7 are extended_style, bytes 8-9 are item_count
-
-    // If second_dword looks like a reasonable extended_style (usually 0 or WS_EX_* flags)
-    // and data size is large enough for PE format, try PE first
-    if (data.size() >= 20 && (second_dword == 0 || (second_dword & 0xFFFF0000) == 0)) {
-        auto pe_result = parse_pe_dialog_standard(data);
-        if (pe_result.has_value() && pe_result->num_controls <= 100) {
-            return pe_result;
+            if (version == 1 && signature == 0xFFFF) {
+                return parse_pe_dialog_ex(data);
+            }
+            return parse_pe_dialog_standard(data);
         }
+
+        case windows_resource_format::NE:
+            return parse_ne_dialog(data);
     }
 
-    // Try NE format
-    return parse_ne_dialog(data);
+    return std::nullopt;
 }
 
 const char* control_class_name(control_class cls) {

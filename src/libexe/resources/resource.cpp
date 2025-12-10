@@ -56,6 +56,7 @@ struct resource_entry::impl {
     std::optional<std::string> name;
     uint16_t language = 0;
     uint32_t codepage = 0;
+    windows_resource_format format = windows_resource_format::PE;  // Resource format for parsing
     std::vector<uint8_t> data_storage;  // Owns the data
     std::span<const uint8_t> data_view; // View into data_storage
 };
@@ -156,8 +157,8 @@ std::optional<string_table> resource_entry::as_string_table() const {
     // String tables need the block ID to calculate string IDs
     // The resource ID IS the block ID
     auto res_id = id();
-    if (!res_id) return std::nullopt;
-    return string_table_parser::parse(data(), res_id.value());
+    if (!res_id || !impl_) return std::nullopt;
+    return string_table_parser::parse(data(), res_id.value(), impl_->format);
 }
 
 std::optional<accelerator_table> resource_entry::as_accelerator_table() const {
@@ -165,7 +166,8 @@ std::optional<accelerator_table> resource_entry::as_accelerator_table() const {
 }
 
 std::optional<dialog_template> resource_entry::as_dialog() const {
-    return dialog_parser::parse(data());
+    if (!impl_) return std::nullopt;
+    return dialog_parser::parse(data(), impl_->format);
 }
 
 resource_entry resource_entry::create(
@@ -174,7 +176,8 @@ resource_entry resource_entry::create(
     std::optional<std::string> name,
     uint16_t language,
     uint32_t codepage,
-    std::span<const uint8_t> data
+    std::span<const uint8_t> data,
+    windows_resource_format format
 ) {
     resource_entry entry;
     entry.impl_ = std::make_shared<impl>();
@@ -184,6 +187,7 @@ resource_entry resource_entry::create(
     entry.impl_->name = name;
     entry.impl_->language = language;
     entry.impl_->codepage = codepage;
+    entry.impl_->format = format;
 
     // Copy data into storage
     entry.impl_->data_storage.assign(data.begin(), data.end());

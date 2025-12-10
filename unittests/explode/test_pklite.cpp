@@ -4,7 +4,7 @@
 #include <libexe/decompressors/pklite.hpp>
 #include <vector>
 #include <span>
-#include "../md5.h"
+#include "test_helpers/md5.h"
 using namespace libexe;
 
 // Include embedded test data
@@ -92,8 +92,8 @@ TEST_CASE("PKLITE decompression: full decompression") {
             // Initial registers should be set
             CHECK(result.initial_sp > 0);
 
-            // Should have some relocations
-            CHECK(result.relocations.size() >= 0);  // May or may not have relocations
+            // Relocations may or may not be present - just verify we can access them
+            // INFO shows the count, no assertion needed since it's file-dependent
 
         }());
     }

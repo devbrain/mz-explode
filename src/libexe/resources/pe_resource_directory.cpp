@@ -150,7 +150,8 @@ namespace libexe {
                             next_name_str,
                             language,
                             data_entry.code_page,
-                            data
+                            data,
+                            windows_resource_format::PE
                         );
 
                         all_resources_.entries_.push_back(std::move(resource));
@@ -227,6 +228,10 @@ namespace libexe {
     // =============================================================================
     // Metadata
     // =============================================================================
+
+    windows_resource_format pe_resource_directory::format() const {
+        return windows_resource_format::PE;
+    }
 
     uint32_t pe_resource_directory::timestamp() const {
         return impl_->timestamp_;

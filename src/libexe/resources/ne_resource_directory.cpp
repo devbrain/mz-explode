@@ -13,42 +13,76 @@ namespace libexe {
     // =============================================================================
 
     struct ne_resource_directory::impl {
-        std::vector <uint8_t> rsrc_table_data; // Resource table data
-        std::vector <uint8_t> file_data; // Full file data
-        uint32_t ne_offset = 0; // NE header offset
-        uint16_t alignment_shift = 0; // Alignment shift for file offsets
+        std::vector<uint8_t> rsrc_table_data;    // Resource table data
+        std::vector<uint8_t> file_data;          // Full file data
+        uint32_t ne_offset = 0;                  // NE header offset
+        uint16_t alignment_shift = 0;            // Alignment shift for file offsets
+        ne_target_os target_os = ne_target_os::WINDOWS;  // Target OS
+        std::vector<ne_segment> segments;        // Segment table (for OS/2)
         resource_collection all_resources_;
 
-        impl(std::span <const uint8_t> rsrc_data,
-             std::span <const uint8_t> full_file_data,
+        // Windows format constructor
+        impl(std::span<const uint8_t> rsrc_data,
+             std::span<const uint8_t> full_file_data,
              uint32_t ne_off)
             : rsrc_table_data(rsrc_data.begin(), rsrc_data.end()),
               file_data(full_file_data.begin(), full_file_data.end()),
-              ne_offset(ne_off) {
-            parse_resource_table();
+              ne_offset(ne_off),
+              target_os(ne_target_os::WINDOWS) {
+            parse_windows_resource_table();
         }
 
-        void parse_resource_table();
+        // OS/2 format constructor
+        impl(std::span<const uint8_t> rsrc_data,
+             std::span<const uint8_t> full_file_data,
+             uint32_t ne_off,
+             ne_target_os os,
+             const std::vector<ne_segment>& segs)
+            : rsrc_table_data(rsrc_data.begin(), rsrc_data.end()),
+              file_data(full_file_data.begin(), full_file_data.end()),
+              ne_offset(ne_off),
+              target_os(os),
+              segments(segs) {
+            if (target_os == ne_target_os::OS2) {
+                parse_os2_resource_table();
+            } else {
+                parse_windows_resource_table();
+            }
+        }
+
+        void parse_windows_resource_table();
+        void parse_os2_resource_table();
         [[nodiscard]] std::string read_string(size_t offset) const;
-        [[nodiscard]] std::span <const uint8_t> get_resource_data(uint16_t offset, uint16_t length) const;
+        [[nodiscard]] std::span<const uint8_t> get_resource_data(uint16_t offset, uint16_t length) const;
+        [[nodiscard]] std::span<const uint8_t> get_segment_data(size_t segment_index) const;
     };
 
     ne_resource_directory::ne_resource_directory(
-        std::span <const uint8_t> rsrc_table_data,
-        std::span <const uint8_t> file_data,
+        std::span<const uint8_t> rsrc_table_data,
+        std::span<const uint8_t> file_data,
         uint32_t ne_offset
     )
-        : impl_(std::make_unique <impl>(rsrc_table_data, file_data, ne_offset)) {
+        : impl_(std::make_unique<impl>(rsrc_table_data, file_data, ne_offset)) {
+    }
+
+    ne_resource_directory::ne_resource_directory(
+        std::span<const uint8_t> rsrc_table_data,
+        std::span<const uint8_t> file_data,
+        uint32_t ne_offset,
+        ne_target_os target_os,
+        const std::vector<ne_segment>& segments
+    )
+        : impl_(std::make_unique<impl>(rsrc_table_data, file_data, ne_offset, target_os, segments)) {
     }
 
     // Destructor must be defined in .cpp file for pimpl idiom to work
     ne_resource_directory::~ne_resource_directory() = default;
 
     // =============================================================================
-    // Resource Table Parsing
+    // Resource Table Parsing - Windows Format
     // =============================================================================
 
-    void ne_resource_directory::impl::parse_resource_table() {
+    void ne_resource_directory::impl::parse_windows_resource_table() {
         if (rsrc_table_data.size() < 2) {
             return; // Empty or invalid resource table
         }
@@ -58,7 +92,7 @@ namespace libexe {
 
         try {
             // Read alignment shift count (first word in resource table)
-            alignment_shift = static_cast <uint16_t>(ptr[0]) | (static_cast <uint16_t>(ptr[1]) << 8);
+            alignment_shift = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
             ptr += 2;
 
             // Parse resource type information blocks
@@ -90,8 +124,8 @@ namespace libexe {
 
                     // Determine if resource name is integer ID or string offset
                     bool is_integer_id = (name_info.id & 0x8000) != 0;
-                    std::optional <uint16_t> resource_id;
-                    std::optional <std::string> resource_name;
+                    std::optional<uint16_t> resource_id;
+                    std::optional<std::string> resource_name;
 
                     if (is_integer_id) {
                         resource_id = name_info.id & 0x7FFF;
@@ -106,13 +140,16 @@ namespace libexe {
                     // Create resource entry
                     // NOTE: NE resources don't have language IDs, so we use 0 (language-neutral)
                     // Codepage is also not specified in NE format, use 0
+                    // NOTE: For OS/2 NE files, the convenience parsing methods (as_dialog, etc.)
+                    // won't work correctly - use the OS/2 parsers directly instead.
                     auto resource = resource_entry::create(
                         type_id,
                         resource_id,
                         resource_name,
                         0, // language = 0 (neutral)
                         0, // codepage = 0 (not specified)
-                        data
+                        data,
+                        windows_resource_format::NE
                     );
 
                     all_resources_.entries_.push_back(std::move(resource));
@@ -122,6 +159,96 @@ namespace libexe {
             // Resource parsing errors are non-fatal - just means no resources available
             // Could log error here if logging system available
         }
+    }
+
+    // =============================================================================
+    // Resource Table Parsing - OS/2 Compact Format
+    // =============================================================================
+
+    void ne_resource_directory::impl::parse_os2_resource_table() {
+        // OS/2 NE resource table format:
+        // WORD alignment_shift
+        // (WORD resource_id, WORD type_id)[] - pairs until end of table
+        //
+        // Resource data is stored in segments, mapped by order:
+        // First resource -> first DATA segment, etc.
+
+        if (rsrc_table_data.size() < 2) {
+            return; // Empty or invalid resource table
+        }
+
+        const uint8_t* ptr = rsrc_table_data.data();
+        const uint8_t* end = rsrc_table_data.data() + rsrc_table_data.size();
+
+        // Read alignment shift count (first word)
+        alignment_shift = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
+        ptr += 2;
+
+        // Collect data segments for resource data mapping
+        std::vector<size_t> data_segment_indices;
+        for (size_t i = 0; i < segments.size(); ++i) {
+            if (segments[i].is_data()) {
+                data_segment_indices.push_back(i);
+            }
+        }
+
+        // Parse (resource_id, type_id) pairs
+        size_t resource_index = 0;
+        while (ptr + 4 <= end) {
+            uint16_t resource_id = static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
+            uint16_t type_id = static_cast<uint16_t>(ptr[2]) | (static_cast<uint16_t>(ptr[3]) << 8);
+            ptr += 4;
+
+            // Get resource data from corresponding segment
+            std::span<const uint8_t> data;
+            if (resource_index < data_segment_indices.size()) {
+                size_t seg_idx = data_segment_indices[resource_index];
+                data = get_segment_data(seg_idx);
+            }
+
+            // Create resource entry
+            // NOTE: For OS/2 resources, the convenience parsing methods (as_dialog, etc.)
+            // won't work correctly - use the OS/2 parsers directly from os2_resource_parser.hpp
+            auto resource = resource_entry::create(
+                type_id,
+                resource_id,  // Always integer ID in OS/2 format
+                std::nullopt, // No string names in compact format
+                0,            // language = 0 (neutral)
+                0,            // codepage = 0 (not specified)
+                data,
+                windows_resource_format::NE  // Stored as NE, but use OS/2 parsers for parsing
+            );
+
+            all_resources_.entries_.push_back(std::move(resource));
+            ++resource_index;
+        }
+    }
+
+    // =============================================================================
+    // Helper: Get segment data for OS/2 resource lookup
+    // =============================================================================
+
+    std::span<const uint8_t> ne_resource_directory::impl::get_segment_data(size_t segment_index) const {
+        if (segment_index >= segments.size()) {
+            return {};
+        }
+
+        const auto& seg = segments[segment_index];
+
+        // Use the segment's data span if available
+        if (!seg.data.empty()) {
+            return seg.data;
+        }
+
+        // Otherwise calculate from file offset
+        if (seg.file_offset + seg.file_size > file_data.size()) {
+            return {};
+        }
+
+        return std::span<const uint8_t>(
+            file_data.data() + seg.file_offset,
+            seg.file_size
+        );
     }
 
     std::string ne_resource_directory::impl::read_string(size_t offset) const {
@@ -178,6 +305,13 @@ namespace libexe {
     // =============================================================================
     // Metadata
     // =============================================================================
+
+    windows_resource_format ne_resource_directory::format() const {
+        // This interface is for Windows resources only.
+        // OS/2 NE files should use the OS/2 parsers directly from os2_resource_parser.hpp
+        // instead of using the convenience methods on resource_entry.
+        return windows_resource_format::NE;
+    }
 
     uint32_t ne_resource_directory::timestamp() const {
         // NE resources don't have timestamps

@@ -2,6 +2,7 @@
 #define LIBEXE_DIALOG_PARSER_HPP
 
 #include <libexe/export.hpp>
+#include <libexe/resources/resource.hpp>
 #include <cstdint>
 #include <span>
 #include <vector>
@@ -228,16 +229,20 @@ struct LIBEXE_EXPORT dialog_template {
 };
 
 /**
- * Parser for RT_DIALOG resources (NE format).
+ * Parser for RT_DIALOG resources (Windows formats only).
  *
- * Parses dialog templates from 16-bit Windows (NE) executables.
- * Note: This parser is for NE format only. PE dialogs use a different format.
+ * Parses dialog templates from Windows executables.
+ * Supports PE (32/64-bit) and NE Windows (16-bit) formats.
+ *
+ * For OS/2 dialogs (NE OS/2, LE, LX), use parse_os2_dialog() from
+ * os2_resource_parser.hpp instead, as OS/2 dialogs have a completely
+ * different binary structure.
  *
  * Example:
  * @code
  * auto dialog_resources = resources->resources_by_type(resource_type::RT_DIALOG);
  * if (!dialog_resources.empty()) {
- *     auto dlg = dialog_parser::parse(dialog_resources[0].data());
+ *     auto dlg = dialog_parser::parse(dialog_resources[0].data(), windows_resource_format::PE);
  *     if (dlg.has_value()) {
  *         std::cout << "Dialog: " << dlg->caption << "\n";
  *         std::cout << "  Size: " << dlg->width << "x" << dlg->height << "\n";
@@ -249,16 +254,15 @@ struct LIBEXE_EXPORT dialog_template {
 class LIBEXE_EXPORT dialog_parser {
 public:
     /**
-     * Parse a dialog template resource (auto-detects NE or PE format).
+     * Parse a Windows dialog template resource.
      *
-     * Supports both NE (16-bit Windows) DLGTEMPLATE and PE (32/64-bit Windows)
-     * DLGTEMPLATEEX formats. Format is detected by checking for the PE signature
-     * (version=1, signature=0xFFFF).
+     * Uses the specified format discriminator to select the correct parser.
      *
      * @param data Raw resource data from RT_DIALOG resource
+     * @param format Windows resource format (PE or NE)
      * @return Parsed dialog template on success, std::nullopt on parse error
      */
-    static std::optional<dialog_template> parse(std::span<const uint8_t> data);
+    static std::optional<dialog_template> parse(std::span<const uint8_t> data, windows_resource_format format);
 };
 
 } // namespace libexe

@@ -44,8 +44,8 @@ TEST_SUITE("Menu Parser") {
         auto menus = rsrc->resources_by_type(libexe::resource_type::RT_MENU);
         REQUIRE(menus.size() == 1);
 
-        // Parse the menu
-        auto menu_opt = libexe::menu_parser::parse(menus[0].data());
+        // Parse the menu (PROGMAN.EXE is NE Windows format)
+        auto menu_opt = libexe::menu_parser::parse(menus[0].data(), libexe::windows_resource_format::NE);
         REQUIRE(menu_opt.has_value());
 
         const auto& menu = menu_opt.value();
@@ -148,12 +148,12 @@ TEST_SUITE("Menu Parser") {
     TEST_CASE("Parse invalid menu data") {
         // Empty data
         std::vector<uint8_t> empty_data;
-        auto result = libexe::menu_parser::parse(empty_data);
+        auto result = libexe::menu_parser::parse(empty_data, libexe::windows_resource_format::PE);
         CHECK_FALSE(result.has_value());
 
         // Too small (less than header size)
         std::vector<uint8_t> small_data = {0x00, 0x01};
-        result = libexe::menu_parser::parse(small_data);
+        result = libexe::menu_parser::parse(small_data, libexe::windows_resource_format::PE);
         CHECK_FALSE(result.has_value());
 
         // Header only (valid but no items)
@@ -161,7 +161,7 @@ TEST_SUITE("Menu Parser") {
             0x00, 0x00,  // version
             0x00, 0x00   // header_size
         };
-        result = libexe::menu_parser::parse(header_only);
+        result = libexe::menu_parser::parse(header_only, libexe::windows_resource_format::PE);
         // This should succeed with an empty menu
         if (result.has_value()) {
             CHECK(result->items.empty());

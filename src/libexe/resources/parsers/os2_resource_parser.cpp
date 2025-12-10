@@ -143,19 +143,182 @@ std::optional<os2_dialog_template> parse_os2_dialog(std::span<const uint8_t> dat
 // OS/2 Menu Parser
 // =============================================================================
 
-std::optional<os2_menu> parse_os2_menu(std::span<const uint8_t> data) {
-    // OS/2 menu resources have a different binary format than the MENUITEM structure
-    // The resource format is not well documented - returning empty for now
-    // This would need reverse engineering from actual OS/2 menu resources
+namespace {
 
-    if (data.size() < 16) {
+/// Parse a submenu child item (6 bytes header: style, attr, id + text)
+/// Returns the position after parsing, or 0 on error
+size_t parse_submenu_child(std::span<const uint8_t> data, size_t pos,
+                           std::vector<os2_menu_item>& items) {
+    // Check for separator marker: 04 00 00 00 FF FF
+    if (pos + 6 <= data.size() &&
+        data[pos] == 0x04 && data[pos+1] == 0x00 &&
+        data[pos+2] == 0x00 && data[pos+3] == 0x00 &&
+        data[pos+4] == 0xFF && data[pos+5] == 0xFF) {
+        // Add separator item
+        os2_menu_item sep;
+        sep.position = -1;
+        sep.style = 0x0004;  // MIS_SEPARATOR
+        sep.attribute = 0;
+        sep.id = 0;
+        items.push_back(std::move(sep));
+        return pos + 6;
+    }
+
+    if (pos + 6 > data.size()) {
+        return 0;
+    }
+
+    // Submenu child items have 6-byte header (no child_count field)
+    // style(2) + attr(2) + id(2) + text
+    uint16_t style = static_cast<uint16_t>(data[pos]) |
+                    (static_cast<uint16_t>(data[pos+1]) << 8);
+    uint16_t attr = static_cast<uint16_t>(data[pos+2]) |
+                   (static_cast<uint16_t>(data[pos+3]) << 8);
+    uint16_t id = static_cast<uint16_t>(data[pos+4]) |
+                 (static_cast<uint16_t>(data[pos+5]) << 8);
+
+    // Validate style
+    if ((style & 0x0001) == 0) {
+        return 0;  // Not a TEXT item
+    }
+
+    // Find null-terminated text
+    size_t text_start = pos + 6;
+    size_t text_end = text_start;
+    while (text_end < data.size() && data[text_end] != 0) {
+        ++text_end;
+    }
+    if (text_end >= data.size()) {
+        return 0;
+    }
+
+    os2_menu_item item;
+    item.position = -1;
+    item.style = style;
+    item.attribute = attr;
+    item.id = id;
+    item.text = std::string(reinterpret_cast<const char*>(&data[text_start]),
+                            text_end - text_start);
+
+    items.push_back(std::move(item));
+    return text_end + 1;
+}
+
+/// Parse a top-level menu item (8 bytes header: count, style, attr, id + text)
+/// Returns the position after parsing, or 0 on error
+size_t parse_menu_item(std::span<const uint8_t> data, size_t pos,
+                       std::vector<os2_menu_item>& items, int depth) {
+    // Safety limits
+    if (depth > 10 || pos + 8 > data.size()) {
+        return 0;
+    }
+
+    // Read item header (8 bytes for top-level/submenu items)
+    // child_count(2) + style(2) + attr(2) + id(2) + text
+    uint16_t child_count = static_cast<uint16_t>(data[pos]) |
+                          (static_cast<uint16_t>(data[pos+1]) << 8);
+    uint16_t style = static_cast<uint16_t>(data[pos+2]) |
+                    (static_cast<uint16_t>(data[pos+3]) << 8);
+    uint16_t attr = static_cast<uint16_t>(data[pos+4]) |
+                   (static_cast<uint16_t>(data[pos+5]) << 8);
+    uint16_t id = static_cast<uint16_t>(data[pos+6]) |
+                 (static_cast<uint16_t>(data[pos+7]) << 8);
+
+    // Validate style - should have at least TEXT or SUBMENU flag
+    if ((style & 0x0011) == 0) {
+        return 0;  // Invalid item
+    }
+
+    // Find null-terminated text
+    size_t text_start = pos + 8;
+    size_t text_end = text_start;
+    while (text_end < data.size() && data[text_end] != 0) {
+        ++text_end;
+    }
+    if (text_end >= data.size()) {
+        return 0;  // No null terminator found
+    }
+
+    os2_menu_item item;
+    item.position = -1;  // Position not stored in resource
+    item.style = style;
+    item.attribute = attr;
+    item.id = id;
+    item.text = std::string(reinterpret_cast<const char*>(&data[text_start]),
+                            text_end - text_start);
+
+    size_t next_pos = text_end + 1;
+
+    // If this is a submenu, parse children
+    bool is_submenu = (style & 0x0010) != 0;
+    if (is_submenu && next_pos + 10 <= data.size()) {
+        // Submenu header: len(2), reserved(2), codepage(2), flags(2), child_count(2)
+        uint16_t submenu_len = static_cast<uint16_t>(data[next_pos]) |
+                              (static_cast<uint16_t>(data[next_pos+1]) << 8);
+        // Skip reserved, codepage, flags (6 bytes)
+        uint16_t num_children = static_cast<uint16_t>(data[next_pos+8]) |
+                               (static_cast<uint16_t>(data[next_pos+9]) << 8);
+
+        next_pos += 10;  // Skip submenu header
+
+        // Parse child items (children use 6-byte format, not 8-byte)
+        for (uint16_t i = 0; i < num_children && next_pos < data.size(); ++i) {
+            size_t child_end = parse_submenu_child(data, next_pos, item.submenu);
+            if (child_end == 0) {
+                break;  // Error parsing child
+            }
+            next_pos = child_end;
+        }
+
+        (void)submenu_len;  // Could validate against actual bytes used
+        (void)child_count;  // Top-level child_count field (different from submenu's num_children)
+    }
+
+    items.push_back(std::move(item));
+    return next_pos;
+}
+
+} // anonymous namespace
+
+std::optional<os2_menu> parse_os2_menu(std::span<const uint8_t> data) {
+    // OS/2 Menu Template Format:
+    // Header (8 bytes):
+    //   uint16 total_size
+    //   uint16 reserved (0)
+    //   uint16 codepage (e.g., 437)
+    //   uint16 top_level_item_count
+    // Followed by menu items
+
+    if (data.size() < 8) {
         return std::nullopt;
     }
 
+    // Parse header
+    uint16_t total_size = static_cast<uint16_t>(data[0]) |
+                         (static_cast<uint16_t>(data[1]) << 8);
+    // uint16_t reserved = ...
+    // uint16_t codepage = ...
+    uint16_t item_count = static_cast<uint16_t>(data[6]) |
+                         (static_cast<uint16_t>(data[7]) << 8);
+
+    // Sanity check
+    if (item_count == 0 || item_count > 100) {
+        return std::nullopt;
+    }
+
+    (void)total_size;  // Could validate against data.size()
+
     os2_menu result;
 
-    // TODO: Parse actual OS/2 menu resource format
-    // The MENUITEM structure is for runtime, not resource format
+    // Parse top-level items
+    size_t pos = 8;
+    for (uint16_t i = 0; i < item_count && pos < data.size(); ++i) {
+        size_t next_pos = parse_menu_item(data, pos, result.items, 0);
+        if (next_pos == 0) {
+            break;  // Error or end of data
+        }
+        pos = next_pos;
+    }
 
     return result;
 }

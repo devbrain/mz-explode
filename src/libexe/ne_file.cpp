@@ -278,10 +278,13 @@ std::shared_ptr<resource_directory> ne_file::resources() const {
     );
     std::span<const uint8_t> file_data(data_.data(), data_.size());
 
+    // Use OS/2-aware constructor for OS/2 targets
     return std::make_shared<ne_resource_directory>(
         rsrc_table_data,
         file_data,
-        ne_offset_
+        ne_offset_,
+        target_os(),
+        segments_
     );
 }
 

@@ -139,7 +139,7 @@ bool parse_menu_items(const uint8_t*& ptr, const uint8_t* end, std::vector<menu_
 
 } // anonymous namespace
 
-std::optional<menu_template> menu_parser::parse(std::span<const uint8_t> data) {
+std::optional<menu_template> menu_parser::parse(std::span<const uint8_t> data, windows_resource_format format) {
     // Minimum size check (header is 4 bytes)
     if (data.size() < 4) {
         return std::nullopt;
@@ -156,9 +156,8 @@ std::optional<menu_template> menu_parser::parse(std::span<const uint8_t> data) {
         result.version = ds_header.version;
         result.header_size = ds_header.header_size;
 
-        // Detect format (NE=ANSI or PE=UTF-16)
-        // After header, first item starts with flags + string
-        bool use_utf16 = is_utf16_format(ptr, end);
+        // Use format discriminator for string encoding
+        bool use_utf16 = (format == windows_resource_format::PE);
 
         // Parse menu items recursively
         if (!parse_menu_items(ptr, end, result.items, use_utf16)) {

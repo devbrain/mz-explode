@@ -2,7 +2,7 @@
 #include <doctest/doctest.h>
 #include <libexe/formats/mz_file.hpp>
 #include <libexe/decompressors/knowledge_dynamics.hpp>
-#include "../md5.h"
+#include "test_helpers/md5.h"
 #include <vector>
 #include <span>
 

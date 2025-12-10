@@ -64,7 +64,8 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
             const auto& res = string_resources[block_idx];
             auto string_table = string_table_parser::parse(
                 res.data(),
-                res.id().value()
+                res.id().value(),
+                windows_resource_format::NE  // PROGMAN.EXE is an NE Windows file
             );
 
             CHECK(string_table.has_value());
@@ -296,7 +297,7 @@ TEST_CASE("RT_STRING and RT_ACCELERATOR parsers - PROGMAN.EXE") {
 TEST_CASE("String table parser - error handling") {
     SUBCASE("Empty data") {
         std::vector<uint8_t> empty;
-        auto result = string_table_parser::parse(empty, 1);
+        auto result = string_table_parser::parse(empty, 1, windows_resource_format::PE);
         CHECK_FALSE(result.has_value());
     }
 
@@ -310,7 +311,7 @@ TEST_CASE("String table parser - error handling") {
 
         // Test various block IDs
         for (uint16_t block_id = 1; block_id <= 10; block_id++) {
-            auto result = string_table_parser::parse(data, block_id);
+            auto result = string_table_parser::parse(data, block_id, windows_resource_format::PE);
             if (result.has_value()) {
                 CHECK(result->block_id == block_id);
                 uint16_t expected_base = (block_id - 1) * 16;
