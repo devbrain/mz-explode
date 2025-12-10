@@ -72,6 +72,43 @@ cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
+### Using with CMake FetchContent
+
+The recommended way to use libexe in your CMake project is via `FetchContent`:
+
+```cmake
+cmake_minimum_required(VERSION 3.20)
+project(my_project)
+
+set(CMAKE_CXX_STANDARD 20)
+
+include(FetchContent)
+
+# Only fetch if not already available (allows parent projects to provide it)
+if (NOT TARGET mzexplode::libexe)
+    message(STATUS "mz-explode not found, fetching from GitHub...")
+
+    # Disable tests and tools when using as a dependency
+    set(MZEXPLODE_BUILD_TESTING OFF CACHE BOOL "" FORCE)
+    set(MZEXPLODE_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+
+    FetchContent_Declare(
+        mzexplode
+        GIT_REPOSITORY https://github.com/devbrain/mz-explode.git
+        GIT_TAG master  # Or use a specific tag/commit for stability
+    )
+
+    FetchContent_MakeAvailable(mzexplode)
+else()
+    message(STATUS "Using existing mz-explode (provided by parent project)")
+endif()
+
+add_executable(my_app main.cpp)
+target_link_libraries(my_app PRIVATE mzexplode::libexe)
+```
+
+The library provides the `mzexplode::libexe` namespaced target (or `libexe` without namespace).
+
 ### Basic Usage
 
 ```cpp

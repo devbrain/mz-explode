@@ -152,7 +152,7 @@ generate_export_header(libexe
 # Note: ${CMAKE_BINARY_DIR}/generated is provided by libexe_parsers INTERFACE library
 target_include_directories(libexe
         PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+        $<BUILD_INTERFACE:${PROJECT_SOURCE_DIR}/include>
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/include>
         $<INSTALL_INTERFACE:include>
         PRIVATE
@@ -165,3 +165,6 @@ set_target_properties(libexe PROPERTIES
         VERSION ${PROJECT_VERSION}
         SOVERSION ${PROJECT_VERSION_MAJOR}
 )
+
+# Namespace alias for FetchContent compatibility
+add_library(mzexplode::libexe ALIAS libexe)
