@@ -42,7 +42,7 @@ TEST_CASE("TCMADM64.EXE: 64-bit PE executable") {
     }
 
     SUBCASE("Factory loads as PE file") {
-        auto executable = executable_factory::load(data);
+        auto executable = executable_factory::from_memory(data);
 
         CHECK(std::holds_alternative<pe_file>(executable));
 

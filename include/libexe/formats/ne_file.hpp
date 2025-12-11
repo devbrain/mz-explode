@@ -154,7 +154,7 @@ class LIBEXE_EXPORT ne_file final : public executable_file {
          * @brief Get number of segments.
          * @return Total segment count.
          */
-        [[nodiscard]] uint16_t segment_count() const;
+        [[nodiscard]] size_t segment_count() const;
 
         /**
          * @brief Get number of module references.
@@ -163,7 +163,7 @@ class LIBEXE_EXPORT ne_file final : public executable_file {
          *
          * @return Count of referenced modules.
          */
-        [[nodiscard]] uint16_t module_count() const;
+        [[nodiscard]] size_t module_count() const;
 
         /**
          * @brief Get target operating system.
@@ -192,16 +192,16 @@ class LIBEXE_EXPORT ne_file final : public executable_file {
         [[nodiscard]] uint16_t entry_ip() const;
 
         /**
-         * @brief Get initial stack segment number.
+         * @brief Get entry stack segment number.
          * @return Stack segment number (1-based), or 0 for automatic.
          */
-        [[nodiscard]] uint16_t initial_ss() const;
+        [[nodiscard]] uint16_t entry_ss() const;
 
         /**
-         * @brief Get initial stack pointer value.
-         * @return Initial SP offset within stack segment.
+         * @brief Get entry stack pointer value.
+         * @return Entry SP offset within stack segment.
          */
-        [[nodiscard]] uint16_t initial_sp() const;
+        [[nodiscard]] uint16_t entry_sp() const;
 
         // =====================================================================
         // Table Offsets (relative to NE header start)
@@ -277,6 +277,15 @@ class LIBEXE_EXPORT ne_file final : public executable_file {
          * @return Optional containing the code segment, or nullopt if none found.
          */
         [[nodiscard]] std::optional <ne_segment> get_code_segment() const;
+
+        /**
+         * @brief Get the first data segment.
+         *
+         * Finds and returns the first segment that has the DATA flag set.
+         *
+         * @return Optional containing the data segment, or nullopt if none found.
+         */
+        [[nodiscard]] std::optional <ne_segment> get_data_segment() const;
 
         /**
          * @brief Get segment alignment shift count.

@@ -185,7 +185,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
          * @brief Get number of sections in the section table.
          * @return Section count.
          */
-        [[nodiscard]] uint16_t section_count() const;
+        [[nodiscard]] size_t section_count() const;
 
         /**
          * @brief Get file creation timestamp (Unix epoch).
@@ -291,6 +291,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             [[nodiscard]] const std::vector <pe_section>& sections() const;
             [[nodiscard]] std::optional <pe_section> find_section(const std::string& name) const;
             [[nodiscard]] std::optional <pe_section> get_code_section() const;
+            [[nodiscard]] std::optional <pe_section> get_data_section() const;
 
             /// Resource access
             [[nodiscard]] bool has_resources() const;

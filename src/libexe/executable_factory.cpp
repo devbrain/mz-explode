@@ -131,7 +131,7 @@ format_type executable_factory::detect_format(const std::filesystem::path& path)
     return detect_format(data);
 }
 
-executable_variant executable_factory::load(std::span<const uint8_t> data) {
+executable_variant executable_factory::from_memory(std::span<const uint8_t> data) {
     format_type type = detect_format(data);
 
     switch (type) {
@@ -158,9 +158,9 @@ executable_variant executable_factory::load(std::span<const uint8_t> data) {
     }
 }
 
-executable_variant executable_factory::load(const std::filesystem::path& path) {
+executable_variant executable_factory::from_file(const std::filesystem::path& path) {
     auto data = read_file_to_memory(path);
-    return load(data);
+    return from_memory(data);
 }
 
 std::string_view executable_factory::format_type_name(format_type type) {

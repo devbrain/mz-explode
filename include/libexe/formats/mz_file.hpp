@@ -56,7 +56,7 @@ namespace libexe {
  * auto mz = libexe::mz_file::from_file("game.exe");
  *
  * std::cout << "Entry point: " << std::hex
- *           << mz.initial_cs() << ":" << mz.initial_ip() << std::endl;
+ *           << mz.entry_cs() << ":" << mz.entry_ip() << std::endl;
  *
  * if (mz.is_compressed()) {
  *     std::cout << "Compressed with: ";
@@ -146,39 +146,39 @@ class LIBEXE_EXPORT mz_file final : public executable_file {
         // =====================================================================
 
         /**
-         * @brief Get initial Code Segment register value.
+         * @brief Get entry Code Segment register value.
          *
          * This is the CS value loaded before execution begins, relative to
          * the start of the loaded executable in memory.
          *
-         * @return Initial CS register value.
+         * @return Entry CS register value.
          */
-        [[nodiscard]] uint16_t initial_cs() const;
+        [[nodiscard]] uint16_t entry_cs() const;
 
         /**
-         * @brief Get initial Instruction Pointer value.
+         * @brief Get entry Instruction Pointer value.
          *
-         * Combined with initial_cs(), this forms the entry point address.
+         * Combined with entry_cs(), this forms the entry point address.
          * Execution begins at CS:IP.
          *
-         * @return Initial IP register value.
+         * @return Entry IP register value.
          */
-        [[nodiscard]] uint16_t initial_ip() const;
+        [[nodiscard]] uint16_t entry_ip() const;
 
         /**
-         * @brief Get initial Stack Segment register value.
-         * @return Initial SS register value.
+         * @brief Get entry Stack Segment register value.
+         * @return Entry SS register value.
          */
-        [[nodiscard]] uint16_t initial_ss() const;
+        [[nodiscard]] uint16_t entry_ss() const;
 
         /**
-         * @brief Get initial Stack Pointer value.
+         * @brief Get entry Stack Pointer value.
          *
-         * Combined with initial_ss(), this forms the initial stack address.
+         * Combined with entry_ss(), this forms the initial stack address.
          *
-         * @return Initial SP register value.
+         * @return Entry SP register value.
          */
-        [[nodiscard]] uint16_t initial_sp() const;
+        [[nodiscard]] uint16_t entry_sp() const;
 
         /**
          * @brief Get minimum extra paragraphs needed.
@@ -244,7 +244,7 @@ class LIBEXE_EXPORT mz_file final : public executable_file {
          *
          * @return true if code section entropy >= 7.0 bits.
          */
-        [[nodiscard]] bool has_high_entropy() const;
+        [[nodiscard]] bool is_high_entropy() const;
 
         /**
          * @brief Check if file appears to be packed.

@@ -146,11 +146,11 @@ TEST_CASE("mz_file: DOS header accessors") {
         CHECK(mz.max_extra_paragraphs() == 65535);
     }
 
-    SUBCASE("initial register values") {
-        CHECK(mz.initial_ss() == 0x1234);
-        CHECK(mz.initial_sp() == 0x0100);
-        CHECK(mz.initial_cs() == 0x0000);
-        CHECK(mz.initial_ip() == 0x0000);
+    SUBCASE("entry register values") {
+        CHECK(mz.entry_ss() == 0x1234);
+        CHECK(mz.entry_sp() == 0x0100);
+        CHECK(mz.entry_cs() == 0x0000);
+        CHECK(mz.entry_ip() == 0x0000);
     }
 
     SUBCASE("relocation count") {

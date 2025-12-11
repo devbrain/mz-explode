@@ -171,10 +171,10 @@ auto mz = libexe::mz_file::from_file("game.exe");
 
 // Entry point (CS:IP)
 std::cout << "Entry: " << std::hex
-          << mz.initial_cs() << ":" << mz.initial_ip() << std::endl;
+          << mz.entry_cs() << ":" << mz.entry_ip() << std::endl;
 
 // Stack (SS:SP)
-std::cout << "Stack: " << mz.initial_ss() << ":" << mz.initial_sp() << std::endl;
+std::cout << "Stack: " << mz.entry_ss() << ":" << mz.entry_sp() << std::endl;
 
 // Memory requirements
 std::cout << "Min memory: " << (mz.min_extra_paragraphs() * 16) << " bytes" << std::endl;
@@ -225,7 +225,7 @@ High entropy often indicates packed or encrypted content:
 double entropy = mz.file_entropy();
 std::cout << "File entropy: " << entropy << " bits" << std::endl;
 
-if (mz.has_high_entropy()) {
+if (mz.is_high_entropy()) {
     std::cout << "Warning: High entropy detected (likely packed)" << std::endl;
 }
 

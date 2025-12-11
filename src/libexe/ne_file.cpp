@@ -137,11 +137,11 @@ ne_file_flags ne_file::flags() const {
     return static_cast<ne_file_flags>(flags_);
 }
 
-uint16_t ne_file::segment_count() const {
+size_t ne_file::segment_count() const {
     return segment_count_;
 }
 
-uint16_t ne_file::module_count() const {
+size_t ne_file::module_count() const {
     return module_count_;
 }
 
@@ -157,11 +157,11 @@ uint16_t ne_file::entry_ip() const {
     return entry_ip_;
 }
 
-uint16_t ne_file::initial_ss() const {
+uint16_t ne_file::entry_ss() const {
     return initial_ss_;
 }
 
-uint16_t ne_file::initial_sp() const {
+uint16_t ne_file::entry_sp() const {
     return initial_sp_;
 }
 
@@ -210,6 +210,18 @@ std::optional<ne_segment> ne_file::get_code_segment() const {
     // NE segment flags: bit 0 = data (if clear, it's code)
     for (const auto& segment : segments_) {
         if (segment.is_code()) {
+            return segment;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<ne_segment> ne_file::get_data_segment() const {
+    // Find first data segment
+    // NE segment flags: bit 0 = data
+    for (const auto& segment : segments_) {
+        if (segment.is_data()) {
             return segment;
         }
     }

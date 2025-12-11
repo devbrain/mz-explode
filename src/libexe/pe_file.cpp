@@ -835,7 +835,7 @@ pe_machine_type pe_file::machine_type() const {
     return static_cast<pe_machine_type>(machine_type_);
 }
 
-uint16_t pe_file::section_count() const {
+size_t pe_file::section_count() const {
     return section_count_;
 }
 
@@ -941,6 +941,27 @@ std::optional<pe_section> pe_file::get_code_section() const {
     // If not found by name, return first executable section
     for (const auto& section : sections_) {
         if (section.is_executable()) {
+            return section;
+        }
+    }
+
+    return std::nullopt;
+}
+
+std::optional<pe_section> pe_file::get_data_section() const {
+    // Try common data section names
+    auto data_sec = find_section(".data");
+    if (data_sec) return data_sec;
+
+    auto bss_sec = find_section(".bss");
+    if (bss_sec) return bss_sec;
+
+    auto data_sec2 = find_section("DATA");
+    if (data_sec2) return data_sec2;
+
+    // If not found by name, return first writable non-executable section
+    for (const auto& section : sections_) {
+        if (section.is_writable() && !section.is_executable()) {
             return section;
         }
     }

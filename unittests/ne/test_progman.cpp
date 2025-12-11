@@ -60,7 +60,7 @@ TEST_CASE("PROGMAN - Factory loads as NE file") {
     auto data = load_progman();
     REQUIRE(!data.empty());
 
-    auto executable = executable_factory::load(data);
+    auto executable = executable_factory::from_memory(data);
     CHECK(std::holds_alternative<ne_file>(executable));
 
     auto& ne = std::get<ne_file>(executable);
@@ -117,8 +117,8 @@ TEST_CASE("PROGMAN - Initial stack") {
     // Ground truth: SS:SP = 0x00080000
     // SS = 8 (segment 8, the data segment)
     // SP = 0 (stack grows down from top of stack allocation)
-    CHECK(ne.initial_ss() == 8);
-    CHECK(ne.initial_sp() == 0);
+    CHECK(ne.entry_ss() == 8);
+    CHECK(ne.entry_sp() == 0);
 }
 
 // =============================================================================

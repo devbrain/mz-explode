@@ -200,7 +200,7 @@ TEST_CASE("Executable factory: variant loading") {
 
         bool caught_exception = false;
         try {
-            auto exe = executable_factory::load(dos_exe);
+            auto exe = executable_factory::from_memory(dos_exe);
             // If we got here, check it's the right type
             CHECK(std::holds_alternative<mz_file>(exe));
         } catch (const std::runtime_error&) {
@@ -212,6 +212,6 @@ TEST_CASE("Executable factory: variant loading") {
 
     SUBCASE("Throws on unknown format") {
         std::vector<uint8_t> bad_data(128, 0xFF);
-        CHECK_THROWS_AS(executable_factory::load(bad_data), std::runtime_error);
+        CHECK_THROWS_AS(executable_factory::from_memory(bad_data), std::runtime_error);
     }
 }

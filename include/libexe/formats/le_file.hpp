@@ -403,13 +403,13 @@ public:
      * @brief Get total number of memory pages.
      * @return Total page count.
      */
-    [[nodiscard]] uint32_t page_count() const;
+    [[nodiscard]] size_t page_count() const;
 
     /**
      * @brief Get number of preload pages.
      * @return Preload page count.
      */
-    [[nodiscard]] uint32_t preload_page_count() const;
+    [[nodiscard]] size_t preload_page_count() const;
 
     /**
      * @brief Get heap size in bytes.

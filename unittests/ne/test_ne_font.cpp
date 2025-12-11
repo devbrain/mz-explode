@@ -43,7 +43,7 @@ TEST_CASE("CGA40WOA.FON: Windows 3.11 Font File") {
     }
 
     SUBCASE("Factory loads as NE file") {
-        auto executable = executable_factory::load(data);
+        auto executable = executable_factory::from_memory(data);
 
         CHECK(std::holds_alternative<ne_file>(executable));
 

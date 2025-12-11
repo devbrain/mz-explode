@@ -1016,8 +1016,8 @@ uint32_t le_file::module_version() const { return module_version_; }
 uint32_t le_file::module_flags() const { return module_flags_; }
 uint32_t le_file::page_size() const { return page_size_; }
 uint32_t le_file::page_offset_shift() const { return page_offset_shift_; }
-uint32_t le_file::page_count() const { return page_count_; }
-uint32_t le_file::preload_page_count() const { return preload_page_count_; }
+size_t le_file::page_count() const { return page_count_; }
+size_t le_file::preload_page_count() const { return preload_page_count_; }
 uint32_t le_file::heap_size() const { return heap_size_; }
 uint32_t le_file::stack_size() const { return stack_size_; }
 uint32_t le_file::auto_data_object() const { return auto_data_object_; }

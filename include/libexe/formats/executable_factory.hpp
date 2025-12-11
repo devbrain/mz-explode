@@ -31,12 +31,13 @@ namespace libexe {
             /// Detect format type from file
             static format_type detect_format(const std::filesystem::path& path);
 
-            /// Load executable with automatic format detection
-            /// Returns std::variant containing the appropriate type (mz_file, ne_file, or pe_file)
-            static executable_variant load(std::span <const uint8_t> data);
+            /// Load executable from memory with automatic format detection
+            /// Returns std::variant containing the appropriate type (mz_file, ne_file, pe_file, or le_file)
+            static executable_variant from_memory(std::span<const uint8_t> data);
 
             /// Load executable from file with automatic format detection
-            static executable_variant load(const std::filesystem::path& path);
+            /// Returns std::variant containing the appropriate type (mz_file, ne_file, pe_file, or le_file)
+            static executable_variant from_file(const std::filesystem::path& path);
 
             /// Get human-readable format name for a format_type
             static std::string_view format_type_name(format_type type);

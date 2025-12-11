@@ -88,10 +88,10 @@ compression_type mz_file::get_compression() const {
 }
 
 // DOS header accessors (return cached values - parsed once during construction)
-uint16_t mz_file::initial_cs() const { return e_cs_; }
-uint16_t mz_file::initial_ip() const { return e_ip_; }
-uint16_t mz_file::initial_ss() const { return e_ss_; }
-uint16_t mz_file::initial_sp() const { return e_sp_; }
+uint16_t mz_file::entry_cs() const { return e_cs_; }
+uint16_t mz_file::entry_ip() const { return e_ip_; }
+uint16_t mz_file::entry_ss() const { return e_ss_; }
+uint16_t mz_file::entry_sp() const { return e_sp_; }
 uint16_t mz_file::min_extra_paragraphs() const { return e_minalloc_; }
 uint16_t mz_file::max_extra_paragraphs() const { return e_maxalloc_; }
 uint16_t mz_file::relocation_count() const { return e_crlc_; }
@@ -203,7 +203,7 @@ double mz_file::code_entropy() const {
     return entropy_calculator::calculate(code);
 }
 
-bool mz_file::has_high_entropy() const {
+bool mz_file::is_high_entropy() const {
     auto code = code_section();
     if (code.empty()) {
         return false;
