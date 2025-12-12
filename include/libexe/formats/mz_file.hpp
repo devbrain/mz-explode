@@ -31,11 +31,15 @@
 #include <libexe/core/executable_file.hpp>
 #include <libexe/decompressors/decompressor.hpp>
 #include <filesystem>
-#include <vector>
+#include <memory>
 #include <span>
 #include <cstdint>
 
 namespace libexe {
+
+
+class data_source;  // Forward declaration
+
 
 /**
  * @brief DOS MZ executable file parser.
@@ -93,6 +97,15 @@ class LIBEXE_EXPORT mz_file final : public executable_file {
          * @throws std::runtime_error If data is not valid MZ format.
          */
         [[nodiscard]] static mz_file from_memory(std::span <const uint8_t> data);
+
+        /**
+         * @brief Load MZ file from data source, taking ownership.
+         *
+         * @param source Data source to take ownership of.
+         * @return Parsed mz_file object.
+         * @throws std::runtime_error If data is not valid MZ format.
+         */
+        [[nodiscard]] static mz_file from_data_source(std::unique_ptr<data_source> source);
 
         // =====================================================================
         // Base Class Interface Implementation
@@ -256,12 +269,20 @@ class LIBEXE_EXPORT mz_file final : public executable_file {
          */
         [[nodiscard]] bool is_likely_packed() const;
 
-    private:
-        mz_file() = default;
+        mz_file(mz_file&&) noexcept;
+        mz_file& operator=(mz_file&&) noexcept;
+        ~mz_file();
 
+        mz_file(const mz_file&) = delete;
+        mz_file& operator=(const mz_file&) = delete;
+
+    private:
+        mz_file();
+
+        void parse_header();
         [[nodiscard]] compression_type detect_compression() const;
 
-        std::vector <uint8_t> data_;
+        std::unique_ptr<data_source> data_;
         compression_type compression_ = compression_type::NONE;
 
         // Cached DOS header fields

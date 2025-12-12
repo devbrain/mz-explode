@@ -2,8 +2,7 @@
 #include <libexe/pe_file.hpp>
 #include <libexe/import_directory.hpp>
 #include <iostream>
-#include <fstream>
-#include <vector>
+#include <filesystem>
 
 int main(int argc, char* argv[]) {
     if (argc != 2) {
@@ -11,28 +10,19 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    // Load file
-    std::ifstream file(argv[1], std::ios::binary | std::ios::ate);
-    if (!file) {
-        std::cerr << "Error: Cannot open file: " << argv[1] << "\n";
+    std::filesystem::path path(argv[1]);
+    if (!std::filesystem::exists(path)) {
+        std::cerr << "Error: File not found: " << argv[1] << "\n";
         return 1;
     }
 
-    std::streamsize size = file.tellg();
-    file.seekg(0, std::ios::beg);
-
-    std::vector<uint8_t> data(size);
-    if (!file.read(reinterpret_cast<char*>(data.data()), size)) {
-        std::cerr << "Error: Cannot read file\n";
-        return 1;
-    }
-
+    auto size = std::filesystem::file_size(path);
     std::cout << "File: " << argv[1] << "\n";
     std::cout << "Size: " << size << " bytes\n\n";
 
-    // Parse PE
+    // Parse PE using memory-mapped file (no longer reads whole file into memory)
     try {
-        auto pe = libexe::pe_file::from_memory(data);
+        auto pe = libexe::pe_file::from_file(path);
 
         std::cout << "Format: " << static_cast<int>(pe.get_format()) << "\n";
         std::cout << "Is 64-bit: " << (pe.is_64bit() ? "yes" : "no") << "\n";

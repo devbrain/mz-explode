@@ -6,6 +6,21 @@ include(FetchContent)
 # Dependencies
 # =============================================================================
 
+# mio - Cross-platform memory-mapped file I/O library
+if (NOT TARGET mio::mio)
+    message(STATUS "mio not found, fetching from GitHub...")
+
+    FetchContent_Declare(
+            mio
+            GIT_REPOSITORY https://github.com/devbrain/mio.git
+            GIT_TAG master
+    )
+
+    FetchContent_MakeAvailable(mio)
+else ()
+    message(STATUS "Using existing mio (provided by parent project)")
+endif ()
+
 # DataScript - binary format parser generator
 # Guard: only fetch if not already available (could be provided by parent project)
 if (NOT TARGET ds)
@@ -75,6 +90,7 @@ datascript_generate(
 
 add_library(libexe
         # Core files
+        core/data_source.cpp
         core/diagnostic.cpp
         core/entropy.cpp
         executable_file.cpp
@@ -140,7 +156,7 @@ add_library(libexe
 
 # Link against the generated parsers INTERFACE library
 # This automatically adds the include directories and triggers code generation
-target_link_libraries(libexe PRIVATE libexe_parsers)
+target_link_libraries(libexe PRIVATE libexe_parsers mio::mio)
 
 # Generate portable export header
 generate_export_header(libexe

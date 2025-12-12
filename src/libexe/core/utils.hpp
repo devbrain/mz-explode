@@ -6,40 +6,9 @@
 #define LIBEXE_CORE_FILE_UTILS_HPP
 
 #include <cstdint>
-#include <filesystem>
-#include <fstream>
-#include <stdexcept>
-#include <vector>
+#include <climits>
 
 namespace libexe::internal {
-
-/**
- * Read entire file contents into memory
- *
- * @param path Path to file to read
- * @return Vector containing file contents
- * @throws std::runtime_error if file cannot be opened or read
- */
-inline std::vector<uint8_t> read_file_to_memory(const std::filesystem::path& path) {
-    std::ifstream file(path, std::ios::binary | std::ios::ate);
-    if (!file) {
-        throw std::runtime_error("Cannot open file: " + path.string());
-    }
-
-    auto size = file.tellg();
-    if (size < 0) {
-        throw std::runtime_error("Cannot determine file size: " + path.string());
-    }
-
-    file.seekg(0, std::ios::beg);
-
-    std::vector<uint8_t> buffer(static_cast<size_t>(size));
-    if (size > 0 && !file.read(reinterpret_cast<char*>(buffer.data()), size)) {
-        throw std::runtime_error("Cannot read file: " + path.string());
-    }
-
-    return buffer;
-}
 
 /**
  * Safe multiplication with overflow check

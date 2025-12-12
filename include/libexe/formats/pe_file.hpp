@@ -51,7 +51,6 @@
 #include <libexe/pe/overlay.hpp>
 #include <libexe/pe/authenticode.hpp>
 #include <filesystem>
-#include <vector>
 #include <span>
 #include <string>
 #include <optional>
@@ -59,6 +58,8 @@
 #include <array>
 
 namespace libexe {
+    class data_source; // Forward declaration
+
     // Forward declarations
     class resource_directory;
     struct import_directory;
@@ -77,203 +78,212 @@ namespace libexe {
     struct architecture_directory;
     struct reserved_directory;
 
-/**
- * @brief PE (Portable Executable) file parser for Windows PE32/PE32+.
- *
- * Parses PE format executables and provides comprehensive access to all
- * PE structures including headers, sections, data directories, imports,
- * exports, resources, and security information.
- *
- * @par PE Structure Overview:
- * - DOS MZ stub header (compatibility for DOS)
- * - PE signature ("PE\\0\\0") at offset specified by e_lfanew
- * - COFF File Header (machine type, section count, characteristics)
- * - Optional Header (entry point, image base, alignments, data directories)
- * - Section Table (code, data, resources, etc.)
- * - Data Directories (imports, exports, resources, relocations, etc.)
- *
- * @par Example Usage:
- * @code
- * auto pe = libexe::pe_file::from_file("program.exe");
- *
- * // Basic info
- * std::cout << "Format: " << pe.format_name()
- *           << "\nMachine: " << static_cast<int>(pe.machine_type())
- *           << "\nEntry: 0x" << std::hex << pe.entry_point_rva() << std::endl;
- *
- * // Security features
- * std::cout << "ASLR: " << (pe.has_aslr() ? "Yes" : "No")
- *           << "\nDEP: " << (pe.has_dep() ? "Yes" : "No")
- *           << "\nCFG: " << (pe.has_cfg() ? "Yes" : "No") << std::endl;
- *
- * // Import analysis
- * for (const auto& dll : pe.imported_dlls()) {
- *     std::cout << "Imports: " << dll << std::endl;
- * }
- *
- * // Check for anomalies
- * if (pe.has_anomalies()) {
- *     for (const auto& diag : pe.diagnostics().anomalies()) {
- *         std::cout << "ANOMALY: " << diag.message << std::endl;
- *     }
- * }
- * @endcode
- *
- * @see pe_section, pe_machine_type, pe_subsystem, diagnostic_collector
- */
-class LIBEXE_EXPORT pe_file final : public executable_file {
-    public:
-        // =====================================================================
-        // Factory Methods
-        // =====================================================================
+    /**
+     * @brief PE (Portable Executable) file parser for Windows PE32/PE32+.
+     *
+     * Parses PE format executables and provides comprehensive access to all
+     * PE structures including headers, sections, data directories, imports,
+     * exports, resources, and security information.
+     *
+     * @par PE Structure Overview:
+     * - DOS MZ stub header (compatibility for DOS)
+     * - PE signature ("PE\\0\\0") at offset specified by e_lfanew
+     * - COFF File Header (machine type, section count, characteristics)
+     * - Optional Header (entry point, image base, alignments, data directories)
+     * - Section Table (code, data, resources, etc.)
+     * - Data Directories (imports, exports, resources, relocations, etc.)
+     *
+     * @par Example Usage:
+     * @code
+     * auto pe = libexe::pe_file::from_file("program.exe");
+     *
+     * // Basic info
+     * std::cout << "Format: " << pe.format_name()
+     *           << "\nMachine: " << static_cast<int>(pe.machine_type())
+     *           << "\nEntry: 0x" << std::hex << pe.entry_point_rva() << std::endl;
+     *
+     * // Security features
+     * std::cout << "ASLR: " << (pe.has_aslr() ? "Yes" : "No")
+     *           << "\nDEP: " << (pe.has_dep() ? "Yes" : "No")
+     *           << "\nCFG: " << (pe.has_cfg() ? "Yes" : "No") << std::endl;
+     *
+     * // Import analysis
+     * for (const auto& dll : pe.imported_dlls()) {
+     *     std::cout << "Imports: " << dll << std::endl;
+     * }
+     *
+     * // Check for anomalies
+     * if (pe.has_anomalies()) {
+     *     for (const auto& diag : pe.diagnostics().anomalies()) {
+     *         std::cout << "ANOMALY: " << diag.message << std::endl;
+     *     }
+     * }
+     * @endcode
+     *
+     * @see pe_section, pe_machine_type, pe_subsystem, diagnostic_collector
+     */
+    class LIBEXE_EXPORT pe_file final : public executable_file {
+        public:
+            // =====================================================================
+            // Factory Methods
+            // =====================================================================
 
-        /**
-         * @brief Load PE file from filesystem.
-         *
-         * @param path Path to the PE executable file.
-         * @return Parsed pe_file object.
-         * @throws std::runtime_error If file cannot be read or is not valid PE format.
-         */
-        [[nodiscard]] static pe_file from_file(const std::filesystem::path& path);
+            /**
+             * @brief Load PE file from filesystem.
+             *
+             * @param path Path to the PE executable file.
+             * @return Parsed pe_file object.
+             * @throws std::runtime_error If file cannot be read or is not valid PE format.
+             */
+            [[nodiscard]] static pe_file from_file(const std::filesystem::path& path);
 
-        /**
-         * @brief Load PE file from memory buffer.
-         *
-         * @param data Span containing the raw PE file data.
-         * @return Parsed pe_file object.
-         * @throws std::runtime_error If data is not valid PE format.
-         */
-        [[nodiscard]] static pe_file from_memory(std::span <const uint8_t> data);
+            /**
+             * @brief Load PE file from memory buffer.
+             *
+             * @param data Span containing the raw PE file data.
+             * @return Parsed pe_file object.
+             * @throws std::runtime_error If data is not valid PE format.
+             */
+            [[nodiscard]] static pe_file from_memory(std::span <const uint8_t> data);
 
-        // =====================================================================
-        // Base Class Interface Implementation
-        // =====================================================================
+            /**
+             * @brief Load PE file from data source, taking ownership.
+             *
+             * @param source Data source to take ownership of.
+             * @return Parsed pe_file object.
+             * @throws std::runtime_error If data is not valid PE format.
+             */
+            [[nodiscard]] static pe_file from_data_source(std::unique_ptr<data_source> source);
 
-        /// @copydoc executable_file::get_format()
-        [[nodiscard]] format_type get_format() const override;
+            // =====================================================================
+            // Base Class Interface Implementation
+            // =====================================================================
 
-        /// @copydoc executable_file::format_name()
-        [[nodiscard]] std::string_view format_name() const override;
+            /// @copydoc executable_file::get_format()
+            [[nodiscard]] format_type get_format() const override;
 
-        /// @copydoc executable_file::code_section()
-        [[nodiscard]] std::span <const uint8_t> code_section() const override;
+            /// @copydoc executable_file::format_name()
+            [[nodiscard]] std::string_view format_name() const override;
 
-        // =====================================================================
-        // Format Identification
-        // =====================================================================
+            /// @copydoc executable_file::code_section()
+            [[nodiscard]] std::span <const uint8_t> code_section() const override;
 
-        /**
-         * @brief Check if this is PE32+ (64-bit) vs PE32 (32-bit).
-         *
-         * PE32+ uses different structure sizes for addresses (64-bit vs 32-bit).
-         *
-         * @return true if PE32+ (64-bit), false if PE32 (32-bit).
-         */
-        [[nodiscard]] bool is_64bit() const;
+            // =====================================================================
+            // Format Identification
+            // =====================================================================
 
-        // =====================================================================
-        // COFF File Header Accessors
-        // =====================================================================
+            /**
+             * @brief Check if this is PE32+ (64-bit) vs PE32 (32-bit).
+             *
+             * PE32+ uses different structure sizes for addresses (64-bit vs 32-bit).
+             *
+             * @return true if PE32+ (64-bit), false if PE32 (32-bit).
+             */
+            [[nodiscard]] bool is_64bit() const;
 
-        /**
-         * @brief Get target machine (CPU) type.
-         * @return pe_machine_type identifying the target architecture.
-         */
-        [[nodiscard]] pe_machine_type machine_type() const;
+            // =====================================================================
+            // COFF File Header Accessors
+            // =====================================================================
 
-        /**
-         * @brief Get number of sections in the section table.
-         * @return Section count.
-         */
-        [[nodiscard]] size_t section_count() const;
+            /**
+             * @brief Get target machine (CPU) type.
+             * @return pe_machine_type identifying the target architecture.
+             */
+            [[nodiscard]] pe_machine_type machine_type() const;
 
-        /**
-         * @brief Get file creation timestamp (Unix epoch).
-         * @return Timestamp as seconds since January 1, 1970.
-         */
-        [[nodiscard]] uint32_t timestamp() const;
+            /**
+             * @brief Get number of sections in the section table.
+             * @return Section count.
+             */
+            [[nodiscard]] size_t section_count() const;
 
-        /**
-         * @brief Get file characteristics flags.
-         * @return Bitmask of pe_file_characteristics values.
-         */
-        [[nodiscard]] pe_file_characteristics characteristics() const;
+            /**
+             * @brief Get file creation timestamp (Unix epoch).
+             * @return Timestamp as seconds since January 1, 1970.
+             */
+            [[nodiscard]] uint32_t timestamp() const;
 
-        // =====================================================================
-        // Optional Header Accessors
-        // =====================================================================
+            /**
+             * @brief Get file characteristics flags.
+             * @return Bitmask of pe_file_characteristics values.
+             */
+            [[nodiscard]] pe_file_characteristics characteristics() const;
 
-        /**
-         * @brief Get preferred image base address.
-         *
-         * The address where the executable prefers to be loaded. If this
-         * address is unavailable, the loader will relocate the image.
-         *
-         * @return Preferred base address (64-bit for PE32+, 32-bit for PE32).
-         */
-        [[nodiscard]] uint64_t image_base() const;
+            // =====================================================================
+            // Optional Header Accessors
+            // =====================================================================
 
-        /**
-         * @brief Get entry point RVA.
-         *
-         * Relative Virtual Address of the entry point function.
-         * This is where execution begins when the image is loaded.
-         *
-         * @return Entry point RVA, or 0 for DLLs without entry points.
-         */
-        [[nodiscard]] uint32_t entry_point_rva() const;
+            /**
+             * @brief Get preferred image base address.
+             *
+             * The address where the executable prefers to be loaded. If this
+             * address is unavailable, the loader will relocate the image.
+             *
+             * @return Preferred base address (64-bit for PE32+, 32-bit for PE32).
+             */
+            [[nodiscard]] uint64_t image_base() const;
 
-        /**
-         * @brief Get section alignment in memory.
-         *
-         * Sections are aligned to this boundary when loaded into memory.
-         * Must be >= FileAlignment, typically 4096 (0x1000).
-         *
-         * @return Section alignment in bytes.
-         */
-        [[nodiscard]] uint32_t section_alignment() const;
+            /**
+             * @brief Get entry point RVA.
+             *
+             * Relative Virtual Address of the entry point function.
+             * This is where execution begins when the image is loaded.
+             *
+             * @return Entry point RVA, or 0 for DLLs without entry points.
+             */
+            [[nodiscard]] uint32_t entry_point_rva() const;
 
-        /**
-         * @brief Get file alignment for raw section data.
-         *
-         * Raw data in sections is aligned to this boundary in the file.
-         * Typically 512 (0x200) or 4096 (0x1000).
-         *
-         * @return File alignment in bytes.
-         */
-        [[nodiscard]] uint32_t file_alignment() const;
+            /**
+             * @brief Get section alignment in memory.
+             *
+             * Sections are aligned to this boundary when loaded into memory.
+             * Must be >= FileAlignment, typically 4096 (0x1000).
+             *
+             * @return Section alignment in bytes.
+             */
+            [[nodiscard]] uint32_t section_alignment() const;
 
-        /**
-         * @brief Get total size of loaded image.
-         *
-         * Size of the image in memory, including headers and all sections,
-         * rounded up to SectionAlignment.
-         *
-         * @return Size of image in bytes.
-         */
-        [[nodiscard]] uint32_t size_of_image() const;
+            /**
+             * @brief Get file alignment for raw section data.
+             *
+             * Raw data in sections is aligned to this boundary in the file.
+             * Typically 512 (0x200) or 4096 (0x1000).
+             *
+             * @return File alignment in bytes.
+             */
+            [[nodiscard]] uint32_t file_alignment() const;
 
-        /**
-         * @brief Get size of all headers.
-         *
-         * Combined size of DOS header, PE signature, COFF header, optional
-         * header, and section headers, rounded up to FileAlignment.
-         *
-         * @return Size of headers in bytes.
-         */
-        [[nodiscard]] uint32_t size_of_headers() const;
+            /**
+             * @brief Get total size of loaded image.
+             *
+             * Size of the image in memory, including headers and all sections,
+             * rounded up to SectionAlignment.
+             *
+             * @return Size of image in bytes.
+             */
+            [[nodiscard]] uint32_t size_of_image() const;
 
-        /**
-         * @brief Get Windows subsystem type.
-         * @return pe_subsystem identifying the required subsystem.
-         */
-        [[nodiscard]] pe_subsystem subsystem() const;
+            /**
+             * @brief Get size of all headers.
+             *
+             * Combined size of DOS header, PE signature, COFF header, optional
+             * header, and section headers, rounded up to FileAlignment.
+             *
+             * @return Size of headers in bytes.
+             */
+            [[nodiscard]] uint32_t size_of_headers() const;
 
-        /**
-         * @brief Get DLL characteristics flags.
-         * @return Bitmask of pe_dll_characteristics values.
-         */
-        [[nodiscard]] pe_dll_characteristics dll_characteristics() const;
+            /**
+             * @brief Get Windows subsystem type.
+             * @return pe_subsystem identifying the required subsystem.
+             */
+            [[nodiscard]] pe_subsystem subsystem() const;
+
+            /**
+             * @brief Get DLL characteristics flags.
+             * @return Bitmask of pe_dll_characteristics values.
+             */
+            [[nodiscard]] pe_dll_characteristics dll_characteristics() const;
 
             // =========================================================================
             // Edge Case Detection Methods
@@ -295,7 +305,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
 
             /// Resource access
             [[nodiscard]] bool has_resources() const;
-            [[nodiscard]] std::shared_ptr<resource_directory> resources() const;
+            [[nodiscard]] std::shared_ptr <resource_directory> resources() const;
 
             /// Data directory accessors
             [[nodiscard]] uint32_t data_directory_rva(directory_entry entry) const;
@@ -303,24 +313,24 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             [[nodiscard]] bool has_data_directory(directory_entry entry) const;
 
             /// Directory access (lazy-parsed)
-            [[nodiscard]] std::shared_ptr<import_directory> imports() const;
-            [[nodiscard]] std::shared_ptr<export_directory> exports() const;
-            [[nodiscard]] std::shared_ptr<base_relocation_directory> relocations() const;
-            [[nodiscard]] std::shared_ptr<tls_directory> tls() const;
-            [[nodiscard]] std::shared_ptr<debug_directory> debug() const;
-            [[nodiscard]] std::shared_ptr<load_config_directory> load_config() const;
-            [[nodiscard]] std::shared_ptr<exception_directory> exceptions() const;
-            [[nodiscard]] std::shared_ptr<delay_import_directory> delay_imports() const;
-            [[nodiscard]] std::shared_ptr<bound_import_directory> bound_imports() const;
-            [[nodiscard]] std::shared_ptr<security_directory> security() const;
-            [[nodiscard]] std::shared_ptr<com_descriptor> clr_header() const;
-            [[nodiscard]] std::shared_ptr<iat_directory> import_address_table() const;
-            [[nodiscard]] std::shared_ptr<global_ptr_directory> global_ptr() const;
-            [[nodiscard]] std::shared_ptr<architecture_directory> architecture() const;
-            [[nodiscard]] std::shared_ptr<reserved_directory> reserved() const;
+            [[nodiscard]] std::shared_ptr <import_directory> imports() const;
+            [[nodiscard]] std::shared_ptr <export_directory> exports() const;
+            [[nodiscard]] std::shared_ptr <base_relocation_directory> relocations() const;
+            [[nodiscard]] std::shared_ptr <tls_directory> tls() const;
+            [[nodiscard]] std::shared_ptr <debug_directory> debug() const;
+            [[nodiscard]] std::shared_ptr <load_config_directory> load_config() const;
+            [[nodiscard]] std::shared_ptr <exception_directory> exceptions() const;
+            [[nodiscard]] std::shared_ptr <delay_import_directory> delay_imports() const;
+            [[nodiscard]] std::shared_ptr <bound_import_directory> bound_imports() const;
+            [[nodiscard]] std::shared_ptr <security_directory> security() const;
+            [[nodiscard]] std::shared_ptr <com_descriptor> clr_header() const;
+            [[nodiscard]] std::shared_ptr <iat_directory> import_address_table() const;
+            [[nodiscard]] std::shared_ptr <global_ptr_directory> global_ptr() const;
+            [[nodiscard]] std::shared_ptr <architecture_directory> architecture() const;
+            [[nodiscard]] std::shared_ptr <reserved_directory> reserved() const;
 
             /// Rich header access (undocumented Microsoft build metadata)
-            [[nodiscard]] std::optional<rich_header> rich() const;
+            [[nodiscard]] std::optional <rich_header> rich() const;
 
             /// Check if file has a Rich header
             [[nodiscard]] bool has_rich_header() const;
@@ -358,7 +368,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
 
             /// Get parsed Authenticode signature information
             /// Returns nullopt if no signature or parsing fails
-            [[nodiscard]] std::optional<authenticode_signature> authenticode_info() const;
+            [[nodiscard]] std::optional <authenticode_signature> authenticode_info() const;
 
             /// Get digest algorithm used in Authenticode signature
             [[nodiscard]] authenticode_hash_algorithm authenticode_digest_algorithm() const;
@@ -420,7 +430,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             [[nodiscard]] double section_entropy(const std::string& section_name) const;
 
             /// Get entropy analysis for all sections
-            [[nodiscard]] std::vector<std::pair<std::string, double>> all_section_entropies() const;
+            [[nodiscard]] std::vector <std::pair <std::string, double>> all_section_entropies() const;
 
             /// Check if any section has high entropy (likely packed/compressed)
             [[nodiscard]] bool has_high_entropy_sections() const;
@@ -442,7 +452,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             [[nodiscard]] uint64_t overlay_size() const;
 
             /// Get overlay data as span (empty if no overlay)
-            [[nodiscard]] std::span<const uint8_t> overlay_data() const;
+            [[nodiscard]] std::span <const uint8_t> overlay_data() const;
 
             /// Get overlay entropy (0.0 if no overlay)
             [[nodiscard]] double overlay_entropy() const;
@@ -452,7 +462,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             // =========================================================================
 
             /// Get list of all imported DLL names
-            [[nodiscard]] std::vector<std::string> imported_dlls() const;
+            [[nodiscard]] std::vector <std::string> imported_dlls() const;
 
             /// Get total count of imported functions
             [[nodiscard]] size_t imported_function_count() const;
@@ -467,7 +477,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             [[nodiscard]] bool imports_function(std::string_view dll_name, std::string_view function_name) const;
 
             /// Get list of all exported function names
-            [[nodiscard]] std::vector<std::string> exported_functions() const;
+            [[nodiscard]] std::vector <std::string> exported_functions() const;
 
             /// Get total count of exported functions
             [[nodiscard]] size_t exported_function_count() const;
@@ -491,8 +501,15 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             /// Check if there were any parse errors (recovered)
             [[nodiscard]] bool has_parse_errors() const;
 
+            pe_file(pe_file&&) noexcept;
+            pe_file& operator=(pe_file&&) noexcept;
+            ~pe_file();
+
+            pe_file(const pe_file&) = delete;
+            pe_file& operator=(const pe_file&) = delete;
+
         private:
-            pe_file() = default;
+            pe_file();
 
             void parse_pe_headers();
             void parse_sections();
@@ -502,7 +519,7 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
             void check_import_anomalies(const import_directory& imports, const std::string& module_name = "") const;
             void check_export_anomalies(const export_directory& exports) const;
 
-            std::vector <uint8_t> data_;
+            std::unique_ptr <data_source> data_;
             std::vector <pe_section> sections_;
 
             bool is_64bit_ = false;
@@ -526,27 +543,28 @@ class LIBEXE_EXPORT pe_file final : public executable_file {
                 uint32_t rva = 0;
                 uint32_t size = 0;
             };
-            std::array<data_directory_entry, 16> data_directories_;
 
-            mutable std::shared_ptr<import_directory> imports_;
-            mutable std::shared_ptr<export_directory> exports_;
-            mutable std::shared_ptr<base_relocation_directory> relocations_;
-            mutable std::shared_ptr<tls_directory> tls_;
-            mutable std::shared_ptr<debug_directory> debug_;
-            mutable std::shared_ptr<load_config_directory> load_config_;
-            mutable std::shared_ptr<exception_directory> exceptions_;
-            mutable std::shared_ptr<delay_import_directory> delay_imports_;
-            mutable std::shared_ptr<bound_import_directory> bound_imports_;
-            mutable std::shared_ptr<security_directory> security_;
-            mutable std::shared_ptr<com_descriptor> com_descriptor_;
-            mutable std::shared_ptr<iat_directory> iat_;
-            mutable std::shared_ptr<global_ptr_directory> global_ptr_;
-            mutable std::shared_ptr<architecture_directory> architecture_;
-            mutable std::shared_ptr<reserved_directory> reserved_;
+            std::array <data_directory_entry, 16> data_directories_;
+
+            mutable std::shared_ptr <import_directory> imports_;
+            mutable std::shared_ptr <export_directory> exports_;
+            mutable std::shared_ptr <base_relocation_directory> relocations_;
+            mutable std::shared_ptr <tls_directory> tls_;
+            mutable std::shared_ptr <debug_directory> debug_;
+            mutable std::shared_ptr <load_config_directory> load_config_;
+            mutable std::shared_ptr <exception_directory> exceptions_;
+            mutable std::shared_ptr <delay_import_directory> delay_imports_;
+            mutable std::shared_ptr <bound_import_directory> bound_imports_;
+            mutable std::shared_ptr <security_directory> security_;
+            mutable std::shared_ptr <com_descriptor> com_descriptor_;
+            mutable std::shared_ptr <iat_directory> iat_;
+            mutable std::shared_ptr <global_ptr_directory> global_ptr_;
+            mutable std::shared_ptr <architecture_directory> architecture_;
+            mutable std::shared_ptr <reserved_directory> reserved_;
 
             // Rich header cache
             mutable bool rich_header_parsed_ = false;
-            mutable std::optional<rich_header> rich_header_;
+            mutable std::optional <rich_header> rich_header_;
 
             // Overlay cache
             mutable bool overlay_parsed_ = false;

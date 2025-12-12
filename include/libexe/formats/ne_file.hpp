@@ -36,6 +36,10 @@
 
 namespace libexe {
 
+
+class data_source;  // Forward declaration
+
+
 // Forward declarations
 class resource_directory;
 
@@ -97,6 +101,15 @@ class LIBEXE_EXPORT ne_file final : public executable_file {
          * @throws std::runtime_error If data is not valid NE format.
          */
         [[nodiscard]] static ne_file from_memory(std::span <const uint8_t> data);
+
+        /**
+         * @brief Load NE file from data source, taking ownership.
+         *
+         * @param source Data source to take ownership of.
+         * @return Parsed ne_file object.
+         * @throws std::runtime_error If data is not valid NE format.
+         */
+        [[nodiscard]] static ne_file from_data_source(std::unique_ptr<data_source> source);
 
         // =====================================================================
         // Base Class Interface Implementation
@@ -356,13 +369,20 @@ class LIBEXE_EXPORT ne_file final : public executable_file {
          */
         [[nodiscard]] bool is_likely_packed() const;
 
+        ne_file(ne_file&&) noexcept;
+        ne_file& operator=(ne_file&&) noexcept;
+        ~ne_file();
+
+        ne_file(const ne_file&) = delete;
+        ne_file& operator=(const ne_file&) = delete;
+
     private:
-        ne_file() = default;
+        ne_file();
 
         void parse_ne_headers();
         void parse_segments();
 
-        std::vector <uint8_t> data_;
+        std::unique_ptr<data_source> data_;
         std::vector <ne_segment> segments_;
 
         uint32_t ne_offset_ = 0;

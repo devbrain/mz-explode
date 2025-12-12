@@ -36,13 +36,16 @@
 #include <libexe/core/diagnostic_collector.hpp>
 #include <libexe/le/types.hpp>
 #include <filesystem>
-#include <vector>
 #include <span>
 #include <string>
 #include <optional>
 #include <memory>
 
 namespace libexe {
+
+
+class data_source;  // Forward declaration
+
 
 /**
  * @brief LE/LX object (segment) information.
@@ -296,6 +299,15 @@ public:
      * @throws std::runtime_error If data is not valid LE/LX format.
      */
     [[nodiscard]] static le_file from_memory(std::span<const uint8_t> data);
+
+    /**
+     * @brief Load LE/LX file from data source, taking ownership.
+     *
+     * @param source Data source to take ownership of.
+     * @return Parsed le_file object.
+     * @throws std::runtime_error If data is not valid LE/LX format.
+     */
+    [[nodiscard]] static le_file from_data_source(std::unique_ptr<data_source> source);
 
     // =========================================================================
     // Base Class Interface
@@ -791,8 +803,15 @@ public:
      */
     [[nodiscard]] bool has_diagnostic(diagnostic_code code) const;
 
+    le_file(le_file&&) noexcept;
+    le_file& operator=(le_file&&) noexcept;
+    ~le_file();
+
+    le_file(const le_file&) = delete;
+    le_file& operator=(const le_file&) = delete;
+
 private:
-    le_file() = default;
+    le_file();
 
     void parse_le_headers();
     void parse_objects();
@@ -803,7 +822,7 @@ private:
     void parse_resource_table();
     void detect_extender_type();
 
-    std::vector<uint8_t> data_;
+    std::unique_ptr<data_source> data_;
     std::vector<le_object> objects_;
     std::vector<le_page_entry> page_table_;
     std::vector<le_entry> entries_;
