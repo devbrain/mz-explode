@@ -49,12 +49,40 @@ enum class font_pitch : uint8_t {
  */
 struct LIBEXE_EXPORT glyph_entry {
     uint16_t width;       // Character width in pixels
-    uint32_t offset;      // Offset into bitmap data
+    uint32_t offset;      // Offset into bitmap/stroke data
 
     // Optional ABC spacing (Windows 3.0+)
     std::optional<int16_t> a_space;  // Distance from current position to left edge
     std::optional<uint16_t> b_space; // Width of character
     std::optional<int16_t> c_space;  // Distance from right edge to next position
+};
+
+/**
+ * Stroke command for vector fonts.
+ *
+ * Vector fonts store glyphs as a series of pen movements.
+ * Each command is either a move/line to a point, or a pen-up marker.
+ */
+struct LIBEXE_EXPORT stroke_command {
+    enum class type : uint8_t {
+        MOVE_TO,    // Move to point without drawing (first point or after pen-up)
+        LINE_TO,    // Draw line to point
+        PEN_UP      // Lift pen (end of polyline segment)
+    };
+
+    type cmd;
+    int8_t x;     // X coordinate (relative or absolute depending on context)
+    int8_t y;     // Y coordinate
+};
+
+/**
+ * Vector glyph entry.
+ *
+ * Contains the stroke data for a single vector glyph.
+ */
+struct LIBEXE_EXPORT vector_glyph {
+    uint16_t width;                        // Character width
+    std::vector<stroke_command> strokes;   // Stroke commands for this glyph
 };
 
 /**
@@ -112,6 +140,7 @@ struct LIBEXE_EXPORT font_data {
     uint16_t pixel_height;        // Character height
     uint16_t avg_width;           // Average character width
     uint16_t max_width;           // Maximum character width
+    uint16_t width_bytes;         // Bytes per row of the combined bitmap
 
     // =========================================================================
     // Character Range
@@ -131,11 +160,17 @@ struct LIBEXE_EXPORT font_data {
     std::string face_name;        // Font face name (e.g., "Courier", "Helv")
 
     // =========================================================================
-    // Glyph Data
+    // Glyph Data (Raster fonts)
     // =========================================================================
 
     std::vector<glyph_entry> glyphs;    // Glyph table (one per character)
     std::vector<uint8_t> bitmap_data;   // Raw bitmap data for all characters
+
+    // =========================================================================
+    // Glyph Data (Vector fonts)
+    // =========================================================================
+
+    std::vector<vector_glyph> vector_glyphs;  // Vector glyph data (when type == VECTOR)
 
     /**
      * Get character count in font.
@@ -156,6 +191,37 @@ struct LIBEXE_EXPORT font_data {
      */
     [[nodiscard]] bool is_variable_pitch() const {
         return pitch == font_pitch::VARIABLE;
+    }
+
+    /**
+     * Check if this is a vector (stroke) font.
+     */
+    [[nodiscard]] bool is_vector() const {
+        return (static_cast<uint16_t>(type) & 0x0001) != 0;
+    }
+
+    /**
+     * Check if this is a raster (bitmap) font.
+     */
+    [[nodiscard]] bool is_raster() const {
+        return !is_vector();
+    }
+
+    /**
+     * Get vector glyph for a specific character.
+     *
+     * @param c Character code
+     * @return Pointer to vector glyph, or nullptr if not found or not a vector font
+     */
+    [[nodiscard]] const vector_glyph* get_vector_glyph(uint8_t c) const {
+        if (!is_vector() || c < first_char || c > last_char) {
+            return nullptr;
+        }
+        size_t idx = c - first_char;
+        if (idx >= vector_glyphs.size()) {
+            return nullptr;
+        }
+        return &vector_glyphs[idx];
     }
 
     /**
