@@ -57,7 +57,8 @@ enum class compression_type {
     LZEXE_090,           ///< LZEXE version 0.90
     LZEXE_091,           ///< LZEXE version 0.91
     EXEPACK,             ///< Microsoft EXEPACK
-    KNOWLEDGE_DYNAMICS   ///< Knowledge Dynamics DIET-style compressor
+    KNOWLEDGE_DYNAMICS,  ///< Knowledge Dynamics DIET-style compressor
+    DIET                 ///< DIET compression (Teddy Matsumoto)
 };
 
 /**

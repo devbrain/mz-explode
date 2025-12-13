@@ -6,6 +6,7 @@
 #include <libexe/decompressors/lzexe.hpp>
 #include <libexe/decompressors/exepack.hpp>
 #include <libexe/decompressors/knowledge_dynamics.hpp>
+#include <libexe/decompressors/diet.hpp>
 #include <stdexcept>
 
 namespace libexe {
@@ -36,6 +37,11 @@ std::unique_ptr<decompressor> create_decompressor(compression_type type) {
         case compression_type::KNOWLEDGE_DYNAMICS:
             // Default header size = 32 bytes
             return std::make_unique<knowledge_dynamics_decompressor>(32);
+
+        case compression_type::DIET:
+            // Default: EXE format, v1.44, header size = 32 bytes
+            return std::make_unique<diet_decompressor>(
+                diet_version::V144, diet_file_type::EXE, 32);
 
         case compression_type::NONE:
         default:

@@ -9,5 +9,6 @@
 #include <libexe/decompressors/lzexe.hpp>
 #include <libexe/decompressors/exepack.hpp>
 #include <libexe/decompressors/knowledge_dynamics.hpp>
+#include <libexe/decompressors/diet.hpp>
 
 #endif // LIBEXE_DECOMPRESSORS_ALL_HPP
