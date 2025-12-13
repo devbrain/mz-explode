@@ -231,7 +231,254 @@ struct font_3x {
 };
 
 // =============================================================================
-// Glyph Entry Structures
+// Windows 1.x Font Structures
+// =============================================================================
+
+/**
+ * Windows 1.x Font Header (117 bytes)
+ *
+ * Windows 1.x fonts have a shorter header than 2.x/3.x versions.
+ * The header ends at bits_offset with no reserved byte or extended fields.
+ *
+ * Key differences from 2.x/3.x:
+ * - No reserved byte after bits_offset
+ * - No flags, aspace, bspace, cspace, color_pointer, reserved1 fields
+ * - Glyph table format differs (see glyph entry structures below)
+ */
+struct font_1x_header {
+    uint16 version;              // Font version: 0x0100
+    uint32 size;                 // Total file size in bytes
+    uint8  copyright[60];        // Copyright string (null-terminated ASCII)
+    uint16 type;                 // Font type (FontType enum)
+    uint16 points;               // Nominal point size
+    uint16 vert_res;             // Vertical resolution in DPI
+    uint16 horiz_res;            // Horizontal resolution in DPI
+    uint16 ascent;               // Distance from top to baseline
+    uint16 internal_leading;     // Leading inside character cell
+    uint16 external_leading;     // Extra leading between rows
+    uint8  italic;               // Italic flag (0 or 1)
+    uint8  underline;            // Underline flag (0 or 1)
+    uint8  strike_out;           // Strikeout flag (0 or 1)
+    uint16 weight;               // Weight (1-1000, 400=normal, 700=bold)
+    uint8  char_set;             // Character set (ANSI=0, OEM=255, etc.)
+    uint16 pix_width;            // Character width in pixels (0=variable)
+    uint16 pix_height;           // Character height in pixels
+    uint8  pitch_and_family;     // Low 4 bits=pitch, high 4 bits=family
+    uint16 avg_width;            // Average character width
+    uint16 max_width;            // Maximum character width
+    uint8  first_char;           // First character code in font
+    uint8  last_char;            // Last character code in font
+    uint8  default_char;         // Default character (offset from first_char)
+    uint8  break_char;           // Word break character (offset from first_char)
+    uint16 width_bytes;          // Bytes per row of glyph bitmap
+    uint32 device;               // Offset to device name string
+    uint32 face;                 // Offset to typeface name string
+    uint32 bits_pointer;         // Absolute address (set by GDI at load time)
+    uint32 bits_offset;          // Offset to glyph bitmap data
+    // Note: No reserved byte or extended fields in 1.x
+};
+
+/**
+ * Windows 1.x Raster Font Glyph Entry (variable-pitch only)
+ *
+ * For variable-pitch raster fonts (pix_width == 0), the glyph table
+ * contains pixel offsets into the combined row-major bitmap.
+ * Width is calculated as the difference between consecutive offsets.
+ *
+ * Fixed-pitch raster fonts have no glyph table; offsets are calculated
+ * as (glyph_index * pix_width).
+ */
+struct glyph_entry_1x_raster {
+    uint16 pixel_offset;         // Pixel offset into each row of combined bitmap
+};
+
+/**
+ * Windows 1.x Vector Font Glyph Entry (variable-pitch)
+ *
+ * For variable-pitch vector fonts, each entry contains both
+ * the stroke data offset and the glyph width.
+ */
+struct glyph_entry_1x_vector_var {
+    uint16 stroke_offset;        // Offset to stroke data (relative to bits_offset)
+    uint16 width;                // Glyph width in pixels
+};
+
+/**
+ * Windows 1.x Vector Font Glyph Entry (fixed-pitch)
+ *
+ * For fixed-pitch vector fonts, only the stroke offset is stored.
+ * Width is taken from the header's pix_width field.
+ */
+struct glyph_entry_1x_vector_fixed {
+    uint16 stroke_offset;        // Offset to stroke data (relative to bits_offset)
+};
+
+/**
+ * Complete Windows 1.x Raster Font (variable-pitch)
+ *
+ * Variable-pitch raster fonts have a glyph table with pixel offsets.
+ * The glyph table has (last_char - first_char + 2) entries including sentinel.
+ */
+struct font_1x_raster_variable {
+    uint16 version : version == 0x0100;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type : (type & 0x0001) == 0;  // Must be raster (bit 0 clear)
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width : pix_width == 0;   // Must be variable-pitch
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+
+    // Glyph table: (last_char - first_char + 2) entries including sentinel
+    glyph_entry_1x_raster glyphs[last_char - first_char + 2];
+};
+
+/**
+ * Complete Windows 1.x Raster Font (fixed-pitch)
+ *
+ * Fixed-pitch raster fonts have no glyph table.
+ * Pixel offsets are calculated as (glyph_index * pix_width).
+ */
+struct font_1x_raster_fixed {
+    uint16 version : version == 0x0100;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type : (type & 0x0001) == 0;  // Must be raster (bit 0 clear)
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width : pix_width != 0;   // Must be fixed-pitch (non-zero)
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+
+    // No glyph table for fixed-pitch fonts
+};
+
+/**
+ * Complete Windows 1.x Vector Font (variable-pitch)
+ *
+ * Variable-pitch vector fonts have 4-byte glyph entries (offset + width).
+ * The glyph table has (last_char - first_char + 2) entries including sentinel.
+ */
+struct font_1x_vector_variable {
+    uint16 version : version == 0x0100;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type : (type & 0x0001) != 0;  // Must be vector (bit 0 set)
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width : pix_width == 0;   // Must be variable-pitch
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+
+    // Glyph table: (last_char - first_char + 2) entries including sentinel
+    glyph_entry_1x_vector_var glyphs[last_char - first_char + 2];
+};
+
+/**
+ * Complete Windows 1.x Vector Font (fixed-pitch)
+ *
+ * Fixed-pitch vector fonts have 2-byte glyph entries (offset only).
+ * Width is taken from pix_width header field.
+ * The glyph table has (last_char - first_char + 2) entries including sentinel.
+ */
+struct font_1x_vector_fixed {
+    uint16 version : version == 0x0100;
+    uint32 size;
+    uint8  copyright[60];
+    uint16 type : (type & 0x0001) != 0;  // Must be vector (bit 0 set)
+    uint16 points;
+    uint16 vert_res;
+    uint16 horiz_res;
+    uint16 ascent;
+    uint16 internal_leading;
+    uint16 external_leading;
+    uint8  italic;
+    uint8  underline;
+    uint8  strike_out;
+    uint16 weight;
+    uint8  char_set;
+    uint16 pix_width : pix_width != 0;   // Must be fixed-pitch (non-zero)
+    uint16 pix_height;
+    uint8  pitch_and_family;
+    uint16 avg_width;
+    uint16 max_width;
+    uint8  first_char;
+    uint8  last_char;
+    uint8  default_char;
+    uint8  break_char;
+    uint16 width_bytes;
+    uint32 device;
+    uint32 face;
+    uint32 bits_pointer;
+    uint32 bits_offset;
+
+    // Glyph table: (last_char - first_char + 2) entries including sentinel
+    glyph_entry_1x_vector_fixed glyphs[last_char - first_char + 2];
+};
+
+// =============================================================================
+// Glyph Entry Structures (Windows 2.x/3.x)
 // =============================================================================
 
 /**
