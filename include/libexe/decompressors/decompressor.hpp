@@ -176,6 +176,29 @@ class LIBEXE_EXPORT decompressor {
 LIBEXE_EXPORT std::unique_ptr <decompressor>
 create_decompressor(compression_type type);
 
+/**
+ * @brief Factory function to create a PKLITE decompressor.
+ *
+ * PKLITE requires pattern-based version detection, which needs access to the
+ * full file data to analyze the decompressor stub at the entry point.
+ *
+ * @param file_data The complete compressed executable file.
+ * @param header_paragraphs Number of 16-byte paragraphs in the MZ header.
+ * @return Unique pointer to the PKLITE decompressor.
+ * @throws std::runtime_error If file is not valid PKLITE format.
+ *
+ * @par Example:
+ * @code
+ * auto mz = libexe::mz_file::from_file("packed.exe");
+ * if (mz.get_compression() == compression_type::PKLITE_STANDARD) {
+ *     auto decomp = libexe::create_pklite_decompressor(data, mz.header_paragraphs());
+ *     auto result = decomp->decompress(data);
+ * }
+ * @endcode
+ */
+LIBEXE_EXPORT std::unique_ptr <decompressor>
+create_pklite_decompressor(std::span<const uint8_t> file_data, uint16_t header_paragraphs);
+
 } // namespace libexe
 
 #endif // LIBEXE_DECOMPRESSORS_DECOMPRESSOR_HPP

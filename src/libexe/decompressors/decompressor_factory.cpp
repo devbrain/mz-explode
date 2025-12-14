@@ -14,13 +14,11 @@ namespace libexe {
 std::unique_ptr<decompressor> create_decompressor(compression_type type) {
     switch (type) {
         case compression_type::PKLITE_STANDARD:
-            // Default parameters for standard PKLITE
-            // h_pklite_info with bit 12 clear = standard, header size = 8 paragraphs
-            return std::make_unique<pklite_decompressor>(0x210C, 128);
-
         case compression_type::PKLITE_EXTRA:
-            // h_pklite_info with bit 12 set = extra compression
-            return std::make_unique<pklite_decompressor>(0x310F, 128);
+            // PKLITE requires file data for pattern-based detection
+            // Use create_pklite_decompressor() instead
+            throw std::runtime_error(
+                "PKLITE decompressor requires file data - use create_pklite_decompressor()");
 
         case compression_type::LZEXE_090:
             // Default header size = 2 paragraphs (32 bytes)
@@ -47,6 +45,11 @@ std::unique_ptr<decompressor> create_decompressor(compression_type type) {
         default:
             return nullptr;
     }
+}
+
+std::unique_ptr<decompressor> create_pklite_decompressor(
+    std::span<const uint8_t> file_data, uint16_t header_paragraphs) {
+    return std::make_unique<pklite_decompressor>(file_data, header_paragraphs);
 }
 
 } // namespace libexe
