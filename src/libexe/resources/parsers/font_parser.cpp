@@ -266,7 +266,8 @@ std::optional<font_data> parse_font_1x_vector_variable(std::span<const uint8_t> 
 
         if (abs_offset < data.size() && abs_next <= data.size() && abs_next > abs_offset) {
             size_t stroke_len = abs_next - abs_offset;
-            vg.strokes = decode_strokes(ptr + abs_offset, stroke_len);
+            // Use data.data() not ptr - ptr was advanced by read()
+            vg.strokes = decode_strokes(data.data() + abs_offset, stroke_len);
         }
 
         result.vector_glyphs.push_back(std::move(vg));
@@ -307,7 +308,8 @@ std::optional<font_data> parse_font_1x_vector_fixed(std::span<const uint8_t> dat
 
         if (abs_offset < data.size() && abs_next <= data.size() && abs_next > abs_offset) {
             size_t stroke_len = abs_next - abs_offset;
-            vg.strokes = decode_strokes(ptr + abs_offset, stroke_len);
+            // Use data.data() not ptr - ptr was advanced by read()
+            vg.strokes = decode_strokes(data.data() + abs_offset, stroke_len);
         }
 
         result.vector_glyphs.push_back(std::move(vg));
