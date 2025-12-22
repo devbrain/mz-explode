@@ -4,6 +4,7 @@
 
 libexe is a comprehensive library for parsing and analyzing DOS MZ, NE (16-bit Windows), PE (32-bit), and PE32+ (64-bit) executable formats. It provides format detection, header parsing, resource extraction, compression detection, and security analysis capabilities.
 
+[![CI](https://github.com/devbrain/mz-explode/actions/workflows/ci.yml/badge.svg)](https://github.com/devbrain/mz-explode/actions/workflows/ci.yml)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 [![CMake](https://img.shields.io/badge/CMake-3.20%2B-blue.svg)](https://cmake.org/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)

@@ -1,0 +1,122 @@
+name: CI
+
+on:
+  push:
+    branches: [ "master", "main" ]
+  pull_request:
+    branches: [ "master", "main" ]
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux GCC
+          - os: ubuntu-latest
+            compiler: gcc
+            version: 11
+          - os: ubuntu-latest
+            compiler: gcc
+            version: 13
+
+          # Linux Clang
+          - os: ubuntu-latest
+            compiler: clang
+            version: 16
+          - os: ubuntu-latest
+            compiler: clang
+            version: 18
+
+          # macOS
+          - os: macos-15
+            compiler: apple-clang
+
+          # Windows MSVC
+          - os: windows-latest
+            compiler: msvc
+
+          # Windows Clang-CL
+          - os: windows-latest
+            compiler: clang-cl
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.os }} - ${{ matrix.compiler }}${{ matrix.version && format(' {0}', matrix.version) || '' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compiler (Linux GCC)
+        if: runner.os == 'Linux' && matrix.compiler == 'gcc'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-${{ matrix.version }}
+          echo "CC=gcc-${{ matrix.version }}" >> $GITHUB_ENV
+          echo "CXX=g++-${{ matrix.version }}" >> $GITHUB_ENV
+
+      - name: Install compiler (Linux Clang)
+        if: runner.os == 'Linux' && matrix.compiler == 'clang'
+        run: |
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh ${{ matrix.version }}
+          echo "CC=clang-${{ matrix.version }}" >> $GITHUB_ENV
+          echo "CXX=clang++-${{ matrix.version }}" >> $GITHUB_ENV
+
+      - name: Configure CMake (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DMZEXPLODE_BUILD_TESTING=ON \
+            -DMZEXPLODE_BUILD_TOOLS=OFF
+
+      - name: Configure CMake (Windows MSVC)
+        if: runner.os == 'Windows' && matrix.compiler == 'msvc'
+        run: |
+          cmake -B build `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DMZEXPLODE_BUILD_TESTING=ON `
+            -DMZEXPLODE_BUILD_TOOLS=OFF
+
+      - name: Configure CMake (Windows Clang-CL)
+        if: runner.os == 'Windows' && matrix.compiler == 'clang-cl'
+        run: |
+          cmake -B build `
+            -T ClangCL `
+            -DCMAKE_BUILD_TYPE=Release `
+            -DMZEXPLODE_BUILD_TESTING=ON `
+            -DMZEXPLODE_BUILD_TOOLS=OFF
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Run tests
+        run: ctest --test-dir build --build-config Release --output-on-failure
+
+  debug:
+    runs-on: ubuntu-latest
+    name: Ubuntu - GCC 13 (Debug)
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++-13
+          echo "CC=gcc-13" >> $GITHUB_ENV
+          echo "CXX=g++-13" >> $GITHUB_ENV
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=Debug \
+            -DMZEXPLODE_BUILD_TESTING=ON \
+            -DMZEXPLODE_BUILD_TOOLS=OFF
+
+      - name: Build
+        run: cmake --build build --config Debug
+
+      - name: Run tests
+        run: ctest --test-dir build --build-config Debug --output-on-failure
