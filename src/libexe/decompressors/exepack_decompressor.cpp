@@ -6,6 +6,7 @@
 #include <stdexcept>
 #include <cstring>
 #include <algorithm>
+#include <string>
 
 namespace libexe {
     exepack_decompressor::exepack_decompressor(uint16_t header_size)

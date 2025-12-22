@@ -4,6 +4,7 @@
 #include <libexe/decompressors/lzexe.hpp>
 #include <vector>
 #include <span>
+#include <sstream>
 
 #include "test_helpers/md5.h"
 

@@ -57,11 +57,14 @@ jobs:
       - name: Install compiler (Linux Clang)
         if: runner.os == 'Linux' && matrix.compiler == 'clang'
         run: |
+          LLVM_VERSION=${{ matrix.version }}
+          sudo apt-get update
+          sudo apt-get install -y lsb-release wget software-properties-common gnupg
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
-          sudo ./llvm.sh ${{ matrix.version }}
-          echo "CC=clang-${{ matrix.version }}" >> $GITHUB_ENV
-          echo "CXX=clang++-${{ matrix.version }}" >> $GITHUB_ENV
+          sudo bash ./llvm.sh "${LLVM_VERSION}" all
+          echo "CC=clang-${LLVM_VERSION}" >> $GITHUB_ENV
+          echo "CXX=clang++-${LLVM_VERSION}" >> $GITHUB_ENV
 
       - name: Configure CMake (Unix)
         if: runner.os != 'Windows'
