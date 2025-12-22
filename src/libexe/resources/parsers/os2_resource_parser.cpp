@@ -573,7 +573,15 @@ std::optional<os2_font> parse_os2_font(std::span<const uint8_t> data) {
         }
 
         // The remaining data is bitmap data
+        // Character offsets are absolute from resource start, so we need to adjust them
+        // to be relative to bitmap_data start
         if (p < end) {
+            size_t bitmap_base = static_cast<size_t>(p - data.data());
+            for (auto& ch : result.characters) {
+                if (ch.bitmap_offset >= bitmap_base) {
+                    ch.bitmap_offset -= static_cast<uint32_t>(bitmap_base);
+                }
+            }
             result.bitmap_data.assign(p, end);
         }
 
