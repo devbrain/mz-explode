@@ -23,7 +23,7 @@ jobs:
           # Linux Clang
           - os: ubuntu-latest
             compiler: clang
-            version: 16
+            version: 17
           - os: ubuntu-latest
             compiler: clang
             version: 18

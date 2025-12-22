@@ -5,6 +5,7 @@
 #include "test_helpers/md5.h"
 #include <vector>
 #include <span>
+#include <sstream>
 
 using namespace libexe;
 
