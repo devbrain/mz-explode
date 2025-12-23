@@ -126,52 +126,52 @@ std::optional<uint16_t> rich_header::vs_major_version() const {
     // For these, use build number to distinguish versions
     if (product_id >= 0xFD && product_id <= 0x10E) {
         // VS2015+ unified product IDs - use build number
-        if (build >= 35109) return 2026;  // VS2026 Insiders
-        if (build >= 30159) return 2022;  // VS2022
-        if (build >= 27508) return 2019;  // VS2019
-        if (build >= 25017) return 2017;  // VS2017
-        return 2015;  // VS2015 baseline
+        if (build >= 35109) return uint16_t{2026};  // VS2026 Insiders
+        if (build >= 30159) return uint16_t{2022};  // VS2022
+        if (build >= 27508) return uint16_t{2019};  // VS2019
+        if (build >= 25017) return uint16_t{2017};  // VS2017
+        return uint16_t{2015};  // VS2015 baseline
     }
 
     // VS2013 (12.0) uses product IDs 0xD9-0xEA
     if (product_id >= 0xD9 && product_id <= 0xEA) {
-        return 2013;
+        return uint16_t{2013};
     }
 
     // VS2012 (11.0) uses product IDs 0xC7-0xD8
     if (product_id >= 0xC7 && product_id <= 0xD8) {
-        return 2012;
+        return uint16_t{2012};
     }
 
     // VS2010 (10.0) uses product IDs 0x98-0xB4
     if (product_id >= 0x98 && product_id <= 0xB4) {
-        return 2010;
+        return uint16_t{2010};
     }
 
     // VS2008 (9.0) uses product IDs 0x83-0x96
     if (product_id >= 0x83 && product_id <= 0x96) {
-        return 2008;
+        return uint16_t{2008};
     }
 
     // VS2005 (8.0) uses product IDs 0x6D-0x82
     if (product_id >= 0x6D && product_id <= 0x82) {
-        return 2005;
+        return uint16_t{2005};
     }
 
     // VS2003 (7.10) uses product IDs 0x5A-0x6B
     if (product_id >= 0x5A && product_id <= 0x6B) {
-        return 2003;
+        return uint16_t{2003};
     }
 
     // VS2002 (7.0) uses product IDs 0x19-0x45 (with gaps)
     if ((product_id >= 0x19 && product_id <= 0x1D) ||
         (product_id >= 0x3D && product_id <= 0x45)) {
-        return 2002;
+        return uint16_t{2002};
     }
 
     // VS98 (6.0) uses product IDs 0x02-0x16
     if (product_id >= 0x02 && product_id <= 0x16) {
-        return 1998;
+        return uint16_t{1998};
     }
 
     return std::nullopt;
