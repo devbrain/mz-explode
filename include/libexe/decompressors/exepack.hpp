@@ -44,8 +44,6 @@ private:
     static size_t locate_stub_end(std::span<const uint8_t> stub);
     static std::vector<std::pair<uint16_t, uint16_t>>
         parse_packed_relocations(std::span<const uint8_t> reloc_data);
-
-    uint16_t header_size_;
 };
 
 } // namespace libexe

@@ -191,7 +191,9 @@ inline void create_section_header(std::vector<uint8_t>& data, uint32_t offset,
     // Name (8 bytes, null-padded)
     // PE section names are exactly 8 bytes, no null terminator required
     std::memset(section, 0, 8);
-    std::strncpy(reinterpret_cast<char*>(section), name, 8);
+    size_t name_len = std::strlen(name);
+    if (name_len > 8) name_len = 8;
+    std::memcpy(section, name, name_len);
 
     // VirtualSize
     std::memcpy(section + 8, &virtual_size, 4);
@@ -312,7 +314,8 @@ inline void write_u8(std::vector<uint8_t>& data, uint32_t offset, uint8_t value)
  * Write null-terminated string at offset
  */
 inline void write_string(std::vector<uint8_t>& data, uint32_t offset, const char* str) {
-    std::strcpy(reinterpret_cast<char*>(data.data() + offset), str);
+    size_t len = std::strlen(str) + 1;  // Include null terminator
+    std::memcpy(data.data() + offset, str, len);
 }
 
 } // namespace test_helpers

@@ -9,8 +9,7 @@
 #include <string>
 
 namespace libexe {
-    exepack_decompressor::exepack_decompressor(uint16_t header_size)
-        : header_size_(header_size) {
+    exepack_decompressor::exepack_decompressor([[maybe_unused]] uint16_t header_size) {
     }
 
     // Skip up to 15 bytes of 0xff padding
@@ -35,16 +34,10 @@ namespace libexe {
             throw std::runtime_error("EXEPACK: file too small for MZ header");
         }
 
-        const uint16_t num_pages = static_cast<uint16_t>(data[0x04] | (data[0x05] << 8));
-        const uint16_t bytes_in_last_page = static_cast<uint16_t>(data[0x02] | (data[0x03] << 8));
         const uint16_t header_paragraphs = static_cast<uint16_t>(data[0x08] | (data[0x09] << 8));
 
         // Calculate file data range
         const uint32_t file_start = header_paragraphs * 16;
-        uint32_t file_end = num_pages * 512;
-        if (bytes_in_last_page) {
-            file_end -= (512 - bytes_in_last_page);
-        }
 
         // Read initial CS:IP to find decompressor stub
         const uint16_t initial_ip = static_cast<uint16_t>(data[0x14] | (data[0x15] << 8));

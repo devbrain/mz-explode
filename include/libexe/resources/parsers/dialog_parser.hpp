@@ -10,6 +10,14 @@
 #include <string>
 #include <variant>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+// This warning is benign for header-only STL types when both library and client
+// use the same compiler and runtime
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 /**
@@ -266,5 +274,9 @@ public:
 };
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_DIALOG_PARSER_HPP

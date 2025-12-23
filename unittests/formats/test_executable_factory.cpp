@@ -198,14 +198,12 @@ TEST_CASE("Executable factory: variant loading") {
         dos_exe[0] = 0x4D;
         dos_exe[1] = 0x5A;
 
-        bool caught_exception = false;
         try {
             auto exe = executable_factory::from_memory(dos_exe);
             // If we got here, check it's the right type
             CHECK(std::holds_alternative<mz_file>(exe));
         } catch (const std::runtime_error&) {
             // Expected - minimal data won't parse fully
-            caught_exception = true;
         }
         // Either way is acceptable for this test
     }

@@ -29,7 +29,7 @@ constexpr uint8_t SIG_8EDB[] = {0x8e, 0xdb, 0x8e, 0xc0, 0x33, 0xf6, 0x33, 0xff, 
 
 // Helper to read little-endian uint16
 inline uint16_t read_u16le(const uint8_t* ptr) {
-    return static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8);
+    return static_cast<uint16_t>(static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8));
 }
 
 // Helper to read little-endian uint32
@@ -81,7 +81,7 @@ private:
         }
         uint8_t lo = data_[pos_++];
         uint8_t hi = data_[pos_++];
-        bit_buffer_ = static_cast<uint16_t>(lo) | (static_cast<uint16_t>(hi) << 8);
+        bit_buffer_ = static_cast<uint16_t>(static_cast<uint16_t>(lo) | (static_cast<uint16_t>(hi) << 8));
         bits_available_ = 16;
     }
 
@@ -274,8 +274,8 @@ bool diet_decompressor::detect(std::span<const uint8_t> data,
 }
 
 diet_decompressor::diet_decompressor(diet_version version, diet_file_type file_type,
-                                     uint16_t header_size)
-    : version_(version), file_type_(file_type), header_size_(header_size) {}
+                                     [[maybe_unused]] uint16_t header_size)
+    : version_(version), file_type_(file_type) {}
 
 diet_decompressor::diet_params
 diet_decompressor::read_parameters(std::span<const uint8_t> data) const {

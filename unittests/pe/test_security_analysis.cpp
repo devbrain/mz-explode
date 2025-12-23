@@ -158,7 +158,7 @@ TEST_CASE("PE Import Analysis: TCMADM64.EXE") {
 
         CHECK(dlls.size() > 0);
 
-        for (const auto& dll : dlls) {
+        for ([[maybe_unused]] const auto& dll : dlls) {
         }
     }
 
@@ -181,14 +181,13 @@ TEST_CASE("PE Import Analysis: TCMADM64.EXE") {
 
     SUBCASE("Check for specific function imports") {
         // Look for common Windows API functions
-        bool imports_exitprocess = pe.imports_function("ExitProcess");
-        bool imports_getlasterror = pe.imports_function("GetLastError");
-
+        [[maybe_unused]] bool imports_exitprocess = pe.imports_function("ExitProcess");
+        [[maybe_unused]] bool imports_getlasterror = pe.imports_function("GetLastError");
     }
 
     SUBCASE("Check for function from specific DLL") {
         // More precise check: function from specific DLL
-        bool exitprocess_from_kernel32 = pe.imports_function("kernel32.dll", "ExitProcess");
+        [[maybe_unused]] bool exitprocess_from_kernel32 = pe.imports_function("kernel32.dll", "ExitProcess");
     }
 
     SUBCASE("Full import directory access") {
@@ -212,12 +211,12 @@ TEST_CASE("PE Export Analysis: TCMADM64.EXE") {
         auto exports = pe.exported_functions();
 
         // TCMADM64.EXE is an executable, may not have exports
-        for (const auto& name : exports) {
+        for ([[maybe_unused]] const auto& name : exports) {
         }
     }
 
     SUBCASE("Export function count") {
-        size_t count = pe.exported_function_count();
+        [[maybe_unused]] size_t count = pe.exported_function_count();
     }
 
     SUBCASE("Full export directory access") {
@@ -361,7 +360,7 @@ TEST_CASE("PE Overlay Analysis: TCMADM64.EXE") {
     }
 
     SUBCASE("Overlay properties") {
-        uint64_t offset = pe.overlay_offset();
+        [[maybe_unused]] uint64_t offset = pe.overlay_offset();
         uint64_t size = pe.overlay_size();
         double entropy = pe.overlay_entropy();
 

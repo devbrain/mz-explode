@@ -231,7 +231,7 @@ TEST_CASE("diagnostic_collector - iteration") {
     collector.anomaly(diagnostic_code::COFF_ZERO_SECTIONS, "Three");
 
     int count = 0;
-    for (const auto& diag : collector) {
+    for ([[maybe_unused]] const auto& diag : collector) {
         count++;
     }
     CHECK(count == 3);
@@ -261,7 +261,7 @@ TEST_CASE("pe_file - diagnostics interface") {
     auto pe = pe_file::from_memory(data);
 
     // scheduler.exe is a well-formed PE file, should have minimal diagnostics
-    const auto& diags = pe.diagnostics();
+    [[maybe_unused]] const auto& diags = pe.diagnostics();
 
     // Verify diagnostics accessor works (use void cast to suppress nodiscard warning)
     [[maybe_unused]] const auto& d = pe.diagnostics();

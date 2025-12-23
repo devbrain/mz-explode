@@ -93,8 +93,14 @@ std::string authenticode_timestamp::to_string() const {
     if (timestamp == 0) return "No timestamp";
 
     std::time_t t = static_cast<std::time_t>(timestamp);
-    std::tm* tm = std::gmtime(&t);
+    std::tm tm_buf{};
+#ifdef _WIN32
+    if (gmtime_s(&tm_buf, &t) != 0) return "Invalid timestamp";
+    std::tm* tm = &tm_buf;
+#else
+    std::tm* tm = gmtime_r(&t, &tm_buf);
     if (!tm) return "Invalid timestamp";
+#endif
 
     char buf[64];
     std::strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S UTC", tm);

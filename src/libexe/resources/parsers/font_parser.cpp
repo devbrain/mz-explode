@@ -135,7 +135,7 @@ void convert_1x_bitmap(font_data& result,
 
         glyph_entry ge;
         ge.width = width;
-        ge.offset = result.bitmap_data.size();
+        ge.offset = static_cast<uint32_t>(result.bitmap_data.size());
         result.glyphs.push_back(ge);
 
         uint16_t byte_cols = (width + 7) / 8;

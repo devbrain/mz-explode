@@ -107,7 +107,6 @@ private:
 
     diet_version version_;
     diet_file_type file_type_;
-    uint16_t header_size_;
 };
 
 } // namespace libexe

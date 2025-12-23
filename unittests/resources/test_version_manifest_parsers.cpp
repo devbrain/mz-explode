@@ -86,7 +86,7 @@ TEST_SUITE("Version Info Parser") {
             }
 
             SUBCASE("Validate StringFileInfo") {
-                const auto& strings = parsed->strings;
+                [[maybe_unused]] const auto& strings = parsed->strings;
 
                 // Version resources typically have these standard strings
                 // (though not all are guaranteed to be present)

@@ -11,8 +11,8 @@ std::string utf16le_to_utf8(const uint8_t* data, size_t num_chars) {
     result.reserve(num_chars);  // Estimate size
 
     for (size_t i = 0; i < num_chars; i++) {
-        uint16_t wchar = static_cast<uint16_t>(data[i * 2]) |
-                        (static_cast<uint16_t>(data[i * 2 + 1]) << 8);
+        uint16_t wchar = static_cast<uint16_t>(static_cast<uint16_t>(data[i * 2]) |
+                        (static_cast<uint16_t>(data[i * 2 + 1]) << 8));
 
         if (wchar < 0x80) {
             result.push_back(static_cast<char>(wchar));
