@@ -56,7 +56,7 @@ namespace libexe {
         params.initial_ss = inner_header[0x0E] | (inner_header[0x0F] << 8);
         params.checksum = inner_header[0x12] | (inner_header[0x13] << 8);
         params.max_mem_para = inner_header[0x0C] | (inner_header[0x0D] << 8);
-        params.min_mem_para = (params.expected_size + 0x20) / 64;
+        params.min_mem_para = static_cast<uint16_t>((params.expected_size + 0x20) / 64);
 
         // Read relocations from inner embedded header
         uint16_t num_relocs = inner_header[0x06] | (inner_header[0x07] << 8);

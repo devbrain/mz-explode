@@ -71,7 +71,7 @@ struct LIBEXE_EXPORT bitmap_info {
      * Get absolute height
      */
     [[nodiscard]] uint32_t abs_height() const {
-        return height < 0 ? -height : height;
+        return static_cast<uint32_t>(height < 0 ? -height : height);
     }
 };
 
@@ -87,7 +87,7 @@ struct LIBEXE_EXPORT bitmap_data {
      * Get row size in bytes (including padding to DWORD boundary)
      */
     [[nodiscard]] uint32_t row_size() const {
-        uint32_t bits_per_row = info.width * info.bit_count;
+        uint32_t bits_per_row = static_cast<uint32_t>(info.width) * info.bit_count;
         return (bits_per_row + 31) / 32 * 4;  // Round up to DWORD
     }
 

@@ -185,3 +185,39 @@ set_target_properties(libexe PROPERTIES
 
 # Namespace alias for FetchContent compatibility
 add_library(mzexplode::libexe ALIAS libexe)
+
+# =============================================================================
+# Compiler Warnings (always enabled, PRIVATE to not affect consumers)
+# =============================================================================
+
+if(MSVC)
+    target_compile_options(libexe PRIVATE
+        /W4
+        /permissive-
+    )
+elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(libexe PRIVATE
+        -Wall
+        -Wextra
+        -Wpedantic
+        -Wshadow
+        -Wconversion
+        -Wsign-conversion
+    )
+
+    # Additional GCC-specific warnings
+    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        target_compile_options(libexe PRIVATE
+            -Wduplicated-cond
+            -Wlogical-op
+            -Wnull-dereference
+        )
+    endif()
+
+    # Additional Clang-specific warnings
+    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+        target_compile_options(libexe PRIVATE
+            -Wno-unknown-warning-option
+        )
+    endif()
+endif()

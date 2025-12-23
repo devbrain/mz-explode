@@ -8,7 +8,7 @@ namespace libexe {
 namespace {
 
 // Helper to read uint16_t little-endian
-uint16_t read_u16_le(const uint8_t* ptr) {
+[[maybe_unused]] uint16_t read_u16_le(const uint8_t* ptr) {
     return static_cast<uint16_t>(ptr[0]) |
            (static_cast<uint16_t>(ptr[1]) << 8);
 }
@@ -22,7 +22,7 @@ uint32_t read_u32_le(const uint8_t* ptr) {
 }
 
 // Helper to read int32_t little-endian
-int32_t read_i32_le(const uint8_t* ptr) {
+[[maybe_unused]] int32_t read_i32_le(const uint8_t* ptr) {
     return static_cast<int32_t>(read_u32_le(ptr));
 }
 

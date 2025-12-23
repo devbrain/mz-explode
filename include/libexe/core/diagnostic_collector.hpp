@@ -241,8 +241,8 @@ public:
      * @return Error count.
      */
     [[nodiscard]] size_t error_count() const {
-        return std::count_if(diagnostics_.begin(), diagnostics_.end(),
-            [](const diagnostic& d) { return d.is_error(); });
+        return static_cast<size_t>(std::count_if(diagnostics_.begin(), diagnostics_.end(),
+            [](const diagnostic& d) { return d.is_error(); }));
     }
 
     /**
@@ -250,8 +250,8 @@ public:
      * @return Anomaly count.
      */
     [[nodiscard]] size_t anomaly_count() const {
-        return std::count_if(diagnostics_.begin(), diagnostics_.end(),
-            [](const diagnostic& d) { return d.is_anomaly(); });
+        return static_cast<size_t>(std::count_if(diagnostics_.begin(), diagnostics_.end(),
+            [](const diagnostic& d) { return d.is_anomaly(); }));
     }
 
     /**
@@ -259,8 +259,8 @@ public:
      * @return Warning count.
      */
     [[nodiscard]] size_t warning_count() const {
-        return std::count_if(diagnostics_.begin(), diagnostics_.end(),
-            [](const diagnostic& d) { return d.severity == diagnostic_severity::WARNING; });
+        return static_cast<size_t>(std::count_if(diagnostics_.begin(), diagnostics_.end(),
+            [](const diagnostic& d) { return d.severity == diagnostic_severity::WARNING; }));
     }
 
     /**

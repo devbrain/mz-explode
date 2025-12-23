@@ -409,7 +409,7 @@ x509_name authenticode_analyzer::parse_x509_name(std::span<const uint8_t> data) 
 
     while (ptr < end) {
         asn1_element rdn;
-        if (!parse_asn1_element(ptr, end - ptr, rdn) || !rdn.is_set()) {
+        if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), rdn) || !rdn.is_set()) {
             break;
         }
 
@@ -469,13 +469,13 @@ std::optional<x509_certificate_info> authenticode_analyzer::parse_certificate(
 
     // Skip version [0] EXPLICIT if present
     asn1_element elem;
-    if (!parse_asn1_element(ptr, end - ptr, elem)) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem)) {
         return std::nullopt;
     }
 
     if (elem.is_context_specific(0)) {
         ptr += elem.header_length + elem.content_length;
-        if (!parse_asn1_element(ptr, end - ptr, elem)) {
+        if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem)) {
             return std::nullopt;
         }
     }
@@ -487,7 +487,7 @@ std::optional<x509_certificate_info> authenticode_analyzer::parse_certificate(
     }
 
     // Signature algorithm (SEQUENCE)
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_sequence()) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_sequence()) {
         // Extract algorithm OID
         asn1_element alg_oid;
         if (parse_asn1_element(elem.content, elem.content_length, alg_oid) && alg_oid.is_oid()) {
@@ -497,13 +497,13 @@ std::optional<x509_certificate_info> authenticode_analyzer::parse_certificate(
     }
 
     // Issuer (Name)
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_sequence()) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_sequence()) {
         cert.issuer = parse_x509_name({ptr, elem.header_length + elem.content_length});
         ptr += elem.header_length + elem.content_length;
     }
 
     // Validity (SEQUENCE { notBefore, notAfter })
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_sequence()) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_sequence()) {
         asn1_element time_elem;
         const uint8_t* validity_ptr = elem.content;
 
@@ -513,7 +513,7 @@ std::optional<x509_certificate_info> authenticode_analyzer::parse_certificate(
             validity_ptr += time_elem.header_length + time_elem.content_length;
 
             // notAfter
-            if (parse_asn1_element(validity_ptr, elem.content + elem.content_length - validity_ptr, time_elem)) {
+            if (parse_asn1_element(validity_ptr, static_cast<size_t>(elem.content + elem.content_length - validity_ptr), time_elem)) {
                 cert.not_after = parse_time(time_elem);
             }
         }
@@ -522,7 +522,7 @@ std::optional<x509_certificate_info> authenticode_analyzer::parse_certificate(
     }
 
     // Subject (Name)
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_sequence()) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_sequence()) {
         cert.subject = parse_x509_name({ptr, elem.header_length + elem.content_length});
     }
 
@@ -545,13 +545,13 @@ std::optional<authenticode_signer_info> authenticode_analyzer::parse_signer_info
 
     // Version (INTEGER)
     asn1_element elem;
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_integer()) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_integer()) {
         return std::nullopt;
     }
     ptr += elem.header_length + elem.content_length;
 
     // IssuerAndSerialNumber (SEQUENCE { issuer, serialNumber })
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_sequence()) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_sequence()) {
         return std::nullopt;
     }
 
@@ -560,12 +560,12 @@ std::optional<authenticode_signer_info> authenticode_analyzer::parse_signer_info
     const uint8_t* iasn_end = elem.content + elem.content_length;
 
     asn1_element issuer_elem;
-    if (parse_asn1_element(iasn_ptr, iasn_end - iasn_ptr, issuer_elem) && issuer_elem.is_sequence()) {
+    if (parse_asn1_element(iasn_ptr, static_cast<size_t>(iasn_end - iasn_ptr), issuer_elem) && issuer_elem.is_sequence()) {
         info.issuer = parse_x509_name({iasn_ptr, issuer_elem.header_length + issuer_elem.content_length});
         iasn_ptr += issuer_elem.header_length + issuer_elem.content_length;
 
         asn1_element serial_elem;
-        if (parse_asn1_element(iasn_ptr, iasn_end - iasn_ptr, serial_elem) && serial_elem.is_integer()) {
+        if (parse_asn1_element(iasn_ptr, static_cast<size_t>(iasn_end - iasn_ptr), serial_elem) && serial_elem.is_integer()) {
             info.serial_number = parse_integer_as_hex(serial_elem.data());
         }
     }
@@ -573,7 +573,7 @@ std::optional<authenticode_signer_info> authenticode_analyzer::parse_signer_info
     ptr += elem.header_length + elem.content_length;
 
     // DigestAlgorithm (AlgorithmIdentifier)
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_sequence()) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_sequence()) {
         asn1_element alg_oid;
         if (parse_asn1_element(elem.content, elem.content_length, alg_oid) && alg_oid.is_oid()) {
             std::string oid_str = parse_oid(alg_oid.data());
@@ -602,7 +602,7 @@ std::optional<authenticode_timestamp> authenticode_analyzer::find_timestamp(
     // Simple pattern search for UTCTime or GeneralizedTime after timestamp OIDs
     while (ptr + 20 < end) {
         asn1_element elem;
-        if (parse_asn1_element(ptr, end - ptr, elem)) {
+        if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem)) {
             if (elem.is_utc_time() || elem.is_generalized_time()) {
                 ts.timestamp = parse_time(elem);
                 if (ts.timestamp != 0) {
@@ -666,13 +666,13 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
     const uint8_t* end = outer.content + outer.content_length;
 
     asn1_element elem;
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_oid()) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_oid()) {
         return std::nullopt;
     }
     ptr += elem.header_length + elem.content_length;
 
     // Get [0] EXPLICIT content
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_context_specific(0)) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_context_specific(0)) {
         return std::nullopt;
     }
 
@@ -686,7 +686,7 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
     end = signed_data.content + signed_data.content_length;
 
     // Version
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_integer()) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_integer()) {
         return std::nullopt;
     }
     if (elem.content_length > 0) {
@@ -695,7 +695,7 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
     ptr += elem.header_length + elem.content_length;
 
     // DigestAlgorithms (SET)
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_set()) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_set()) {
         return std::nullopt;
     }
 
@@ -710,7 +710,7 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
     ptr += elem.header_length + elem.content_length;
 
     // EncapsulatedContentInfo (SEQUENCE)
-    if (!parse_asn1_element(ptr, end - ptr, elem) || !elem.is_sequence()) {
+    if (!parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) || !elem.is_sequence()) {
         return std::nullopt;
     }
 
@@ -722,14 +722,14 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
     ptr += elem.header_length + elem.content_length;
 
     // Certificates [0] IMPLICIT (optional)
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_context_specific(0)) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_context_specific(0)) {
         // Parse certificates
         const uint8_t* cert_ptr = elem.content;
         const uint8_t* cert_end = elem.content + elem.content_length;
 
         while (cert_ptr < cert_end) {
             asn1_element cert_elem;
-            if (parse_asn1_element(cert_ptr, cert_end - cert_ptr, cert_elem) && cert_elem.is_sequence()) {
+            if (parse_asn1_element(cert_ptr, static_cast<size_t>(cert_end - cert_ptr), cert_elem) && cert_elem.is_sequence()) {
                 auto cert = parse_certificate({cert_ptr, cert_elem.header_length + cert_elem.content_length});
                 if (cert) {
                     sig.certificates.push_back(std::move(*cert));
@@ -744,18 +744,18 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
     }
 
     // CRLs [1] IMPLICIT (optional) - skip
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_context_specific(1)) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_context_specific(1)) {
         ptr += elem.header_length + elem.content_length;
     }
 
     // SignerInfos (SET)
-    if (parse_asn1_element(ptr, end - ptr, elem) && elem.is_set()) {
+    if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_set()) {
         const uint8_t* si_ptr = elem.content;
         const uint8_t* si_end = elem.content + elem.content_length;
 
         while (si_ptr < si_end) {
             asn1_element si_elem;
-            if (parse_asn1_element(si_ptr, si_end - si_ptr, si_elem) && si_elem.is_sequence()) {
+            if (parse_asn1_element(si_ptr, static_cast<size_t>(si_end - si_ptr), si_elem) && si_elem.is_sequence()) {
                 auto signer = parse_signer_info({si_ptr, si_elem.header_length + si_elem.content_length});
                 if (signer) {
                     sig.signers.push_back(std::move(*signer));

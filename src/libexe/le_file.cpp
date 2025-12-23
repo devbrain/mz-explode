@@ -29,9 +29,9 @@ le_file& le_file::operator=(le_file&&) noexcept = default;
 // Returns decompressed size, output written to out_buffer (must be at least 4096 bytes)
 static size_t lx_unpack1(const uint8_t* input, size_t input_size, uint8_t* output) {
     if (input_size > 4096) {
-        // Not compressed, just copy
-        std::memcpy(output, input, input_size);
-        return input_size;
+        // Not compressed, just copy (cap at output buffer size)
+        std::memcpy(output, input, 4096);
+        return 4096;
     }
 
     size_t in_pos = 0;
@@ -75,8 +75,9 @@ static void copy_byte_seq(uint8_t* target, const uint8_t* source, size_t count) 
 // Returns decompressed size, output written to out_buffer (must be at least 4096 bytes)
 static size_t lx_unpack2(const uint8_t* input, size_t input_size, uint8_t* output) {
     if (input_size > 4096) {
-        std::memcpy(output, input, input_size);
-        return input_size;
+        // Not compressed, just copy (cap at output buffer size)
+        std::memcpy(output, input, 4096);
+        return 4096;
     }
 
     std::memset(output, 0, 4096);
@@ -1532,6 +1533,9 @@ std::vector<uint8_t> le_file::strip_extender() const {
     };
 
     // Verify this is LE or LX format (not LC which has different semantics)
+    if (output.size() < 2) {
+        return output;
+    }
     uint16_t magic = static_cast<uint16_t>(output[0]) |
                      (static_cast<uint16_t>(output[1]) << 8);
 

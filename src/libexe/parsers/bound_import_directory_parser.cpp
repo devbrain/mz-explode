@@ -186,7 +186,7 @@ std::string bound_import_directory_parser::read_module_name(
 
     // Find null terminator
     const uint8_t* null_term = static_cast<const uint8_t*>(
-        std::memchr(name_ptr, 0, dir_end - name_ptr)
+        std::memchr(name_ptr, 0, static_cast<size_t>(dir_end - name_ptr))
     );
 
     if (!null_term) {
@@ -194,7 +194,7 @@ std::string bound_import_directory_parser::read_module_name(
     }
 
     // Calculate name length
-    size_t name_len = null_term - name_ptr;
+    size_t name_len = static_cast<size_t>(null_term - name_ptr);
 
     // Safety limit: max 256 characters
     if (name_len > 256) {

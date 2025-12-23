@@ -14,7 +14,7 @@ uint16_t read_u16(const uint8_t* ptr) {
 }
 
 // Helper to read uint32_t little-endian
-uint32_t read_u32(const uint8_t* ptr) {
+[[maybe_unused]] uint32_t read_u32(const uint8_t* ptr) {
     return static_cast<uint32_t>(ptr[0]) |
            (static_cast<uint32_t>(ptr[1]) << 8) |
            (static_cast<uint32_t>(ptr[2]) << 16) |

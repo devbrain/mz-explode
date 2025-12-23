@@ -97,7 +97,7 @@ namespace libexe {
         // skip_len is 1-based: skip_len=1 means 0 paragraphs of padding
         size_t skip_padding = 0;
         if (params.header.skip_len > 0) {
-            skip_padding = (params.header.skip_len - 1) * 16;
+            skip_padding = static_cast<size_t>(params.header.skip_len - 1) * 16;
         }
 
         // Compressed data length (from start of code to CS:0000, minus skip padding)
@@ -165,7 +165,8 @@ namespace libexe {
                         throw std::runtime_error("EXEPACK: destination underflow in FILL");
                     }
                     dst -= length;
-                    std::fill(buf.begin() + dst, buf.begin() + dst + length, fill_byte);
+                    std::fill(buf.begin() + static_cast<ptrdiff_t>(dst),
+                              buf.begin() + static_cast<ptrdiff_t>(dst + length), fill_byte);
                     break;
                 }
 
@@ -346,7 +347,7 @@ namespace libexe {
         // Extract the stub and relocation table
         // The stub starts at the EXEPACK header offset + header length (CS:IP)
         // It extends for exepack_size bytes (minus the header length already read)
-        uint32_t stub_start = params.exepack_header_offset + params.exepack_header_len;
+        size_t stub_start = static_cast<size_t>(params.exepack_header_offset) + params.exepack_header_len;
         size_t stub_and_relocs_len = static_cast<size_t>(params.header.exepack_size)
                                      - params.exepack_header_len;
 

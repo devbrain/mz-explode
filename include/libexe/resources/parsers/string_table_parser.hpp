@@ -59,7 +59,7 @@ struct LIBEXE_EXPORT string_table {
      * Strings in this block have IDs from base_id to base_id+15.
      */
     [[nodiscard]] uint16_t base_string_id() const {
-        return (block_id - 1) * 16;
+        return static_cast<uint16_t>((block_id - 1) * 16);
     }
 };
 

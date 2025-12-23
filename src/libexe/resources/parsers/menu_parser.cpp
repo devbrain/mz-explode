@@ -52,7 +52,7 @@ std::string read_u16string(const uint8_t*& ptr, const uint8_t* end) {
 
 // Detect menu format (NE=ANSI or PE=UTF-16)
 // Heuristic: Check if string appears to be UTF-16 (alternating pattern with nulls)
-bool is_utf16_format(const uint8_t* ptr, const uint8_t* end) {
+[[maybe_unused]] bool is_utf16_format(const uint8_t* ptr, const uint8_t* end) {
     // Need at least a few characters to check
     if (ptr + 6 > end) {
         return false;

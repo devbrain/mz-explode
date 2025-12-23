@@ -38,7 +38,7 @@ std::optional<string_table> parse_pe_string_table(std::span<const uint8_t> data,
     const uint8_t* end = data.data() + data.size();
 
     // Calculate base string ID for this block
-    uint16_t base_id = (block_id - 1) * 16;
+    uint16_t base_id = static_cast<uint16_t>((block_id - 1) * 16);
 
     // Parse up to 16 strings in this block
     for (size_t i = 0; i < 16 && ptr + 2 <= end; i++) {
@@ -74,7 +74,7 @@ std::optional<string_table> parse_ne_string_table(std::span<const uint8_t> data,
     const uint8_t* end = data.data() + data.size();
 
     // Calculate base string ID for this block
-    uint16_t base_id = (block_id - 1) * 16;
+    uint16_t base_id = static_cast<uint16_t>((block_id - 1) * 16);
 
     // Parse up to 16 strings in this block
     for (size_t i = 0; i < 16 && ptr < end; i++) {

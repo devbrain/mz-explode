@@ -126,7 +126,7 @@ compression_type mz_file::detect_compression() const {
     const auto& data = *data_;
 
     // Need at least header + some code to detect compression
-    if (data.size() < header_size_ + 64) {
+    if (data.size() < static_cast<size_t>(header_size_) + 64) {
         return compression_type::NONE;
     }
 

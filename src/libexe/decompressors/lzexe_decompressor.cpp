@@ -24,7 +24,7 @@ namespace libexe {
         uint16_t initial_cs = data[0x16] | (data[0x17] << 8);
 
         // LZEXE header is at (HEADER_SIZE_PARA + INITIAL_CS) << 4
-        uint32_t header_pos = (header_size_ / 16 + initial_cs) << 4;
+        uint32_t header_pos = static_cast<uint32_t>((header_size_ / 16 + initial_cs)) << 4;
 
         if (data.size() < header_pos + 16) {
             throw std::runtime_error("LZEXE: file too small for LZEXE header");
@@ -88,7 +88,7 @@ namespace libexe {
             int16_t span = static_cast <int16_t>(span_byte & 0xFF);
 
             if (span == 0) {
-                span = reader.read_word();
+                span = static_cast<int16_t>(reader.read_word());
 
                 if (span == 0) {
                     seg = static_cast <int16_t>(seg + 0x0FFF);

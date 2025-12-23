@@ -64,6 +64,11 @@ std::string_view category_name(diagnostic_category cat) {
         case diagnostic_category::NE_HEADER:       return "NE_HEADER";
         case diagnostic_category::NE_SEGMENT:      return "NE_SEGMENT";
         case diagnostic_category::NE_RESOURCE:     return "NE_RESOURCE";
+        case diagnostic_category::LE_HEADER:       return "LE_HEADER";
+        case diagnostic_category::LE_OBJECT:       return "LE_OBJECT";
+        case diagnostic_category::LE_PAGE:         return "LE_PAGE";
+        case diagnostic_category::LE_FIXUP:        return "LE_FIXUP";
+        case diagnostic_category::LE_ENTRY:        return "LE_ENTRY";
         case diagnostic_category::GENERAL:         return "GENERAL";
     }
     return "UNKNOWN";

@@ -157,8 +157,8 @@ struct LIBEXE_EXPORT dialog_control {
      * Get text resource ID (if applicable).
      */
     [[nodiscard]] std::optional<uint16_t> get_text_id() const {
-        if (auto* id = std::get_if<uint16_t>(&text)) {
-            return *id;
+        if (auto* text_id = std::get_if<uint16_t>(&text)) {
+            return *text_id;
         }
         return std::nullopt;
     }

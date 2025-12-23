@@ -118,8 +118,8 @@ std::vector<uint8_t> overlay_detector::extract(
     uint64_t copy_size = std::min(info.size, available);
 
     return std::vector<uint8_t>(
-        file_data.begin() + info.offset,
-        file_data.begin() + info.offset + copy_size
+        file_data.begin() + static_cast<ptrdiff_t>(info.offset),
+        file_data.begin() + static_cast<ptrdiff_t>(info.offset + copy_size)
     );
 }
 

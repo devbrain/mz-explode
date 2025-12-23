@@ -549,7 +549,7 @@ void diet_decompressor::reconstruct_exe(
     };
 
     uint16_t e_crlc = safe_read_u16(6);       // Relocation count
-    uint16_t e_cparhdr_new = safe_read_u16(8);
+    [[maybe_unused]] uint16_t e_cparhdr_new = safe_read_u16(8);
     uint16_t e_ss = safe_read_u16(14);
     uint16_t e_sp = safe_read_u16(16);
     uint16_t e_ip = safe_read_u16(20);
@@ -579,7 +579,7 @@ void diet_decompressor::reconstruct_exe(
                 if (n >= 0xc000) {
                     offs += n;
                 } else {
-                    offs += (n - 0x8000);
+                    offs = static_cast<uint16_t>(offs + (n - 0x8000));
                 }
                 offs &= 0xffff;
             } else {
@@ -596,7 +596,7 @@ void diet_decompressor::reconstruct_exe(
     }
 
     // The actual code is at the beginning of decompressed data, up to mz_pos
-    result.code.assign(decompressed.begin(), decompressed.begin() + mz_pos);
+    result.code.assign(decompressed.begin(), decompressed.begin() + static_cast<ptrdiff_t>(mz_pos));
 }
 
 decompression_result diet_decompressor::decompress(std::span<const uint8_t> compressed_data) {
