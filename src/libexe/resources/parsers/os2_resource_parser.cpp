@@ -401,7 +401,7 @@ std::optional<os2_bitmap_info> parse_os2_bitmap(std::span<const uint8_t> data) {
         // Calculate palette size
         size_t palette_entries = 0;
         if (result.bit_count <= 8) {
-            palette_entries = 1u << result.bit_count;
+            palette_entries = static_cast<size_t>(1) << result.bit_count;
         }
 
         // Read palette

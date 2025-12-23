@@ -14,6 +14,12 @@
 
 #include <libexe/export.hpp>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
     /**
      * Abstract data source providing unified access to file data
@@ -105,5 +111,9 @@ namespace libexe {
             size_t size_;
     };
 } // namespace libexe::internal
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_CORE_DATA_SOURCE_HPP

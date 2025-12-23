@@ -12,6 +12,12 @@
 #include <optional>
 #include <memory>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
     // =============================================================================
@@ -632,5 +638,9 @@ namespace libexe {
             [[nodiscard]] virtual std::vector <uint16_t> languages_for_type(uint16_t type_id) const = 0;
     };
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_RESOURCE_HPP

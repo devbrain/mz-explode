@@ -7,6 +7,12 @@
 #include <vector>
 #include <optional>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 /**
@@ -138,5 +144,9 @@ public:
 };
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_BITMAP_PARSER_HPP

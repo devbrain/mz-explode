@@ -38,6 +38,12 @@
 #include <vector>
 #include <memory>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 /**
@@ -200,5 +206,9 @@ LIBEXE_EXPORT std::unique_ptr <decompressor>
 create_pklite_decompressor(std::span<const uint8_t> file_data, uint16_t header_paragraphs);
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_DECOMPRESSORS_DECOMPRESSOR_HPP

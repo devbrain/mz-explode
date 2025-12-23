@@ -13,6 +13,12 @@
 #include <vector>
 #include <optional>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 // =============================================================================
@@ -240,5 +246,9 @@ LIBEXE_EXPORT std::vector<std::string> parse_os2_string_table(
     std::span<const uint8_t> data);
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_RESOURCES_PARSERS_OS2_RESOURCE_PARSER_HPP

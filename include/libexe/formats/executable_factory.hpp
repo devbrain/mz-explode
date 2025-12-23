@@ -11,6 +11,12 @@
 #include <span>
 #include <variant>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 // Forward declarations
 namespace libexe {
     class mz_file;
@@ -51,5 +57,9 @@ namespace libexe {
             static std::string_view format_type_name(format_type type);
     };
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_FORMATS_EXECUTABLE_FACTORY_HPP

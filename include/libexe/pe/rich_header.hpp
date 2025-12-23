@@ -11,6 +11,12 @@
 #include <string>
 #include <optional>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 /**
@@ -443,5 +449,9 @@ LIBEXE_EXPORT rich_component_type get_component_type(uint16_t product_id);
 LIBEXE_EXPORT std::string get_vs_version_for_build(uint16_t build_number);
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_PE_RICH_HEADER_HPP

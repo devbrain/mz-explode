@@ -26,6 +26,12 @@
 #include <string>
 #include <string_view>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 /**
@@ -325,5 +331,9 @@ struct LIBEXE_EXPORT diagnostic {
 [[nodiscard]] LIBEXE_EXPORT std::string_view code_name(diagnostic_code code);
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_CORE_DIAGNOSTIC_HPP

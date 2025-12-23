@@ -8,6 +8,12 @@
 #include <cstdint>
 #include <span>
 
+// Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4251)
+#endif
+
 namespace libexe {
 
 class LIBEXE_EXPORT exepack_decompressor final : public decompressor {
@@ -47,5 +53,9 @@ private:
 };
 
 } // namespace libexe
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
 
 #endif // LIBEXE_DECOMPRESSORS_EXEPACK_HPP

@@ -1111,7 +1111,7 @@ std::shared_ptr<import_directory> pe_file::imports() const {
             }
         }
         check_import_anomalies(*imports_, module_name);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty import directory
         // (allows graceful handling of malformed imports)
         imports_ = std::make_shared<import_directory>();
@@ -1149,7 +1149,7 @@ std::shared_ptr<export_directory> pe_file::exports() const {
 
         // Check for export anomalies
         check_export_anomalies(*exports_);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty export directory
         // (allows graceful handling of malformed exports)
         exports_ = std::make_shared<export_directory>();
@@ -1187,7 +1187,7 @@ std::shared_ptr<base_relocation_directory> pe_file::relocations() const {
 
         // Check for unusual relocation types and header targeting
         check_relocation_anomalies(*relocations_);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty relocation directory
         // (allows graceful handling of malformed relocations)
         relocations_ = std::make_shared<base_relocation_directory>();
@@ -1224,7 +1224,7 @@ std::shared_ptr<tls_directory> pe_file::tls() const {
             image_base_
         );
         tls_ = std::make_shared<tls_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty TLS directory
         // (allows graceful handling of malformed TLS)
         tls_ = std::make_shared<tls_directory>();
@@ -1259,7 +1259,7 @@ std::shared_ptr<debug_directory> pe_file::debug() const {
             debug_size
         );
         debug_ = std::make_shared<debug_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty debug directory
         // (allows graceful handling of malformed debug info)
         debug_ = std::make_shared<debug_directory>();
@@ -1295,7 +1295,7 @@ std::shared_ptr<load_config_directory> pe_file::load_config() const {
             is_64bit_
         );
         load_config_ = std::make_shared<load_config_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty load config directory
         // (allows graceful handling of malformed load config)
         load_config_ = std::make_shared<load_config_directory>();
@@ -1331,7 +1331,7 @@ std::shared_ptr<exception_directory> pe_file::exceptions() const {
             is_64bit_
         );
         exceptions_ = std::make_shared<exception_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty exception directory
         // (allows graceful handling of malformed exception directory)
         exceptions_ = std::make_shared<exception_directory>();
@@ -1368,7 +1368,7 @@ std::shared_ptr<delay_import_directory> pe_file::delay_imports() const {
             image_base_
         );
         delay_imports_ = std::make_shared<delay_import_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty delay import directory
         // (allows graceful handling of malformed delay imports)
         delay_imports_ = std::make_shared<delay_import_directory>();
@@ -1403,7 +1403,7 @@ std::shared_ptr<bound_import_directory> pe_file::bound_imports() const {
             bound_import_size
         );
         bound_imports_ = std::make_shared<bound_import_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty bound import directory
         // (allows graceful handling of malformed bound imports)
         bound_imports_ = std::make_shared<bound_import_directory>();
@@ -1438,7 +1438,7 @@ std::shared_ptr<security_directory> pe_file::security() const {
             security_size
         );
         security_ = std::make_shared<security_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty security directory
         // (allows graceful handling of malformed certificates)
         security_ = std::make_shared<security_directory>();
@@ -1473,7 +1473,7 @@ std::shared_ptr<com_descriptor> pe_file::clr_header() const {
             com_descriptor_size
         );
         com_descriptor_ = std::make_shared<com_descriptor>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty COM descriptor
         // (allows graceful handling of malformed .NET metadata)
         com_descriptor_ = std::make_shared<com_descriptor>();
@@ -1509,7 +1509,7 @@ std::shared_ptr<iat_directory> pe_file::import_address_table() const {
             is_64bit_
         );
         iat_ = std::make_shared<iat_directory>(std::move(parsed));
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If parsing fails, return empty IAT
         iat_ = std::make_shared<iat_directory>();
     }
