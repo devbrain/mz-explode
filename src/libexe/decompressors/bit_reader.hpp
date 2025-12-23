@@ -46,7 +46,7 @@ public:
     uint16_t read_word() {
         uint8_t lo = read_byte();
         uint8_t hi = read_byte();
-        return lo | (hi << 8);
+        return static_cast<uint16_t>(lo | (hi << 8));
     }
 
     /// Seek to byte offset in the stream
@@ -78,7 +78,7 @@ private:
         }
         uint8_t lo = data_[position_++];
         uint8_t hi = data_[position_++];
-        bit_buffer_ = lo | (hi << 8);
+        bit_buffer_ = static_cast<uint16_t>(lo | (hi << 8));
         bits_available_ = 16;
     }
 

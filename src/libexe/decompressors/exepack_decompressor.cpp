@@ -35,9 +35,9 @@ namespace libexe {
             throw std::runtime_error("EXEPACK: file too small for MZ header");
         }
 
-        const uint16_t num_pages = data[0x04] | (data[0x05] << 8);
-        const uint16_t bytes_in_last_page = data[0x02] | (data[0x03] << 8);
-        const uint16_t header_paragraphs = data[0x08] | (data[0x09] << 8);
+        const uint16_t num_pages = static_cast<uint16_t>(data[0x04] | (data[0x05] << 8));
+        const uint16_t bytes_in_last_page = static_cast<uint16_t>(data[0x02] | (data[0x03] << 8));
+        const uint16_t header_paragraphs = static_cast<uint16_t>(data[0x08] | (data[0x09] << 8));
 
         // Calculate file data range
         const uint32_t file_start = header_paragraphs * 16;
@@ -47,8 +47,8 @@ namespace libexe {
         }
 
         // Read initial CS:IP to find decompressor stub
-        const uint16_t initial_ip = data[0x14] | (data[0x15] << 8);
-        const uint16_t initial_cs = data[0x16] | (data[0x17] << 8);
+        const uint16_t initial_ip = static_cast<uint16_t>(data[0x14] | (data[0x15] << 8));
+        const uint16_t initial_cs = static_cast<uint16_t>(data[0x16] | (data[0x17] << 8));
 
         // EXEPACK header is at CS:0000 (beginning of code segment)
         uint32_t header_offset = file_start + (initial_cs * 16);
@@ -73,20 +73,20 @@ namespace libexe {
             throw std::runtime_error("EXEPACK: invalid signature (expected 'RB')");
         }
 
-        params.header.real_ip = hdr[0] | (hdr[1] << 8);
-        params.header.real_cs = hdr[2] | (hdr[3] << 8);
-        params.header.mem_start = hdr[4] | (hdr[5] << 8); // Ignored
-        params.header.exepack_size = hdr[6] | (hdr[7] << 8);
-        params.header.real_sp = hdr[8] | (hdr[9] << 8);
-        params.header.real_ss = hdr[10] | (hdr[11] << 8);
-        params.header.dest_len = hdr[12] | (hdr[13] << 8);
+        params.header.real_ip = static_cast<uint16_t>(hdr[0] | (hdr[1] << 8));
+        params.header.real_cs = static_cast<uint16_t>(hdr[2] | (hdr[3] << 8));
+        params.header.mem_start = static_cast<uint16_t>(hdr[4] | (hdr[5] << 8)); // Ignored
+        params.header.exepack_size = static_cast<uint16_t>(hdr[6] | (hdr[7] << 8));
+        params.header.real_sp = static_cast<uint16_t>(hdr[8] | (hdr[9] << 8));
+        params.header.real_ss = static_cast<uint16_t>(hdr[10] | (hdr[11] << 8));
+        params.header.dest_len = static_cast<uint16_t>(hdr[12] | (hdr[13] << 8));
 
         if (uses_skip_len) {
-            params.header.skip_len = hdr[14] | (hdr[15] << 8);
-            params.header.signature = hdr[16] | (hdr[17] << 8);
+            params.header.skip_len = static_cast<uint16_t>(hdr[14] | (hdr[15] << 8));
+            params.header.signature = static_cast<uint16_t>(hdr[16] | (hdr[17] << 8));
         } else {
             params.header.skip_len = 1; // Default value
-            params.header.signature = hdr[14] | (hdr[15] << 8);
+            params.header.signature = static_cast<uint16_t>(hdr[14] | (hdr[15] << 8));
         }
 
         // Calculate compression parameters
@@ -147,7 +147,7 @@ namespace libexe {
                 throw std::runtime_error("EXEPACK: source underflow reading length");
             }
             src -= 2;
-            uint16_t length = buf[src] | (buf[src + 1] << 8);
+            uint16_t length = static_cast<uint16_t>(buf[src] | (buf[src + 1] << 8));
 
             // Process command (mask off the 0x01 final flag)
             switch (command & 0xfe) {
@@ -250,7 +250,7 @@ namespace libexe {
             }
 
             // Read count of relocations for this segment
-            uint16_t count = reloc_data[pos] | (reloc_data[pos + 1] << 8);
+            uint16_t count = static_cast<uint16_t>(reloc_data[pos] | (reloc_data[pos + 1] << 8));
             pos += 2;
 
             // Read each offset for this segment
@@ -259,7 +259,7 @@ namespace libexe {
                     throw std::runtime_error("EXEPACK: relocation table truncated");
                 }
 
-                uint16_t offset = reloc_data[pos] | (reloc_data[pos + 1] << 8);
+                uint16_t offset = static_cast<uint16_t>(reloc_data[pos] | (reloc_data[pos + 1] << 8));
                 pos += 2;
 
                 // segment = segment_idx * 0x1000
@@ -288,9 +288,9 @@ namespace libexe {
         result.checksum = 0;
 
         // Read original header fields
-        uint16_t original_min_mem = compressed_data[0x0A] | (compressed_data[0x0B] << 8);
-        uint16_t original_max_mem = compressed_data[0x0C] | (compressed_data[0x0D] << 8);
-        uint16_t original_header_para = compressed_data[0x08] | (compressed_data[0x09] << 8);
+        uint16_t original_min_mem = static_cast<uint16_t>(compressed_data[0x0A] | (compressed_data[0x0B] << 8));
+        uint16_t original_max_mem = static_cast<uint16_t>(compressed_data[0x0C] | (compressed_data[0x0D] << 8));
+        uint16_t original_header_para = static_cast<uint16_t>(compressed_data[0x08] | (compressed_data[0x09] << 8));
 
         // Preserve header size and max_mem from original
         result.header_paragraphs = original_header_para;
@@ -302,7 +302,7 @@ namespace libexe {
 
         // Extract compressed data region
         // Compressed data starts at beginning of code section (file_start)
-        uint16_t header_paragraphs = compressed_data[0x08] | (compressed_data[0x09] << 8);
+        uint16_t header_paragraphs = static_cast<uint16_t>(compressed_data[0x08] | (compressed_data[0x09] << 8));
         uint32_t file_start = header_paragraphs * 16;
         uint32_t compressed_start = file_start;
 
@@ -327,8 +327,8 @@ namespace libexe {
         auto paras = [](size_t n) -> size_t { return (n + 15) / 16; };
 
         // Get compressed body length (from file_start to file_end)
-        uint16_t num_pages = compressed_data[0x04] | (compressed_data[0x05] << 8);
-        uint16_t bytes_in_last = compressed_data[0x02] | (compressed_data[0x03] << 8);
+        uint16_t num_pages = static_cast<uint16_t>(compressed_data[0x04] | (compressed_data[0x05] << 8));
+        uint16_t bytes_in_last = static_cast<uint16_t>(compressed_data[0x02] | (compressed_data[0x03] << 8));
         size_t file_end = num_pages * 512;
         if (bytes_in_last) {
             file_end -= (512 - bytes_in_last);

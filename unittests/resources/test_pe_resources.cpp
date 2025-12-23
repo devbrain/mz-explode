@@ -47,15 +47,19 @@ TEST_CASE("PE32 Resource Extraction - TCMDX32.EXE") {
 
         // Get all icons
         auto icons = rsrc->resources_by_type(resource_type::RT_ICON);
+        (void)icons;
 
         // Get all group icons
         auto icon_groups = rsrc->resources_by_type(resource_type::RT_GROUP_ICON);
+        (void)icon_groups;
 
         // Get version info
         auto versions = rsrc->resources_by_type(resource_type::RT_VERSION);
+        (void)versions;
 
         // Get manifests
         auto manifests = rsrc->resources_by_type(resource_type::RT_MANIFEST);
+        (void)manifests;
     }
 
     SUBCASE("Validate against wrestool output") {
@@ -122,18 +126,14 @@ TEST_CASE("PE32 Resource Extraction - TCMDX32.EXE") {
 
         // Get all types
         auto types = rsrc->types();
+        CHECK(types.size() > 0);
 
+        // For each type, verify we can enumerate IDs and names
         for (auto type_id : types) {
-
-            // Get IDs for this type
             auto ids = rsrc->ids_for_type(type_id);
-            if (!ids.empty()) {
-            }
-
-            // Get names for this type
             auto names = rsrc->names_for_type(type_id);
-            if (!names.empty()) {
-            }
+            // Each type should have at least one ID or name
+            CHECK((ids.size() > 0 || names.size() > 0));
         }
     }
 
@@ -143,13 +143,11 @@ TEST_CASE("PE32 Resource Extraction - TCMDX32.EXE") {
         // Get all languages present in the file
         auto langs = rsrc->languages();
 
-        for (auto lang : langs) {
-        }
-
-        // Get languages for a specific type
-        auto icon_langs = rsrc->languages_for_type(static_cast<uint16_t>(resource_type::RT_ICON));
-
         // PE resources should have language IDs
         CHECK(langs.size() > 0);
+
+        // Get languages for a specific type - should not be empty for icons
+        auto icon_langs = rsrc->languages_for_type(static_cast<uint16_t>(resource_type::RT_ICON));
+        CHECK(icon_langs.size() > 0);
     }
 }

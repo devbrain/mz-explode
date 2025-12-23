@@ -19,7 +19,7 @@ namespace {
 
     // Read 16-bit little-endian value from buffer
     inline uint16_t read_u16le(const uint8_t* p) {
-        return static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1]) << 8);
+        return static_cast<uint16_t>(static_cast<uint16_t>(p[0]) | (static_cast<uint16_t>(p[1]) << 8));
     }
 
     // Write 16-bit little-endian value to buffer
@@ -148,7 +148,6 @@ bool pklite_decompressor::search_match(const uint8_t* mem, size_t mem_len,
 pklite_decompressor::pklite_decompressor(std::span<const uint8_t> file_data,
                                          uint16_t header_paragraphs)
     : file_data_(file_data)
-    , header_paragraphs_(header_paragraphs)
     , header_size_(static_cast<size_t>(header_paragraphs) * 16)
 {
     // Calculate DOS code boundaries from MZ header
@@ -887,7 +886,7 @@ void pklite_decompressor::do_decompress(decompression_result& result) {
         uint8_t offs_lo_byte = reader.read_byte();
         offs_lo_byte ^= dparams_.offset_xor_key;
 
-        uint16_t matchpos = (offs_hi_bits << 8) | offs_lo_byte;
+        uint16_t matchpos = static_cast<uint16_t>((offs_hi_bits << 8) | offs_lo_byte);
 
         // Validate match position
         if (matchpos == 0 || matchpos > output.size()) {

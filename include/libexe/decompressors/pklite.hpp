@@ -130,7 +130,6 @@ private:
 
     // Input data
     std::span<const uint8_t> file_data_;
-    uint16_t header_paragraphs_;
     size_t header_size_;
     size_t entry_point_;
     size_t start_of_dos_code_;

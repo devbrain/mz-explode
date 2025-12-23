@@ -46,23 +46,13 @@ TEST_CASE("NE Resource Extraction - PROGMAN.EXE") {
     SUBCASE("Resource type filtering") {
         auto rsrc = ne.resources();
 
-        // Get all icons
-        auto icons = rsrc->resources_by_type(resource_type::RT_ICON);
-
-        // Get all group icons
-        auto icon_groups = rsrc->resources_by_type(resource_type::RT_GROUP_ICON);
-
-        // Get menus
-        auto menus = rsrc->resources_by_type(resource_type::RT_MENU);
-
-        // Get dialogs
-        auto dialogs = rsrc->resources_by_type(resource_type::RT_DIALOG);
-
-        // Get accelerators
-        auto accels = rsrc->resources_by_type(resource_type::RT_ACCELERATOR);
-
-        // Get strings
-        auto strings = rsrc->resources_by_type(resource_type::RT_STRING);
+        // Verify we can filter by type (counts validated in detail in next subcase)
+        CHECK(rsrc->resources_by_type(resource_type::RT_ICON).size() > 0);
+        CHECK(rsrc->resources_by_type(resource_type::RT_GROUP_ICON).size() > 0);
+        CHECK(rsrc->resources_by_type(resource_type::RT_MENU).size() > 0);
+        CHECK(rsrc->resources_by_type(resource_type::RT_DIALOG).size() > 0);
+        CHECK(rsrc->resources_by_type(resource_type::RT_ACCELERATOR).size() > 0);
+        CHECK(rsrc->resources_by_type(resource_type::RT_STRING).size() > 0);
     }
 
     SUBCASE("Validate against wrestool output") {
@@ -129,20 +119,14 @@ TEST_CASE("NE Resource Extraction - PROGMAN.EXE") {
 
         // Get all types
         auto types = rsrc->types();
+        CHECK(types.size() > 0);
 
+        // For each type, verify we can enumerate IDs and names
         for (auto type_id : types) {
-
-            // Get IDs for this type
             auto ids = rsrc->ids_for_type(type_id);
-            if (!ids.empty()) {
-            }
-
-            // Get names for this type
             auto names = rsrc->names_for_type(type_id);
-            if (!names.empty()) {
-                for (const auto& name : names) {
-                }
-            }
+            // Each type should have at least one ID or name
+            CHECK((ids.size() > 0 || names.size() > 0));
         }
     }
 

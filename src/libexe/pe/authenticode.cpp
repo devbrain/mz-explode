@@ -220,10 +220,6 @@ namespace oid {
 
     // PKCS#7/CMS
     constexpr const char* SIGNED_DATA = "1.2.840.113549.1.7.2";
-    constexpr const char* DATA = "1.2.840.113549.1.7.1";
-
-    // Authenticode
-    constexpr const char* SPC_INDIRECT_DATA = "1.3.6.1.4.1.311.2.1.4";
 
     // X.500 attribute types
     constexpr const char* COMMON_NAME = "2.5.4.3";
@@ -233,14 +229,6 @@ namespace oid {
     constexpr const char* ORGANIZATION = "2.5.4.10";
     constexpr const char* ORG_UNIT = "2.5.4.11";
     constexpr const char* EMAIL = "1.2.840.113549.1.9.1";
-
-    // PKCS#9 attributes
-    constexpr const char* COUNTER_SIGNATURE = "1.2.840.113549.1.9.6";
-    constexpr const char* MESSAGE_DIGEST = "1.2.840.113549.1.9.4";
-    constexpr const char* SIGNING_TIME = "1.2.840.113549.1.9.5";
-
-    // RFC 3161 timestamp
-    constexpr const char* TIMESTAMP_TOKEN = "1.2.840.113549.1.9.16.2.14";
 }
 
 bool authenticode_analyzer::parse_asn1_element(
@@ -314,8 +302,8 @@ std::string authenticode_analyzer::parse_string(const asn1_element& element) {
         // BMPString (UTF-16BE)
         std::string result;
         for (size_t i = 0; i + 1 < element.content_length; i += 2) {
-            uint16_t ch = (static_cast<uint16_t>(element.content[i]) << 8) |
-                          element.content[i + 1];
+            uint16_t ch = static_cast<uint16_t>((static_cast<uint16_t>(element.content[i]) << 8) |
+                          element.content[i + 1]);
             if (ch < 128) {
                 result += static_cast<char>(ch);
             } else {

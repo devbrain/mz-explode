@@ -791,7 +791,6 @@ TEST_CASE("Corkami Generated - 65535sects.exe - Diagnostics") {
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
-    const auto& diags = pe.diagnostics();
 
     SUBCASE("COFF_EXCESSIVE_SECTIONS") {
         // NumberOfSections > 96 triggers this diagnostic
@@ -804,7 +803,6 @@ TEST_CASE("Corkami Generated - maxsec_lowaligW7.exe - Diagnostics") {
     REQUIRE_FALSE(data.empty());
 
     auto pe = pe_file::from_memory(data);
-    const auto& diags = pe.diagnostics();
 
     SUBCASE("OPT_LOW_ALIGNMENT") {
         // FileAlignment == SectionAlignment <= 0x200 (actual: 0x4)

@@ -21,7 +21,7 @@ namespace libexe {
             throw std::runtime_error("LZEXE: file too small for MZ header");
         }
 
-        uint16_t initial_cs = data[0x16] | (data[0x17] << 8);
+        uint16_t initial_cs = static_cast<uint16_t>(data[0x16] | (data[0x17] << 8));
 
         // LZEXE header is at (HEADER_SIZE_PARA + INITIAL_CS) << 4
         uint32_t header_pos = static_cast<uint32_t>((header_size_ / 16 + initial_cs)) << 4;
@@ -31,14 +31,14 @@ namespace libexe {
         }
 
         // Read LZEXE header (8 words, little-endian)
-        params.initial_ip = data[header_pos + 0] | (data[header_pos + 1] << 8);
-        params.initial_cs = data[header_pos + 2] | (data[header_pos + 3] << 8);
-        params.initial_sp = data[header_pos + 4] | (data[header_pos + 5] << 8);
-        params.initial_ss = data[header_pos + 6] | (data[header_pos + 7] << 8);
-        params.compressed_size = data[header_pos + 8] | (data[header_pos + 9] << 8);
-        params.inc_size = data[header_pos + 10] | (data[header_pos + 11] << 8);
-        params.decompressor_size = data[header_pos + 12] | (data[header_pos + 13] << 8);
-        params.checksum = data[header_pos + 14] | (data[header_pos + 15] << 8);
+        params.initial_ip = static_cast<uint16_t>(data[header_pos + 0] | (data[header_pos + 1] << 8));
+        params.initial_cs = static_cast<uint16_t>(data[header_pos + 2] | (data[header_pos + 3] << 8));
+        params.initial_sp = static_cast<uint16_t>(data[header_pos + 4] | (data[header_pos + 5] << 8));
+        params.initial_ss = static_cast<uint16_t>(data[header_pos + 6] | (data[header_pos + 7] << 8));
+        params.compressed_size = static_cast<uint16_t>(data[header_pos + 8] | (data[header_pos + 9] << 8));
+        params.inc_size = static_cast<uint16_t>(data[header_pos + 10] | (data[header_pos + 11] << 8));
+        params.decompressor_size = static_cast<uint16_t>(data[header_pos + 12] | (data[header_pos + 13] << 8));
+        params.checksum = static_cast<uint16_t>(data[header_pos + 14] | (data[header_pos + 15] << 8));
 
         // Calculate offsets based on version
         if (version_ == lzexe_version::V090) {
@@ -48,7 +48,7 @@ namespace libexe {
         }
 
         // Code offset = (INITIAL_CS - COMPRESSED_SIZE + HEADER_SIZE_PARA) << 4
-        uint16_t mz_initial_cs = data[0x16] | (data[0x17] << 8);
+        uint16_t mz_initial_cs = static_cast<uint16_t>(data[0x16] | (data[0x17] << 8));
         uint16_t header_size_para = header_size_ / 16;
         params.code_offset = static_cast <uint32_t>(
                                  mz_initial_cs - params.compressed_size + header_size_para) << 4;
@@ -121,13 +121,13 @@ namespace libexe {
 
         // Checksum comes from ORIGINAL MZ header, not LZEXE header
         // LZEXE header's checksum is for decompressor validation only
-        result.checksum = compressed_data[0x12] | (compressed_data[0x13] << 8);
+        result.checksum = static_cast<uint16_t>(compressed_data[0x12] | (compressed_data[0x13] << 8));
 
         // Compute min_extra_paragraphs from original MZ header
         // Legacy: oexe[MIN_MEM_PARA] = m_exe_file[MIN_MEM_PARA] - delta
         // where delta = eINC_SIZE + ((eDECOMPRESSOR_SIZE + 15) >> 4) + 9
-        uint16_t original_min_mem = compressed_data[0x0A] | (compressed_data[0x0B] << 8);
-        uint16_t original_max_mem = compressed_data[0x0C] | (compressed_data[0x0D] << 8);
+        uint16_t original_min_mem = static_cast<uint16_t>(compressed_data[0x0A] | (compressed_data[0x0B] << 8));
+        uint16_t original_max_mem = static_cast<uint16_t>(compressed_data[0x0C] | (compressed_data[0x0D] << 8));
 
         if (original_max_mem != 0) {
             int32_t delta = params.inc_size + ((params.decompressor_size + 15) >> 4) + 9;
@@ -150,7 +150,6 @@ namespace libexe {
         // Decompression buffer (0x4500 bytes as in original algorithm)
         std::vector <uint8_t> buffer(0x4500);
         uint8_t* p = buffer.data();
-        size_t output_pos = 0;
 
         while (true) {
             // Flush buffer when it reaches 0x4000 bytes
@@ -159,7 +158,6 @@ namespace libexe {
                 result.code.insert(result.code.end(),
                                    buffer.data(),
                                    buffer.data() + copy_size);
-                output_pos += copy_size;
                 p -= copy_size;
                 std::memmove(buffer.data(), buffer.data() + copy_size,
                              static_cast <size_t>(p - buffer.data()));

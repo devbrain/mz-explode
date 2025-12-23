@@ -43,8 +43,8 @@ std::optional<string_table> parse_pe_string_table(std::span<const uint8_t> data,
     // Parse up to 16 strings in this block
     for (size_t i = 0; i < 16 && ptr + 2 <= end; i++) {
         // Read length (WORD = character count, not byte count)
-        uint16_t length = static_cast<uint16_t>(ptr[0]) |
-                         (static_cast<uint16_t>(ptr[1]) << 8);
+        uint16_t length = static_cast<uint16_t>(
+            static_cast<uint16_t>(ptr[0]) | (static_cast<uint16_t>(ptr[1]) << 8));
         ptr += 2;
 
         // Check if we have enough data for the string (length * 2 bytes for UTF-16)

@@ -174,7 +174,7 @@ std::vector<uint8_t> icon_image::to_ico_file() const {
 
     // Calculate sizes
     uint32_t xor_height = header.xor_height();
-    uint32_t image_size = 40 + (color_table.size() * 4) + xor_mask.size() + and_mask.size();
+    uint32_t image_size = static_cast<uint32_t>(40 + (color_table.size() * 4) + xor_mask.size() + and_mask.size());
     uint32_t file_offset = 6 + 16;  // ICONDIR (6) + ICONDIRENTRY (16)
 
     // Reserve space

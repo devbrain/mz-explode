@@ -5,6 +5,7 @@
 #include <doctest/doctest.h>
 #include <libexe/formats/pe_file.hpp>
 #include <libexe/pe/directories/iat.hpp>
+#include <algorithm>
 #include <cstring>
 #include <vector>
 
@@ -134,7 +135,7 @@ static void create_section_header(std::vector<uint8_t>& data, uint32_t offset,
 
     // Name (8 bytes, null-padded)
     std::memset(section, 0, 8);
-    std::strncpy(reinterpret_cast<char*>(section), name, 8);
+    std::memcpy(section, name, std::min(std::strlen(name), size_t{8}));
 
     // VirtualSize
     std::memcpy(section + 8, &virtual_size, 4);

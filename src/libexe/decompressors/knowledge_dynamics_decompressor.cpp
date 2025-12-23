@@ -7,8 +7,7 @@
 #include <array>
 
 namespace libexe {
-    knowledge_dynamics_decompressor::knowledge_dynamics_decompressor(uint16_t header_size)
-        : header_size_(header_size) {
+    knowledge_dynamics_decompressor::knowledge_dynamics_decompressor(uint16_t /*header_size*/) {
     }
 
     knowledge_dynamics_decompressor::kd_params knowledge_dynamics_decompressor::read_parameters(
@@ -20,8 +19,8 @@ namespace libexe {
             throw std::runtime_error("Knowledge Dynamics: file too small for MZ header");
         }
 
-        uint16_t num_pages = data[0x04] | (data[0x05] << 8);
-        uint16_t bytes_in_last_page = data[0x02] | (data[0x03] << 8);
+        uint16_t num_pages = static_cast<uint16_t>(data[0x04] | (data[0x05] << 8));
+        uint16_t bytes_in_last_page = static_cast<uint16_t>(data[0x02] | (data[0x03] << 8));
 
         uint32_t extra_data_start = num_pages * 512;
         if (bytes_in_last_page) {
@@ -36,9 +35,9 @@ namespace libexe {
         // Parse embedded MZ header
         const uint8_t* inner_header = data.data() + extra_data_start;
 
-        uint16_t inner_header_size_para = inner_header[0x08] | (inner_header[0x09] << 8);
-        uint16_t inner_num_pages = inner_header[0x04] | (inner_header[0x05] << 8);
-        uint16_t inner_bytes_in_last = inner_header[0x02] | (inner_header[0x03] << 8);
+        uint16_t inner_header_size_para = static_cast<uint16_t>(inner_header[0x08] | (inner_header[0x09] << 8));
+        uint16_t inner_num_pages = static_cast<uint16_t>(inner_header[0x04] | (inner_header[0x05] << 8));
+        uint16_t inner_bytes_in_last = static_cast<uint16_t>(inner_header[0x02] | (inner_header[0x03] << 8));
 
         uint32_t exe_data_start2 = inner_header_size_para * 16;
         uint32_t extra_data_start2 = inner_num_pages * 512;
@@ -50,17 +49,17 @@ namespace libexe {
         params.code_offset = extra_data_start + exe_data_start2;
 
         // Extract initial register values from embedded header
-        params.initial_ip = inner_header[0x14] | (inner_header[0x15] << 8);
-        params.initial_cs = inner_header[0x16] | (inner_header[0x17] << 8);
-        params.initial_sp = inner_header[0x10] | (inner_header[0x11] << 8);
-        params.initial_ss = inner_header[0x0E] | (inner_header[0x0F] << 8);
-        params.checksum = inner_header[0x12] | (inner_header[0x13] << 8);
-        params.max_mem_para = inner_header[0x0C] | (inner_header[0x0D] << 8);
+        params.initial_ip = static_cast<uint16_t>(inner_header[0x14] | (inner_header[0x15] << 8));
+        params.initial_cs = static_cast<uint16_t>(inner_header[0x16] | (inner_header[0x17] << 8));
+        params.initial_sp = static_cast<uint16_t>(inner_header[0x10] | (inner_header[0x11] << 8));
+        params.initial_ss = static_cast<uint16_t>(inner_header[0x0E] | (inner_header[0x0F] << 8));
+        params.checksum = static_cast<uint16_t>(inner_header[0x12] | (inner_header[0x13] << 8));
+        params.max_mem_para = static_cast<uint16_t>(inner_header[0x0C] | (inner_header[0x0D] << 8));
         params.min_mem_para = static_cast<uint16_t>((params.expected_size + 0x20) / 64);
 
         // Read relocations from inner embedded header
-        uint16_t num_relocs = inner_header[0x06] | (inner_header[0x07] << 8);
-        uint16_t reloc_offset = inner_header[0x18] | (inner_header[0x19] << 8);
+        uint16_t num_relocs = static_cast<uint16_t>(inner_header[0x06] | (inner_header[0x07] << 8));
+        uint16_t reloc_offset = static_cast<uint16_t>(inner_header[0x18] | (inner_header[0x19] << 8));
 
         params.relocation_offset = extra_data_start + reloc_offset;
         params.num_relocations = num_relocs;
@@ -92,8 +91,8 @@ namespace libexe {
                     throw std::runtime_error("Knowledge Dynamics: relocation table truncated");
                 }
 
-                uint16_t offset = compressed_data[reloc_pos] | (compressed_data[reloc_pos + 1] << 8);
-                uint16_t segment = compressed_data[reloc_pos + 2] | (compressed_data[reloc_pos + 3] << 8);
+                uint16_t offset = static_cast<uint16_t>(compressed_data[reloc_pos] | (compressed_data[reloc_pos + 1] << 8));
+                uint16_t segment = static_cast<uint16_t>(compressed_data[reloc_pos + 2] | (compressed_data[reloc_pos + 3] << 8));
                 result.relocations.emplace_back(segment, offset);
                 reloc_pos += 4;
             }

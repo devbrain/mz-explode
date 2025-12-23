@@ -39,28 +39,32 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         // Modern Windows executables should have ASLR enabled
         // Check DllCharacteristics for DYNAMIC_BASE (0x0040)
         bool has_aslr = pe.has_aslr();
-        // Most modern PEs have ASLR, but test data may vary
+        (void)has_aslr;  // Smoke test - verify method doesn't crash
     }
 
     SUBCASE("High-entropy ASLR detection") {
         // 64-bit PEs can use high-entropy ASLR for better randomization
         bool has_he_aslr = pe.has_high_entropy_aslr();
+        (void)has_he_aslr;  // Smoke test
     }
 
     SUBCASE("DEP/NX detection") {
         // NX_COMPAT (0x0100) - Data Execution Prevention
         bool has_dep = pe.has_dep();
+        (void)has_dep;  // Smoke test
     }
 
     SUBCASE("CFG detection") {
         // GUARD_CF (0x4000) - Control Flow Guard
         bool has_cfg = pe.has_cfg();
+        (void)has_cfg;  // Smoke test
     }
 
     SUBCASE("SEH analysis") {
         // NO_SEH flag or SafeSEH via load config
         bool no_seh = pe.has_no_seh();
         bool safe_seh = pe.has_safe_seh();
+        (void)no_seh;  // Smoke test
 
         // 64-bit executables don't use SafeSEH (it's 32-bit only)
         CHECK(pe.is_64bit());
@@ -69,6 +73,7 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
 
     SUBCASE("Authenticode signature detection") {
         bool has_sig = pe.has_authenticode();
+        (void)has_sig;  // Smoke test
     }
 
     SUBCASE(".NET assembly detection") {
@@ -81,7 +86,6 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
         bool is_dll = pe.is_dll();
         bool is_laa = pe.is_large_address_aware();
 
-
         // TCMADM64 is an executable, not a DLL
         CHECK_FALSE(is_dll);
         // 64-bit PEs are inherently large-address aware
@@ -91,11 +95,13 @@ TEST_CASE("PE Security Analysis: TCMADM64.EXE (modern 64-bit PE)") {
     SUBCASE("AppContainer and Terminal Server") {
         bool is_appcontainer = pe.is_appcontainer();
         bool is_ts_aware = pe.is_terminal_server_aware();
-
+        (void)is_appcontainer;  // Smoke test
+        (void)is_ts_aware;  // Smoke test
     }
 
     SUBCASE("Force integrity") {
         bool force_integrity = pe.has_force_integrity();
+        (void)force_integrity;  // Smoke test
     }
 
     SUBCASE("Subsystem detection") {
@@ -280,6 +286,7 @@ TEST_CASE("PE Entropy Analysis: TCMADM64.EXE") {
 
     SUBCASE("High entropy detection") {
         bool has_high = pe.has_high_entropy_sections();
+        (void)has_high;  // Smoke test
 
         // TCMADM64 is a normal executable, should not have very high entropy
         // (If it does, it might have embedded resources or data)

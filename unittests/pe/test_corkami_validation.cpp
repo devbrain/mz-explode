@@ -365,25 +365,19 @@ TEST_CASE("Debug dllfwloop.dll diagnostics") {
 
     auto pe = pe_file::from_memory(data);
 
-    // Check exports
+    // Check exports - dllfwloop.dll has forwarder exports
     auto exports = pe.exports();
-    if (exports) {
-        for (const auto& exp : exports->exports) {
-            if (exp.is_forwarder) {
-            } else {
-            }
+    REQUIRE(exports != nullptr);
+
+    // Count forwarders
+    size_t forwarder_count = 0;
+    for (const auto& exp : exports->exports) {
+        if (exp.is_forwarder) {
+            forwarder_count++;
         }
-    } else {
     }
+    CHECK(forwarder_count > 0);  // dllfwloop.dll has forwarder exports
 
-    // Print diagnostics count
-    for (const auto& d : pe.diagnostics().all()) {
-    }
-}
-
-// =============================================================================
-// Summary Test
-// =============================================================================
-
-TEST_CASE("Corkami Validation - Summary") {
+    // Should have some diagnostics (forwarder loop)
+    CHECK(pe.diagnostics().count() > 0);
 }

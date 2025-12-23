@@ -32,8 +32,6 @@ private:
     };
 
     static kd_params read_parameters(std::span<const uint8_t> data);
-
-    uint16_t header_size_;
 };
 
 } // namespace libexe

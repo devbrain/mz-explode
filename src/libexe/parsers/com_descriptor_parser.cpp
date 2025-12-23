@@ -10,8 +10,8 @@ namespace libexe {
 namespace {
     // Read 16-bit little-endian value
     uint16_t read_u16(const uint8_t* ptr) {
-        return static_cast<uint16_t>(ptr[0]) |
-               (static_cast<uint16_t>(ptr[1]) << 8);
+        return static_cast<uint16_t>(static_cast<uint16_t>(ptr[0]) |
+               (static_cast<uint16_t>(ptr[1]) << 8));
     }
 
     // Read 32-bit little-endian value
