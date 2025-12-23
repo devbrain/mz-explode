@@ -155,7 +155,7 @@ namespace libexe {
                     all_resources_.entries_.push_back(std::move(resource));
                 }
             }
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             // Resource parsing errors are non-fatal - just means no resources available
             // Could log error here if logging system available
         }

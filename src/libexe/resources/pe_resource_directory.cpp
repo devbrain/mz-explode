@@ -56,7 +56,7 @@ namespace libexe {
         try {
             // Start parsing at root directory (offset 0)
             parse_directory_level(0, 1, 0, std::nullopt, std::nullopt);
-        } catch (const std::exception& e) {
+        } catch (const std::exception&) {
             // Resource parsing errors are non-fatal - just means no resources available
             // Could log error here if logging system available
         }

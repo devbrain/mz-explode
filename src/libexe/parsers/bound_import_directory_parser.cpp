@@ -120,7 +120,7 @@ bound_import_descriptor bound_import_directory_parser::parse_descriptor(
     // Read module name
     try {
         desc.module_name = read_module_name(dir_start, dir_end, desc.offset_module_name);
-    } catch (const std::exception& e) {
+    } catch (const std::exception&) {
         // If we can't read the module name, the descriptor is invalid
         desc.module_name.clear();
     }

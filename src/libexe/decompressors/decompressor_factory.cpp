@@ -22,24 +22,24 @@ std::unique_ptr<decompressor> create_decompressor(compression_type type) {
 
         case compression_type::LZEXE_090:
             // Default header size = 2 paragraphs (32 bytes)
-            return std::make_unique<lzexe_decompressor>(lzexe_version::V090, 32);
+            return std::make_unique<lzexe_decompressor>(lzexe_version::V090, uint16_t{32});
 
         case compression_type::LZEXE_091:
             // Default header size = 2 paragraphs (32 bytes)
-            return std::make_unique<lzexe_decompressor>(lzexe_version::V091, 32);
+            return std::make_unique<lzexe_decompressor>(lzexe_version::V091, uint16_t{32});
 
         case compression_type::EXEPACK:
             // Default header size = 2 paragraphs (32 bytes)
-            return std::make_unique<exepack_decompressor>(32);
+            return std::make_unique<exepack_decompressor>(uint16_t{32});
 
         case compression_type::KNOWLEDGE_DYNAMICS:
             // Default header size = 32 bytes
-            return std::make_unique<knowledge_dynamics_decompressor>(32);
+            return std::make_unique<knowledge_dynamics_decompressor>(uint16_t{32});
 
         case compression_type::DIET:
             // Default: EXE format, v1.44, header size = 32 bytes
             return std::make_unique<diet_decompressor>(
-                diet_version::V144, diet_file_type::EXE, 32);
+                diet_version::V144, diet_file_type::EXE, uint16_t{32});
 
         case compression_type::NONE:
         default:
