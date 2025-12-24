@@ -71,16 +71,16 @@ jobs:
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Release \
-            -DMZEXPLODE_BUILD_TESTING=ON \
-            -DMZEXPLODE_BUILD_TOOLS=OFF
+            -DNEUTRINO_MZEXPLODE_BUILD_TESTS=ON \
+            -DNEUTRINO_MZEXPLODE_BUILD_TOOLS=OFF
 
       - name: Configure CMake (Windows MSVC)
         if: runner.os == 'Windows' && matrix.compiler == 'msvc'
         run: |
           cmake -B build `
             -DCMAKE_BUILD_TYPE=Release `
-            -DMZEXPLODE_BUILD_TESTING=ON `
-            -DMZEXPLODE_BUILD_TOOLS=OFF
+            -DNEUTRINO_MZEXPLODE_BUILD_TESTS=ON `
+            -DNEUTRINO_MZEXPLODE_BUILD_TOOLS=OFF
 
       - name: Configure CMake (Windows Clang-CL)
         if: runner.os == 'Windows' && matrix.compiler == 'clang-cl'
@@ -88,14 +88,23 @@ jobs:
           cmake -B build `
             -T ClangCL `
             -DCMAKE_BUILD_TYPE=Release `
-            -DMZEXPLODE_BUILD_TESTING=ON `
-            -DMZEXPLODE_BUILD_TOOLS=OFF
+            -DNEUTRINO_MZEXPLODE_BUILD_TESTS=ON `
+            -DNEUTRINO_MZEXPLODE_BUILD_TOOLS=OFF
 
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Run tests
-        run: ctest --test-dir build --build-config Release --output-on-failure
+      - name: Run tests (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd build
+          ctest --build-config Release --output-on-failure
+
+      - name: Run tests (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          cd build
+          ctest --build-config Release --output-on-failure
 
   debug:
     runs-on: ubuntu-latest
@@ -115,11 +124,13 @@ jobs:
         run: |
           cmake -B build \
             -DCMAKE_BUILD_TYPE=Debug \
-            -DMZEXPLODE_BUILD_TESTING=ON \
-            -DMZEXPLODE_BUILD_TOOLS=OFF
+            -DNEUTRINO_MZEXPLODE_BUILD_TESTS=ON \
+            -DNEUTRINO_MZEXPLODE_BUILD_TOOLS=OFF
 
       - name: Build
         run: cmake --build build --config Debug
 
       - name: Run tests
-        run: ctest --test-dir build --build-config Debug --output-on-failure
+        run: |
+          cd build
+          ctest --build-config Debug --output-on-failure

@@ -1,9 +1,11 @@
+# =============================================================================
 # Command-line tools using libexe
+# =============================================================================
 
 # Debug tool
 add_executable(debug_pe debug_pe.cpp)
 target_link_libraries(debug_pe PRIVATE libexe)
-target_include_directories(debug_pe PRIVATE ${CMAKE_SOURCE_DIR}/include)
+set_target_properties(debug_pe PROPERTIES FOLDER "Tools")
 
-# Unified executable analyzer (replaces mzexplode, mzdump, peinfo, resextract)
+# Unified executable analyzer
 add_subdirectory(exeinfo)
