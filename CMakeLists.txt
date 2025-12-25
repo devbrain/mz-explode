@@ -70,6 +70,11 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 add_subdirectory(src/libexe)
 
+# Create neutrino:: alias (matches neutrino-cmake recipe)
+if(TARGET libexe AND NOT TARGET neutrino::mzexplode)
+    add_library(neutrino::mzexplode ALIAS libexe)
+endif()
+
 # =============================================================================
 # Tools (Command-line utilities)
 # =============================================================================

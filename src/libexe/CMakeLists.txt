@@ -10,37 +10,12 @@ include(FetchContent)
 # =============================================================================
 
 # mio - Cross-platform memory-mapped file I/O library
-if(NOT TARGET mio::mio)
-    message(STATUS "mio not found, fetching from GitHub...")
-
-    FetchContent_Declare(
-        mio
-        GIT_REPOSITORY https://github.com/devbrain/mio.git
-        GIT_TAG master
-    )
-
-    FetchContent_MakeAvailable(mio)
-else()
-    message(STATUS "Using existing mio (provided by parent project)")
-endif()
+include(${NEUTRINO_CMAKE_DIR}/deps/mio.cmake)
+neutrino_fetch_mio()
 
 # DataScript - binary format parser generator
-if(NOT TARGET ds)
-    message(STATUS "DataScript not found, fetching from GitHub...")
-
-    set(NEUTRINO_DATASCRIPT_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-    set(NEUTRINO_DATASCRIPT_BUILD_HOST_TOOLS ON CACHE BOOL "" FORCE)
-
-    FetchContent_Declare(
-        datascript
-        GIT_REPOSITORY https://github.com/devbrain/datascript.git
-        GIT_TAG master
-    )
-
-    FetchContent_MakeAvailable(datascript)
-else()
-    message(STATUS "Using existing DataScript (provided by parent project)")
-endif()
+include(${NEUTRINO_CMAKE_DIR}/deps/datascript.cmake)
+neutrino_fetch_datascript()
 
 # =============================================================================
 # DataScript Code Generation
@@ -208,32 +183,4 @@ set_target_properties(libexe PROPERTIES
 # Compiler Warnings
 # =============================================================================
 
-if(MSVC)
-    target_compile_options(libexe PRIVATE
-        /W4
-        /permissive-
-    )
-elseif(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-    target_compile_options(libexe PRIVATE
-        -Wall
-        -Wextra
-        -Wpedantic
-        -Wshadow
-        -Wconversion
-        -Wsign-conversion
-    )
-
-    if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        target_compile_options(libexe PRIVATE
-            -Wduplicated-cond
-            -Wlogical-op
-            -Wnull-dereference
-        )
-    endif()
-
-    if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-        target_compile_options(libexe PRIVATE
-            -Wno-unknown-warning-option
-        )
-    endif()
-endif()
+neutrino_target_warnings(libexe)
