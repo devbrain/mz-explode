@@ -25,9 +25,9 @@ if(NOT DEFINED NEUTRINO_CMAKE_DIR)
     )
     FetchContent_MakeAvailable(neutrino_cmake)
     set(NEUTRINO_CMAKE_DIR "${neutrino_cmake_SOURCE_DIR}/cmake")
-    list(APPEND CMAKE_MODULE_PATH "${NEUTRINO_CMAKE_DIR}")
 endif()
 
+list(APPEND CMAKE_MODULE_PATH "${NEUTRINO_CMAKE_DIR}")
 include(NeutrinoInit)
 
 # =============================================================================
