@@ -128,7 +128,7 @@ namespace libexe {
                     std::optional<std::string> resource_name;
 
                     if (is_integer_id) {
-                        resource_id = name_info.id & 0x7FFF;
+                        resource_id = static_cast<uint16_t>(name_info.id & 0x7FFF);
                     } else {
                         // String offset relative to beginning of resource table
                         resource_name = read_string(name_info.id);
