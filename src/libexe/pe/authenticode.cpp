@@ -744,23 +744,23 @@ std::optional<authenticode_signature> authenticode_analyzer::parse(
 
     // SignerInfos (SET)
     if (parse_asn1_element(ptr, static_cast<size_t>(end - ptr), elem) && elem.is_set()) {
-        const uint8_t* si_ptr = elem.content;
+        const uint8_t* signer_ptr = elem.content;
         const uint8_t* si_end = elem.content + elem.content_length;
 
-        while (si_ptr < si_end) {
+        while (signer_ptr < si_end) {
             asn1_element si_elem;
-            if (parse_asn1_element(si_ptr, static_cast<size_t>(si_end - si_ptr), si_elem) && si_elem.is_sequence()) {
-                auto signer = parse_signer_info({si_ptr, si_elem.header_length + si_elem.content_length});
+            if (parse_asn1_element(signer_ptr, static_cast<size_t>(si_end - signer_ptr), si_elem) && si_elem.is_sequence()) {
+                auto signer = parse_signer_info({signer_ptr, si_elem.header_length + si_elem.content_length});
                 if (signer) {
                     sig.signers.push_back(std::move(*signer));
                 }
 
                 // Try to find timestamp in signer info
                 if (!sig.timestamp) {
-                    sig.timestamp = find_timestamp({si_ptr, si_elem.header_length + si_elem.content_length});
+                    sig.timestamp = find_timestamp({signer_ptr, si_elem.header_length + si_elem.content_length});
                 }
 
-                si_ptr += si_elem.header_length + si_elem.content_length;
+                signer_ptr += si_elem.header_length + si_elem.content_length;
             } else {
                 break;
             }
