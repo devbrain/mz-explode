@@ -10,6 +10,116 @@
 #include <string>
 #include <variant>
 
+// The dialog_style namespace deliberately mirrors the WS_* / DS_*
+// constants from winuser.h, with identical names and values. When the
+// translation unit also includes <windows.h> (typically via the MSVC
+// standard library on Windows), those names are preprocessor macros
+// that expand to numeric constants and trash our constexpr definitions.
+// Undefine the whole set; libexe doesn't need the Win32 macros itself,
+// and our dialog_style:: counterparts carry the same values.
+#ifdef DS_ABSALIGN
+#  undef DS_ABSALIGN
+#endif
+#ifdef DS_SYSMODAL
+#  undef DS_SYSMODAL
+#endif
+#ifdef DS_3DLOOK
+#  undef DS_3DLOOK
+#endif
+#ifdef DS_FIXEDSYS
+#  undef DS_FIXEDSYS
+#endif
+#ifdef DS_NOFAILCREATE
+#  undef DS_NOFAILCREATE
+#endif
+#ifdef DS_LOCALEDIT
+#  undef DS_LOCALEDIT
+#endif
+#ifdef DS_SETFONT
+#  undef DS_SETFONT
+#endif
+#ifdef DS_MODALFRAME
+#  undef DS_MODALFRAME
+#endif
+#ifdef DS_NOIDLEMSG
+#  undef DS_NOIDLEMSG
+#endif
+#ifdef DS_SETFOREGROUND
+#  undef DS_SETFOREGROUND
+#endif
+#ifdef DS_CONTROL
+#  undef DS_CONTROL
+#endif
+#ifdef DS_CENTER
+#  undef DS_CENTER
+#endif
+#ifdef DS_CENTERMOUSE
+#  undef DS_CENTERMOUSE
+#endif
+#ifdef DS_CONTEXTHELP
+#  undef DS_CONTEXTHELP
+#endif
+#ifdef DS_SHELLFONT
+#  undef DS_SHELLFONT
+#endif
+#ifdef WS_POPUP
+#  undef WS_POPUP
+#endif
+#ifdef WS_CHILD
+#  undef WS_CHILD
+#endif
+#ifdef WS_MINIMIZE
+#  undef WS_MINIMIZE
+#endif
+#ifdef WS_VISIBLE
+#  undef WS_VISIBLE
+#endif
+#ifdef WS_DISABLED
+#  undef WS_DISABLED
+#endif
+#ifdef WS_CLIPSIBLINGS
+#  undef WS_CLIPSIBLINGS
+#endif
+#ifdef WS_CLIPCHILDREN
+#  undef WS_CLIPCHILDREN
+#endif
+#ifdef WS_MAXIMIZE
+#  undef WS_MAXIMIZE
+#endif
+#ifdef WS_CAPTION
+#  undef WS_CAPTION
+#endif
+#ifdef WS_BORDER
+#  undef WS_BORDER
+#endif
+#ifdef WS_DLGFRAME
+#  undef WS_DLGFRAME
+#endif
+#ifdef WS_VSCROLL
+#  undef WS_VSCROLL
+#endif
+#ifdef WS_HSCROLL
+#  undef WS_HSCROLL
+#endif
+#ifdef WS_SYSMENU
+#  undef WS_SYSMENU
+#endif
+#ifdef WS_THICKFRAME
+#  undef WS_THICKFRAME
+#endif
+#ifdef WS_GROUP
+#  undef WS_GROUP
+#endif
+#ifdef WS_TABSTOP
+#  undef WS_TABSTOP
+#endif
+#ifdef WS_MINIMIZEBOX
+#  undef WS_MINIMIZEBOX
+#endif
+#ifdef WS_MAXIMIZEBOX
+#  undef WS_MAXIMIZEBOX
+#endif
+
 // Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
 // This warning is benign for header-only STL types when both library and client
 // use the same compiler and runtime
