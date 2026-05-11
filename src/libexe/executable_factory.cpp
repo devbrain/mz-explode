@@ -27,7 +27,12 @@ namespace {
 // NEUTRINO_MZEXPLODE_FORMAT_* options. Format detection still works
 // for every format because the signature scan in detect_format() is
 // pure byte arithmetic — only the from_* construction path is gated.
-[[noreturn]] void throw_format_disabled(const char* format_name) {
+//
+// [[maybe_unused]] because when all formats are enabled (the default,
+// and what CI builds) every call site is gated out by #if and the
+// function becomes unused. clang-cl with -Werror -Wunused-function
+// trips otherwise.
+[[noreturn, maybe_unused]] void throw_format_disabled(const char* format_name) {
     throw std::runtime_error(
         std::string{format_name} +
         " support not built in (NEUTRINO_MZEXPLODE_FORMAT_* gates it out)");
