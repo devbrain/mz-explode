@@ -91,8 +91,25 @@
 #  undef RT_MANIFEST
 #endif
 
-// Other Windows macros that have collided with libexe identifiers in
-// the past: see diagnostic.hpp's `ERROR` enumerator (renamed to
-// PARSE_ERROR). Add here if more single-word collisions surface.
+// Other Windows macros that collide with libexe enumerators. Most
+// come from objbase.h / wtypes.h / SAL annotations and are bare,
+// generically-named tokens that any vendor would reach for.
+#ifdef PURE
+#  undef PURE         // COM headers: #define PURE = 0
+#endif
+#ifdef OPTIONAL
+#  undef OPTIONAL     // SAL annotation
+#endif
+#ifdef IN
+#  undef IN           // SAL annotation
+#endif
+#ifdef OUT
+#  undef OUT          // SAL annotation
+#endif
+
+// `ERROR` from winuser.h was problematic in diagnostic.hpp; it was
+// renamed to PARSE_ERROR rather than undef'd because the enumerator
+// name was the same as the Windows constant. Add here only if you
+// can't / won't rename.
 
 #endif  // LIBEXE_DETAIL_WINDOWS_MACRO_UNDEF_HPP

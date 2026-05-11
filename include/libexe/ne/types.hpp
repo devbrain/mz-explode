@@ -5,6 +5,7 @@
 #define LIBEXE_NE_TYPES_HPP
 
 #include <libexe/core/enum_bitmask.hpp>
+#include <libexe/detail/windows_macro_undef.hpp>  // PURE clashes with COM headers
 #include <cstdint>
 
 namespace libexe {
