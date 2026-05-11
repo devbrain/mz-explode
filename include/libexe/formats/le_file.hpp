@@ -41,6 +41,11 @@
 #include <optional>
 #include <memory>
 
+// le_resource declares RT_* enumerators that collide with the
+// MAKEINTRESOURCE(N) macros from winuser.h. Strip the macros for the
+// rest of this translation unit so the enum survives MSVC parsing.
+#include <libexe/detail/windows_macro_undef.hpp>
+
 // Disable MSVC warning C4251: 'member': class 'std::...' needs to have dll-interface
 #ifdef _MSC_VER
 #pragma warning(push)
