@@ -44,6 +44,52 @@ else()
     option(NEUTRINO_MZEXPLODE_BUILD_TOOLS "Build command-line tools" OFF)
 endif()
 
+# -----------------------------------------------------------------------------
+# Fine-grained format / decompressor selection
+# -----------------------------------------------------------------------------
+# libexe supports four executable formats and five decompressors. A typical
+# DOS-asset extraction job (e.g. warlords W1) needs only MZ + LZEXE; a
+# generic Windows binary analyzer needs everything. Default to ALL ON so
+# existing consumers see no change; size-conscious downstreams can do:
+#
+#   set(NEUTRINO_MZEXPLODE_FORMAT_ALL       OFF CACHE BOOL "" FORCE)
+#   set(NEUTRINO_MZEXPLODE_FORMAT_NE        ON  CACHE BOOL "" FORCE)
+#   set(NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL OFF CACHE BOOL "" FORCE)
+#   set(NEUTRINO_MZEXPLODE_DECOMPRESSOR_LZEXE ON CACHE BOOL "" FORCE)
+#
+# MZ format is always on — it's the foundation that all newer formats
+# (NE/PE/LE) embed via the MZ stub at the start of the file.
+
+neutrino_option_group(NEUTRINO_MZEXPLODE_FORMAT_ALL
+    "Default state for all libexe executable-format readers" ON)
+neutrino_option(NEUTRINO_MZEXPLODE_FORMAT_NE
+    "Build NE (16-bit Windows / OS/2) format reader" ON
+    GROUP NEUTRINO_MZEXPLODE_FORMAT_ALL)
+neutrino_option(NEUTRINO_MZEXPLODE_FORMAT_PE
+    "Build PE (32/64-bit Windows) format reader + authenticode" ON
+    GROUP NEUTRINO_MZEXPLODE_FORMAT_ALL)
+neutrino_option(NEUTRINO_MZEXPLODE_FORMAT_LE
+    "Build LE/LX (Win9x VxD / OS/2) format reader" ON
+    GROUP NEUTRINO_MZEXPLODE_FORMAT_ALL)
+
+neutrino_option_group(NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL
+    "Default state for all libexe decompressors" ON)
+neutrino_option(NEUTRINO_MZEXPLODE_DECOMPRESSOR_LZEXE
+    "Build LZEXE 0.90/0.91 decompressor" ON
+    GROUP NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL)
+neutrino_option(NEUTRINO_MZEXPLODE_DECOMPRESSOR_PKLITE
+    "Build PKLITE (standard + extra) decompressor" ON
+    GROUP NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL)
+neutrino_option(NEUTRINO_MZEXPLODE_DECOMPRESSOR_EXEPACK
+    "Build Microsoft EXEPACK decompressor" ON
+    GROUP NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL)
+neutrino_option(NEUTRINO_MZEXPLODE_DECOMPRESSOR_DIET
+    "Build DIET decompressor" ON
+    GROUP NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL)
+neutrino_option(NEUTRINO_MZEXPLODE_DECOMPRESSOR_KD
+    "Build Knowledge Dynamics decompressor" ON
+    GROUP NEUTRINO_MZEXPLODE_DECOMPRESSOR_ALL)
+
 # =============================================================================
 # C++ Standard
 # =============================================================================
@@ -173,14 +219,5 @@ endif()
 neutrino_is_top_level(_mzexplode_is_top_level)
 if(_mzexplode_is_top_level)
     neutrino_print_options(mzexplode)
-    message(STATUS "")
-    message(STATUS "libexe ${PROJECT_VERSION} Configuration:")
-    message(STATUS "  C++ Standard:    20")
-    message(STATUS "  Library type:    ${NEUTRINO_MZEXPLODE_BUILD_SHARED}")
-    message(STATUS "  Build tests:     ${NEUTRINO_MZEXPLODE_BUILD_TESTS}")
-    message(STATUS "  Build tools:     ${NEUTRINO_MZEXPLODE_BUILD_TOOLS}")
-    message(STATUS "  Build docs:      ${NEUTRINO_MZEXPLODE_BUILD_DOCS}")
-    message(STATUS "  Cross-compiling: ${CMAKE_CROSSCOMPILING}")
-    message(STATUS "  Install:         ${NEUTRINO_MZEXPLODE_INSTALL}")
-    message(STATUS "")
+    neutrino_print_summary(mzexplode)
 endif()

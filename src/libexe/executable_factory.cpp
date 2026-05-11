@@ -2,6 +2,13 @@
 // Copyright (c) 2024
 
 #include <libexe/formats/executable_factory.hpp>
+// All four format headers are always included so that
+// `executable_variant = std::variant<mz_file, ne_file, pe_file, le_file>`
+// can be instantiated everywhere — std::variant requires complete
+// types at every use site. The actual gating happens in the switch
+// cases below; if a format's implementation .cpp wasn't compiled
+// in (NEUTRINO_MZEXPLODE_FORMAT_* = OFF) the corresponding case throws
+// rather than linking against the missing from_* methods.
 #include <libexe/formats/mz_file.hpp>
 #include <libexe/formats/ne_file.hpp>
 #include <libexe/formats/pe_file.hpp>
@@ -13,6 +20,19 @@
 #include <cstring>
 
 namespace libexe {
+
+namespace {
+// Thrown when the user feeds a binary whose format we detected but
+// whose reader was excluded at build time via the
+// NEUTRINO_MZEXPLODE_FORMAT_* options. Format detection still works
+// for every format because the signature scan in detect_format() is
+// pure byte arithmetic — only the from_* construction path is gated.
+[[noreturn]] void throw_format_disabled(const char* format_name) {
+    throw std::runtime_error(
+        std::string{format_name} +
+        " support not built in (NEUTRINO_MZEXPLODE_FORMAT_* gates it out)");
+}
+}  // namespace
 
 format_type executable_factory::detect_format(std::span<const uint8_t> data) {
     if (data.size() < 2) {
@@ -126,18 +146,30 @@ executable_variant executable_factory::from_memory(std::span<const uint8_t> data
             return mz_file::from_memory(data);
 
         case format_type::NE_WIN16:
+#if defined(MZEXPLODE_HAS_FORMAT_NE)
             return ne_file::from_memory(data);
+#else
+            throw_format_disabled("NE");
+#endif
 
         case format_type::PE_WIN32:
         case format_type::PE_PLUS_WIN64:
+#if defined(MZEXPLODE_HAS_FORMAT_PE)
             return pe_file::from_memory(data);
+#else
+            throw_format_disabled("PE");
+#endif
 
         case format_type::LE_DOS32_BOUND:
         case format_type::LE_DOS32_RAW:
         case format_type::LE_VXD:
         case format_type::LX_OS2_BOUND:
         case format_type::LX_OS2_RAW:
+#if defined(MZEXPLODE_HAS_FORMAT_LE)
             return le_file::from_memory(data);
+#else
+            throw_format_disabled("LE/LX");
+#endif
 
         case format_type::UNKNOWN:
         default:
@@ -155,18 +187,30 @@ executable_variant executable_factory::from_file(const std::filesystem::path& pa
             return mz_file::from_file(path);
 
         case format_type::NE_WIN16:
+#if defined(MZEXPLODE_HAS_FORMAT_NE)
             return ne_file::from_file(path);
+#else
+            throw_format_disabled("NE");
+#endif
 
         case format_type::PE_WIN32:
         case format_type::PE_PLUS_WIN64:
+#if defined(MZEXPLODE_HAS_FORMAT_PE)
             return pe_file::from_file(path);
+#else
+            throw_format_disabled("PE");
+#endif
 
         case format_type::LE_DOS32_BOUND:
         case format_type::LE_DOS32_RAW:
         case format_type::LE_VXD:
         case format_type::LX_OS2_BOUND:
         case format_type::LX_OS2_RAW:
+#if defined(MZEXPLODE_HAS_FORMAT_LE)
             return le_file::from_file(path);
+#else
+            throw_format_disabled("LE/LX");
+#endif
 
         case format_type::UNKNOWN:
         default:
@@ -186,18 +230,30 @@ executable_variant executable_factory::from_data_source(std::unique_ptr<data_sou
             return mz_file::from_data_source(std::move(source));
 
         case format_type::NE_WIN16:
+#if defined(MZEXPLODE_HAS_FORMAT_NE)
             return ne_file::from_data_source(std::move(source));
+#else
+            throw_format_disabled("NE");
+#endif
 
         case format_type::PE_WIN32:
         case format_type::PE_PLUS_WIN64:
+#if defined(MZEXPLODE_HAS_FORMAT_PE)
             return pe_file::from_data_source(std::move(source));
+#else
+            throw_format_disabled("PE");
+#endif
 
         case format_type::LE_DOS32_BOUND:
         case format_type::LE_DOS32_RAW:
         case format_type::LE_VXD:
         case format_type::LX_OS2_BOUND:
         case format_type::LX_OS2_RAW:
+#if defined(MZEXPLODE_HAS_FORMAT_LE)
             return le_file::from_data_source(std::move(source));
+#else
+            throw_format_disabled("LE/LX");
+#endif
 
         case format_type::UNKNOWN:
         default:
