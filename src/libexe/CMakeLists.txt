@@ -225,10 +225,21 @@ target_link_libraries(libexe
         mio::mio
 )
 
-# Generate portable export header
+# Generate portable export header.
+#
+# CUSTOM_CONTENT_FROM_VARIABLE appends our windows_macro_undef header
+# pull-in at the bottom of the generated export.hpp. Every libexe
+# public header includes <libexe/export.hpp> as its first project
+# include, so this makes the macro cleanup uniform — any libexe header
+# that lands in a TU that has already seen <windows.h> will strip the
+# colliding RT_* / PURE / OPTIONAL / IN / OUT macros before declaring
+# its own enums. Avoids whack-a-mole per-header includes.
+set(_libexe_export_custom
+"\n#include <libexe/detail/windows_macro_undef.hpp>\n")
 generate_export_header(libexe
     BASE_NAME libexe
     EXPORT_FILE_NAME ${CMAKE_CURRENT_BINARY_DIR}/include/libexe/export.hpp
+    CUSTOM_CONTENT_FROM_VARIABLE _libexe_export_custom
 )
 
 # Include directories

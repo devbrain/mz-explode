@@ -92,10 +92,13 @@
 #endif
 
 // Other Windows macros that collide with libexe enumerators. Most
-// come from objbase.h / wtypes.h / SAL annotations and are bare,
-// generically-named tokens that any vendor would reach for.
+// come from objbase.h / wtypes.h / wingdi.h / SAL annotations and are
+// bare, generically-named tokens that any vendor would reach for.
+// Add only macros that are PROVEN to break libexe headers — undef'ing
+// a Windows macro that a downstream consumer relies on (e.g. CONST,
+// MAX_PATH, DELETE) is a footgun.
 #ifdef PURE
-#  undef PURE         // COM headers: #define PURE = 0
+#  undef PURE         // COM headers: #define PURE = 0      (ne_segment_flags)
 #endif
 #ifdef OPTIONAL
 #  undef OPTIONAL     // SAL annotation
@@ -105,6 +108,9 @@
 #endif
 #ifdef OUT
 #  undef OUT          // SAL annotation
+#endif
+#ifdef ABSOLUTE
+#  undef ABSOLUTE     // wingdi.h: #define ABSOLUTE 1       (relocation_type)
 #endif
 
 // `ERROR` from winuser.h was problematic in diagnostic.hpp; it was
