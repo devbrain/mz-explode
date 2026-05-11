@@ -23,7 +23,10 @@
 namespace libexe {
 
 namespace {
-[[noreturn]] void throw_decompressor_disabled(const char* name) {
+// [[maybe_unused]] because when all NEUTRINO_MZEXPLODE_DECOMPRESSOR_*
+// options are ON every call site is gated out and the helper becomes
+// unused — clang-cl -Werror -Wunused-function would otherwise trip.
+[[noreturn, maybe_unused]] void throw_decompressor_disabled(const char* name) {
     throw std::runtime_error(
         std::string{name} +
         " decompressor not built in (NEUTRINO_MZEXPLODE_DECOMPRESSOR_* gates it out)");
