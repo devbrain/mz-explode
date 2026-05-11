@@ -30,10 +30,10 @@ std::string diagnostic::to_string() const {
 
 std::string_view severity_name(diagnostic_severity sev) {
     switch (sev) {
-        case diagnostic_severity::INFO:    return "INFO";
-        case diagnostic_severity::WARNING: return "WARNING";
-        case diagnostic_severity::ANOMALY: return "ANOMALY";
-        case diagnostic_severity::ERROR:   return "ERROR";
+        case diagnostic_severity::INFO:        return "INFO";
+        case diagnostic_severity::WARNING:     return "WARNING";
+        case diagnostic_severity::ANOMALY:     return "ANOMALY";
+        case diagnostic_severity::PARSE_ERROR: return "ERROR";
     }
     return "UNKNOWN";
 }

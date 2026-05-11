@@ -52,7 +52,7 @@ TEST_CASE("diagnostic - is_error()") {
     CHECK_FALSE(warning_diag.is_error());
 
     diagnostic error_diag{.code = diagnostic_code::TRUNCATED_FILE,
-                          .severity = diagnostic_severity::ERROR,
+                          .severity = diagnostic_severity::PARSE_ERROR,
                           .category = diagnostic_category::GENERAL};
     CHECK(error_diag.is_error());
 }
@@ -71,7 +71,7 @@ TEST_CASE("diagnostic - is_warning_or_worse()") {
     CHECK(anomaly_diag.is_warning_or_worse());
 
     diagnostic error_diag{.code = diagnostic_code::TRUNCATED_FILE,
-                          .severity = diagnostic_severity::ERROR};
+                          .severity = diagnostic_severity::PARSE_ERROR};
     CHECK(error_diag.is_warning_or_worse());
 }
 
@@ -111,7 +111,7 @@ TEST_CASE("severity_name()") {
     CHECK(severity_name(diagnostic_severity::INFO) == "INFO");
     CHECK(severity_name(diagnostic_severity::WARNING) == "WARNING");
     CHECK(severity_name(diagnostic_severity::ANOMALY) == "ANOMALY");
-    CHECK(severity_name(diagnostic_severity::ERROR) == "ERROR");
+    CHECK(severity_name(diagnostic_severity::PARSE_ERROR) == "ERROR");
 }
 
 TEST_CASE("category_name()") {

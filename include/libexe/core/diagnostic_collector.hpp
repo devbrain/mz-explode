@@ -151,7 +151,7 @@ public:
      */
     void error(diagnostic_code code, std::string message,
                uint64_t offset = 0, uint32_t rva = 0) {
-        add(code, diagnostic_severity::ERROR, std::move(message), offset, rva);
+        add(code, diagnostic_severity::PARSE_ERROR, std::move(message), offset, rva);
     }
 
     // =========================================================================
@@ -201,7 +201,7 @@ public:
      * @return Vector of error diagnostics.
      */
     [[nodiscard]] std::vector<diagnostic> errors() const {
-        return by_severity(diagnostic_severity::ERROR);
+        return by_severity(diagnostic_severity::PARSE_ERROR);
     }
 
     /**

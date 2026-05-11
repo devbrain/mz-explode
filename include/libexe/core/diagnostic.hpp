@@ -40,11 +40,14 @@ namespace libexe {
  * Indicates the importance and nature of a diagnostic message.
  * Severity levels are ordered from least to most severe.
  */
+// NB: avoid `ERROR` as an enumerator — winuser.h #defines it as a
+// preprocessor macro (= 0), which trashes the enum declaration on
+// MSVC whenever a transitive include of <windows.h> reaches us.
 enum class diagnostic_severity {
-    INFO,       ///< Informational - unusual but valid per specification
-    WARNING,    ///< Suspicious - potentially malformed or evasive technique
-    ANOMALY,    ///< Definite anomaly - violates spec but may still load
-    ERROR       ///< Parsing error - recovered, but data may be incomplete
+    INFO,           ///< Informational - unusual but valid per specification
+    WARNING,        ///< Suspicious - potentially malformed or evasive technique
+    ANOMALY,        ///< Definite anomaly - violates spec but may still load
+    PARSE_ERROR     ///< Parsing error - recovered, but data may be incomplete
 };
 
 /**
@@ -274,10 +277,10 @@ struct LIBEXE_EXPORT diagnostic {
 
     /**
      * @brief Check if this diagnostic indicates an error.
-     * @return true if severity is ERROR.
+     * @return true if severity is PARSE_ERROR.
      */
     [[nodiscard]] bool is_error() const {
-        return severity == diagnostic_severity::ERROR;
+        return severity == diagnostic_severity::PARSE_ERROR;
     }
 
     /**
