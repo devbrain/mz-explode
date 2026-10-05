@@ -43,7 +43,7 @@ TEST_SUITE("Icon Resource Parsers") {
             auto parsed = icon_group_parser::parse(first_group.data());
 
             REQUIRE(parsed.has_value());
-            // Note: RT_GROUP_ICON can contain both icons (type=2) and cursors (type=1)
+            // Note: the directory type is 1 for icons and 2 for cursors
             CHECK((parsed->type == 1 || parsed->type == 2));
             CHECK(parsed->count > 0);
             CHECK(parsed->entries.size() == parsed->count);
@@ -63,6 +63,63 @@ TEST_SUITE("Icon Resource Parsers") {
             CHECK(parsed->entries.size() == parsed->count);
         }
 
+        SUBCASE("The first icon group's directory, field by field") {
+            // Group #3: a monochrome and a 16-color 32x32 image, RT_ICON #1 and #2. The directory is packed: a
+            // 6-byte header, then 14-byte entries
+            auto icon_groups = rsrc->resources_by_type(resource_type::RT_GROUP_ICON);
+            REQUIRE(!icon_groups.empty());
+            REQUIRE(icon_groups[0].size() >= 6 + 2 * 14); // NE sizes are rounded up to the alignment unit
+            auto parsed = icon_groups[0].as_icon_group();
+            REQUIRE(parsed.has_value());
+            CHECK(parsed->reserved == 0);
+            CHECK(parsed->type == 1);
+            CHECK(parsed->is_icon());
+            CHECK_FALSE(parsed->is_cursor());
+            REQUIRE(parsed->count == 2);
+            REQUIRE(parsed->entries.size() == 2);
+
+            const auto& mono = parsed->entries[0];
+            CHECK(mono.actual_width() == 32);
+            CHECK(mono.actual_height() == 32);
+            CHECK(mono.color_count == 2);
+            CHECK(mono.planes == 1);
+            CHECK(mono.bit_count == 1);
+            CHECK(mono.size_in_bytes == 0x130);
+            CHECK(mono.resource_id == 1);
+
+            const auto& color = parsed->entries[1];
+            CHECK(color.actual_width() == 32);
+            CHECK(color.actual_height() == 32);
+            CHECK(color.color_count == 16);
+            CHECK(color.bit_count == 4);
+            CHECK(color.size_in_bytes == 0x2E8);
+            CHECK(color.resource_id == 2);
+        }
+
+        SUBCASE("Every group entry names an RT_ICON of the stated size") {
+            // PROGMAN.EXE holds 46 icon groups of two images each (the icons Change Icon offers); 37 of the
+            // groups share one ID, which Windows tolerates because it picks icons by position
+            auto icon_groups = rsrc->resources_by_type(resource_type::RT_GROUP_ICON);
+            auto icons = rsrc->resources_by_type(resource_type::RT_ICON);
+            CHECK(icon_groups.size() == 46);
+            CHECK(icons.size() == 92);
+            for (const auto& group_entry : icon_groups) {
+                auto parsed = group_entry.as_icon_group();
+                REQUIRE(parsed.has_value());
+                CHECK(parsed->is_icon());
+                for (const auto& entry : parsed->entries) {
+                    auto image = icons.filter_by_id(entry.resource_id);
+                    REQUIRE(image.size() == 1);
+                    CHECK(image[0].size() >= entry.size_in_bytes); // rounded up to the alignment unit
+                    CHECK(image[0].size() < entry.size_in_bytes + 16);
+                    auto decoded = image[0].as_icon();
+                    REQUIRE(decoded.has_value());
+                    CHECK(decoded->header.width == entry.actual_width());
+                    CHECK(decoded->header.bit_count == entry.bit_count);
+                }
+            }
+        }
+
         SUBCASE("Verify all icon groups parse successfully") {
             auto icon_groups = rsrc->resources_by_type(resource_type::RT_GROUP_ICON);
 
@@ -71,7 +128,7 @@ TEST_SUITE("Icon Resource Parsers") {
                 REQUIRE(parsed.has_value());
 
                 // Verify structure
-                // Note: type can be 1 (cursor) or 2 (icon) - both are valid
+                // Note: type can be 1 (icon) or 2 (cursor) - both are valid
                 CHECK((parsed->type == 1 || parsed->type == 2));
                 CHECK(parsed->count == parsed->entries.size());
 
@@ -149,7 +206,7 @@ TEST_SUITE("Icon Resource Parsers") {
             uint16_t count = ico_data[4] | (ico_data[5] << 8);
 
             CHECK(reserved == 0);
-            CHECK(type == 2);  // Icon type
+            CHECK(type == 1);  // 1 = icon (2 would make it a cursor file)
             CHECK(count == 1);  // Single icon
         }
 
@@ -180,7 +237,7 @@ TEST_SUITE("Icon Resource Parsers") {
         }
 
         SUBCASE("Truncated data") {
-            // Icon group header needs at least 8 bytes, but if wCount > 0,
+            // Icon group header needs at least 6 bytes, and if wCount > 0,
             // it needs more. Test with 5 bytes which is definitely too small.
             std::vector<uint8_t> truncated(5, 0);
             auto result = icon_group_parser::parse(truncated);

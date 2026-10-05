@@ -40,8 +40,7 @@ struct icon_dir_entry {
     uint16 bit_count;        // Bits per pixel (icon) or hotspot Y (cursor)
     uint32 bytes_in_res;     // Size of image data in bytes
     uint16 name_ordinal;     // Resource ID for this icon/cursor image
-    uint16 padding;          // DWORD alignment padding
-};
+};                           // 14 bytes, packed: no padding (in NE and PE files alike)
 
 /**
  * Icon group resource header
@@ -53,10 +52,9 @@ struct icon_dir_entry {
  */
 struct icon_group {
     uint16 reserved;         // Reserved, currently 0
-    uint16 type;             // Resource type: 1 for cursors, 2 for icons
+    uint16 type;             // Resource type: 1 for icons, 2 for cursors
     uint16 count;            // Number of images in group
-    uint16 padding;          // DWORD alignment padding
-    icon_dir_entry entries[count];  // Array of directory entries
+    icon_dir_entry entries[count];  // Array of directory entries, right after the 6-byte header
 };
 
 /**

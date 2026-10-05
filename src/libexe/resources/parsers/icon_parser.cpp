@@ -183,7 +183,7 @@ std::vector<uint8_t> icon_image::to_ico_file() const {
     // Write ICONDIR (6 bytes)
     result.resize(6);
     write_u16_le(&result[0], 0);    // Reserved (must be 0)
-    write_u16_le(&result[2], 2);    // Type (2 = icon)
+    write_u16_le(&result[2], 1);    // Type (1 = icon, 2 = cursor)
     write_u16_le(&result[4], 1);    // Count (1 image)
 
     // Write ICONDIRENTRY (16 bytes)

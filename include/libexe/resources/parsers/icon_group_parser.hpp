@@ -59,22 +59,22 @@ struct LIBEXE_EXPORT icon_directory_entry {
  */
 struct LIBEXE_EXPORT icon_group {
     uint16_t reserved;       // Reserved, currently 0
-    uint16_t type;           // Resource type: 1 for cursors, 2 for icons
+    uint16_t type;           // Resource type: 1 for icons, 2 for cursors
     uint16_t count;          // Number of images in group
     std::vector<icon_directory_entry> entries;  // Directory entries
 
     /**
-     * Check if this is an icon group (type == 2)
+     * Check if this is an icon group (type == 1)
      */
     [[nodiscard]] bool is_icon() const {
-        return type == 2;
+        return type == 1;
     }
 
     /**
-     * Check if this is a cursor group (type == 1)
+     * Check if this is a cursor group (type == 2)
      */
     [[nodiscard]] bool is_cursor() const {
-        return type == 1;
+        return type == 2;
     }
 };
 
